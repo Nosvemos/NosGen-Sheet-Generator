@@ -85,6 +85,9 @@ type StageTransform = {
 };
 
 const SPEED_OPTIONS = [0.25, 0.5, 1, 2, 4];
+const MIN_FRAME_ZOOM = 0.5;
+const MAX_FRAME_ZOOM = 8;
+const ZOOM_STEP = 1.1;
 
 const PIVOT_OPTIONS: PivotMode[] = ["top-left", "bottom-left", "center"];
 
@@ -107,11 +110,11 @@ const drawCheckerboard = (
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
-  size = 18
+  size = 18,
+  colorA = "rgba(255, 255, 255, 0.65)",
+  colorB = "rgba(233, 233, 233, 0.7)"
 ) => {
   ctx.save();
-  const colorA = "rgba(255, 255, 255, 0.65)";
-  const colorB = "rgba(233, 233, 233, 0.7)";
   for (let y = 0; y < height; y += size) {
     for (let x = 0; x < width; x += size) {
       ctx.fillStyle = (x / size + y / size) % 2 === 0 ? colorA : colorB;
@@ -271,6 +274,8 @@ function App() {
   const [padding, setPadding] = useState(DEFAULT_PADDING);
   const [showGrid, setShowGrid] = useState(true);
   const [showPoints, setShowPoints] = useState(true);
+  const [frameZoom, setFrameZoom] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [fps, setFps] = useState(DEFAULT_FPS);
   const [speed, setSpeed] = useState(1);
   const [reverse, setReverse] = useState(false);
@@ -307,6 +312,58 @@ function App() {
       (frame) => frame.width !== base.width || frame.height !== base.height
     );
   }, [frames]);
+
+  const handleCanvasWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
+    if (!currentFrame || viewMode !== "frame") {
+      return;
+    }
+    event.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const pointerX = event.clientX - rect.left;
+    const pointerY = event.clientY - rect.top;
+    const viewWidth = stageSize.width || rect.width;
+    const viewHeight = stageSize.height || rect.height;
+    const margin = 32;
+    const safeWidth = Math.max(1, viewWidth - margin * 2);
+    const safeHeight = Math.max(1, viewHeight - margin * 2);
+    const baseScale = Math.min(
+      safeWidth / currentFrame.width,
+      safeHeight / currentFrame.height
+    );
+    const currentScale = baseScale * frameZoom;
+    const offsetX =
+      (viewWidth - currentFrame.width * currentScale) / 2 + panOffset.x;
+    const offsetY =
+      (viewHeight - currentFrame.height * currentScale) / 2 + panOffset.y;
+    const frameX = (pointerX - offsetX) / currentScale;
+    const frameY = (pointerY - offsetY) / currentScale;
+
+    const zoomFactor = event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
+    const nextZoom = clamp(
+      frameZoom * zoomFactor,
+      MIN_FRAME_ZOOM,
+      MAX_FRAME_ZOOM
+    );
+    if (Math.abs(nextZoom - frameZoom) < 0.0001) {
+      return;
+    }
+
+    const nextScale = baseScale * nextZoom;
+    const nextOffsetX = pointerX - frameX * nextScale;
+    const nextOffsetY = pointerY - frameY * nextScale;
+    const nextCenterX = (viewWidth - currentFrame.width * nextScale) / 2;
+    const nextCenterY = (viewHeight - currentFrame.height * nextScale) / 2;
+
+    setFrameZoom(nextZoom);
+    setPanOffset({
+      x: nextOffsetX - nextCenterX,
+      y: nextOffsetY - nextCenterY,
+    });
+  };
 
   useEffect(() => {
     const root = document.documentElement;
@@ -429,6 +486,14 @@ function App() {
       "rgba(20, 20, 20, 0.12)",
       0.4
     );
+    const checkerBase = toHslColor(
+      styles.getPropertyValue("--background"),
+      "rgba(255, 255, 255, 0.6)"
+    );
+    const checkerAlt = toHslColor(
+      styles.getPropertyValue("--card"),
+      "rgba(233, 233, 233, 0.7)"
+    );
     const gridColor = toHslColor(
       styles.getPropertyValue("--border"),
       "rgba(20, 20, 20, 0.08)",
@@ -440,20 +505,21 @@ function App() {
       0.5
     );
     ctx.clearRect(0, 0, viewWidth, viewHeight);
-    ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
-    ctx.fillRect(0, 0, viewWidth, viewHeight);
-    drawCheckerboard(ctx, viewWidth, viewHeight, 18);
+    drawCheckerboard(ctx, viewWidth, viewHeight, 18, checkerBase, checkerAlt);
 
     if (viewMode === "frame" && currentFrame) {
       const margin = 32;
-      const scale = Math.min(
-        (viewWidth - margin * 2) / currentFrame.width,
-        (viewHeight - margin * 2) / currentFrame.height
+      const safeWidth = Math.max(1, viewWidth - margin * 2);
+      const safeHeight = Math.max(1, viewHeight - margin * 2);
+      const baseScale = Math.min(
+        safeWidth / currentFrame.width,
+        safeHeight / currentFrame.height
       );
+      const scale = baseScale * frameZoom;
       const drawWidth = currentFrame.width * scale;
       const drawHeight = currentFrame.height * scale;
-      const offsetX = (viewWidth - drawWidth) / 2;
-      const offsetY = (viewHeight - drawHeight) / 2;
+      const offsetX = (viewWidth - drawWidth) / 2 + panOffset.x;
+      const offsetY = (viewHeight - drawHeight) / 2 + panOffset.y;
 
       transformRef.current = {
         scale,
@@ -484,8 +550,7 @@ function App() {
       ctx.strokeRect(offsetX, offsetY, drawWidth, drawHeight);
 
       if (showGrid) {
-        const gridStep =
-          scale >= 10 ? 1 : scale >= 6 ? 2 : scale >= 3 ? 4 : 0;
+        const gridStep = scale >= 10 ? 1 : scale >= 6 ? 2 : scale >= 3 ? 4 : 0;
         if (gridStep > 0) {
           ctx.strokeStyle = gridColor;
           ctx.lineWidth = 1;
@@ -607,11 +672,14 @@ function App() {
     currentFrameIndex,
     currentPoints,
     frames,
+    frameZoom,
+    panOffset,
     pivotMode,
     selectedPointId,
     showGrid,
     showPoints,
     stageSize,
+    theme,
     viewMode,
   ]);
 
@@ -1279,13 +1347,14 @@ function App() {
               <canvas
                 ref={canvasRef}
                 className={cn(
-                  "h-full w-full",
+                  "h-full w-full touch-none",
                   editorMode === "add" ? "cursor-crosshair" : "cursor-default"
                 )}
                 onPointerDown={handleCanvasPointerDown}
                 onPointerMove={handleCanvasPointerMove}
                 onPointerUp={handleCanvasPointerUp}
                 onPointerLeave={handleCanvasPointerUp}
+                onWheel={handleCanvasWheel}
               />
 
               {frames.length === 0 && (
