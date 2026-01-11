@@ -286,6 +286,13 @@ function App() {
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const transformRef = useRef<StageTransform | null>(null);
+  const panRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+  } | null>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
 
   const currentFrame = frames[currentFrameIndex];
@@ -488,16 +495,18 @@ function App() {
     );
     const checkerBase = toHslColor(
       styles.getPropertyValue("--background"),
-      "rgba(255, 255, 255, 0.6)"
+      "rgba(255, 255, 255, 0.6)",
+      0.9
     );
     const checkerAlt = toHslColor(
-      styles.getPropertyValue("--card"),
-      "rgba(233, 233, 233, 0.7)"
+      styles.getPropertyValue("--muted"),
+      "rgba(233, 233, 233, 0.7)",
+      0.75
     );
     const gridColor = toHslColor(
       styles.getPropertyValue("--border"),
       "rgba(20, 20, 20, 0.08)",
-      0.2
+      0.35
     );
     const frameOutline = toHslColor(
       styles.getPropertyValue("--border"),
@@ -550,7 +559,8 @@ function App() {
       ctx.strokeRect(offsetX, offsetY, drawWidth, drawHeight);
 
       if (showGrid) {
-        const gridStep = scale >= 10 ? 1 : scale >= 6 ? 2 : scale >= 3 ? 4 : 0;
+        const targetScreenStep = 16;
+        const gridStep = Math.max(1, Math.round(targetScreenStep / scale));
         if (gridStep > 0) {
           ctx.strokeStyle = gridColor;
           ctx.lineWidth = 1;
@@ -718,8 +728,13 @@ function App() {
     const ratioY = currentFrame.height ? y / currentFrame.height : 0;
 
     updateAllFramesPoints((points, frame) => {
-      const frameX = clamp(Math.round(frame.width * ratioX), 0, frame.width);
-      const frameY = clamp(Math.round(frame.height * ratioY), 0, frame.height);
+      const isCurrentFrame = frame.id === currentFrame.id;
+      const frameX = isCurrentFrame
+        ? clamp(Math.round(frame.width * ratioX), 0, frame.width)
+        : 0;
+      const frameY = isCurrentFrame
+        ? clamp(Math.round(frame.height * ratioY), 0, frame.height)
+        : 0;
       const point: FramePoint = {
         id: pointId,
         name,
@@ -740,6 +755,18 @@ function App() {
     const canvas = canvasRef.current;
     const transform = transformRef.current;
     if (!canvas || !transform) {
+      return;
+    }
+    if (event.button === 1) {
+      event.preventDefault();
+      panRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        originX: panOffset.x,
+        originY: panOffset.y,
+      };
+      canvas.setPointerCapture(event.pointerId);
       return;
     }
     const rect = canvas.getBoundingClientRect();
@@ -782,6 +809,13 @@ function App() {
     event: React.PointerEvent<HTMLCanvasElement>
   ) => {
     if (!currentFrame || !draggingPointId || viewMode !== "frame") {
+      if (panRef.current && viewMode === "frame") {
+        const { startX, startY, originX, originY } = panRef.current;
+        setPanOffset({
+          x: originX + (event.clientX - startX),
+          y: originY + (event.clientY - startY),
+        });
+      }
       return;
     }
     const canvas = canvasRef.current;
@@ -808,6 +842,11 @@ function App() {
   const handleCanvasPointerUp = (
     event: React.PointerEvent<HTMLCanvasElement>
   ) => {
+    if (panRef.current && panRef.current.pointerId === event.pointerId) {
+      canvasRef.current?.releasePointerCapture(event.pointerId);
+      panRef.current = null;
+      return;
+    }
     if (draggingPointId) {
       canvasRef.current?.releasePointerCapture(event.pointerId);
     }
@@ -1124,129 +1163,121 @@ function App() {
             </ScrollArea>
           </div>
 
-          <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
-            <div className="flex items-center justify-between">
-              <Label>{t("label.selectedPoint")}</Label>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  if (!selectedPoint) {
-                    return;
-                  }
-                  updateAllFramesPoints((points) =>
-                    points.filter((point) => point.id !== selectedPoint.id)
-                  );
-                  setSelectedPointId(null);
-                }}
-                disabled={!selectedPoint}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="point-name">{t("label.name")}</Label>
-              <Input
-                id="point-name"
-                value={selectedPoint?.name ?? ""}
-                onChange={(event) => {
-                  if (!selectedPoint) {
-                    return;
-                  }
-                  const name = event.target.value;
-                  updateAllFramesPoints((points) =>
-                    points.map((point) =>
-                      point.id === selectedPoint.id ? { ...point, name } : point
-                    )
-                  );
-                }}
-                placeholder={t("placeholder.pointName")}
-                disabled={!selectedPoint}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label htmlFor="point-x">{t("label.x")}</Label>
-                <Input
-                  id="point-x"
-                  type="number"
-                  value={selectedPoint ? String(selectedPivotX) : ""}
-                  onChange={(event) => {
-                    if (!selectedPoint || !currentFrame) {
-                      return;
-                    }
-                    const nextX = toNumber(event.target.value, selectedPivotX);
-                    const nextPivot = { x: nextX, y: selectedPivotY };
-                    const nextFramePoint = fromPivotCoords(
-                      nextPivot,
-                      currentFrame,
-                      pivotMode
+          {selectedPoint && (
+            <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
+              <div className="flex items-center justify-between">
+                <Label>{t("label.selectedPoint")}</Label>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    updateAllFramesPoints((points) =>
+                      points.filter((point) => point.id !== selectedPoint.id)
                     );
-                    updateCurrentFramePoints((points) =>
+                    setSelectedPointId(null);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="point-name">{t("label.name")}</Label>
+                <Input
+                  id="point-name"
+                  value={selectedPoint.name}
+                  onChange={(event) => {
+                    const name = event.target.value;
+                    updateAllFramesPoints((points) =>
                       points.map((point) =>
-                        point.id === selectedPoint.id
-                          ? {
-                              ...point,
-                              x: clamp(
-                                Math.round(nextFramePoint.x),
-                                0,
-                                currentFrame.width
-                              ),
-                              y: clamp(
-                                Math.round(nextFramePoint.y),
-                                0,
-                                currentFrame.height
-                              ),
-                            }
-                          : point
+                        point.id === selectedPoint.id ? { ...point, name } : point
                       )
                     );
                   }}
-                  disabled={!selectedPoint}
+                  placeholder={t("placeholder.pointName")}
                 />
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="point-y">{t("label.y")}</Label>
-                <Input
-                  id="point-y"
-                  type="number"
-                  value={selectedPoint ? String(selectedPivotY) : ""}
-                  onChange={(event) => {
-                    if (!selectedPoint || !currentFrame) {
-                      return;
-                    }
-                    const nextY = toNumber(event.target.value, selectedPivotY);
-                    const nextPivot = { x: selectedPivotX, y: nextY };
-                    const nextFramePoint = fromPivotCoords(
-                      nextPivot,
-                      currentFrame,
-                      pivotMode
-                    );
-                    updateCurrentFramePoints((points) =>
-                      points.map((point) =>
-                        point.id === selectedPoint.id
-                          ? {
-                              ...point,
-                              x: clamp(
-                                Math.round(nextFramePoint.x),
-                                0,
-                                currentFrame.width
-                              ),
-                              y: clamp(
-                                Math.round(nextFramePoint.y),
-                                0,
-                                currentFrame.height
-                              ),
-                            }
-                          : point
-                      )
-                    );
-                  }}
-                  disabled={!selectedPoint}
-                />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="point-x">{t("label.x")}</Label>
+                  <Input
+                    id="point-x"
+                    type="number"
+                    value={String(selectedPivotX)}
+                    onChange={(event) => {
+                      if (!currentFrame) {
+                        return;
+                      }
+                      const nextX = toNumber(event.target.value, selectedPivotX);
+                      const nextPivot = { x: nextX, y: selectedPivotY };
+                      const nextFramePoint = fromPivotCoords(
+                        nextPivot,
+                        currentFrame,
+                        pivotMode
+                      );
+                      updateCurrentFramePoints((points) =>
+                        points.map((point) =>
+                          point.id === selectedPoint.id
+                            ? {
+                                ...point,
+                                x: clamp(
+                                  Math.round(nextFramePoint.x),
+                                  0,
+                                  currentFrame.width
+                                ),
+                                y: clamp(
+                                  Math.round(nextFramePoint.y),
+                                  0,
+                                  currentFrame.height
+                                ),
+                              }
+                            : point
+                        )
+                      );
+                    }}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="point-y">{t("label.y")}</Label>
+                  <Input
+                    id="point-y"
+                    type="number"
+                    value={String(selectedPivotY)}
+                    onChange={(event) => {
+                      if (!currentFrame) {
+                        return;
+                      }
+                      const nextY = toNumber(event.target.value, selectedPivotY);
+                      const nextPivot = { x: selectedPivotX, y: nextY };
+                      const nextFramePoint = fromPivotCoords(
+                        nextPivot,
+                        currentFrame,
+                        pivotMode
+                      );
+                      updateCurrentFramePoints((points) =>
+                        points.map((point) =>
+                          point.id === selectedPoint.id
+                            ? {
+                                ...point,
+                                x: clamp(
+                                  Math.round(nextFramePoint.x),
+                                  0,
+                                  currentFrame.width
+                                ),
+                                y: clamp(
+                                  Math.round(nextFramePoint.y),
+                                  0,
+                                  currentFrame.height
+                                ),
+                              }
+                            : point
+                        )
+                      );
+                    }}
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </aside>
 
         <main className="flex h-full flex-col gap-4 bg-card/70 p-4">
@@ -1294,7 +1325,7 @@ function App() {
                     onValueChange={(value) => setTheme(value as ThemeMode)}
                   >
                     <SelectTrigger
-                      className="h-8 w-[110px] border-0 bg-transparent px-0 text-xs"
+                      className="h-8 w-[110px] border-0 bg-transparent px-0 text-xs shadow-none ring-0 ring-offset-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                       aria-label={t("label.theme")}
                     >
                       <SelectValue placeholder={t("label.theme")} />
