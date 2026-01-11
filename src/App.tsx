@@ -121,6 +121,17 @@ const drawCheckerboard = (
   ctx.restore();
 };
 
+const toHslColor = (raw: string, fallback: string, alpha?: number) => {
+  const value = raw.trim();
+  if (!value) {
+    return fallback;
+  }
+  if (typeof alpha === "number") {
+    return `hsl(${value} / ${alpha})`;
+  }
+  return `hsl(${value})`;
+};
+
 const computeAtlasLayout = (
   frames: FrameData[],
   rows: number,
@@ -394,6 +405,40 @@ function App() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const viewWidth = canvas.width / dpr;
     const viewHeight = canvas.height / dpr;
+    const styles = window.getComputedStyle(document.documentElement);
+    const accentColor = toHslColor(
+      styles.getPropertyValue("--accent"),
+      "hsl(197 52% 48%)"
+    );
+    const accentStrong = toHslColor(
+      styles.getPropertyValue("--accent"),
+      "rgba(44, 155, 167, 0.8)",
+      0.85
+    );
+    const foregroundColor = toHslColor(
+      styles.getPropertyValue("--foreground"),
+      "hsl(224 35% 18%)"
+    );
+    const mutedColor = toHslColor(
+      styles.getPropertyValue("--muted-foreground"),
+      "rgba(28, 32, 40, 0.8)",
+      0.8
+    );
+    const borderColor = toHslColor(
+      styles.getPropertyValue("--border"),
+      "rgba(20, 20, 20, 0.12)",
+      0.4
+    );
+    const gridColor = toHslColor(
+      styles.getPropertyValue("--border"),
+      "rgba(20, 20, 20, 0.08)",
+      0.2
+    );
+    const frameOutline = toHslColor(
+      styles.getPropertyValue("--border"),
+      "rgba(18, 24, 33, 0.2)",
+      0.5
+    );
     ctx.clearRect(0, 0, viewWidth, viewHeight);
     ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
     ctx.fillRect(0, 0, viewWidth, viewHeight);
@@ -434,7 +479,7 @@ function App() {
       );
       ctx.restore();
 
-      ctx.strokeStyle = "rgba(18, 24, 33, 0.2)";
+      ctx.strokeStyle = frameOutline;
       ctx.lineWidth = 1;
       ctx.strokeRect(offsetX, offsetY, drawWidth, drawHeight);
 
@@ -442,7 +487,7 @@ function App() {
         const gridStep =
           scale >= 10 ? 1 : scale >= 6 ? 2 : scale >= 3 ? 4 : 0;
         if (gridStep > 0) {
-          ctx.strokeStyle = "rgba(20, 20, 20, 0.08)";
+          ctx.strokeStyle = gridColor;
           ctx.lineWidth = 1;
           for (let x = 0; x <= currentFrame.width; x += gridStep) {
             const px = offsetX + x * scale;
@@ -471,7 +516,7 @@ function App() {
       const pivotY = offsetY + pivotPoint.y * scale;
       ctx.save();
       ctx.setLineDash([6, 6]);
-      ctx.strokeStyle = "rgba(44, 155, 167, 0.8)";
+      ctx.strokeStyle = accentStrong;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(pivotX - 14, pivotY);
@@ -487,16 +532,14 @@ function App() {
           const py = offsetY + point.y * scale;
           const isSelected = point.id === selectedPointId;
           ctx.beginPath();
-          ctx.fillStyle = isSelected
-            ? "hsl(197 52% 48%)"
-            : "hsl(224 35% 18%)";
+          ctx.fillStyle = isSelected ? accentColor : foregroundColor;
           ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
           ctx.lineWidth = isSelected ? 2 : 1.5;
           ctx.arc(px, py, isSelected ? 6 : 4.5, 0, Math.PI * 2);
           ctx.fill();
           ctx.stroke();
           ctx.font = "12px 'Space Grotesk'";
-          ctx.fillStyle = "rgba(28, 32, 40, 0.8)";
+          ctx.fillStyle = mutedColor;
           ctx.fillText(point.name, px + 10, py - 10);
         });
       }
@@ -542,13 +585,13 @@ function App() {
       ctx.save();
       ctx.translate(offsetX, offsetY);
       ctx.scale(scale, scale);
-      ctx.strokeStyle = "rgba(20, 20, 20, 0.12)";
+      ctx.strokeStyle = borderColor;
       ctx.lineWidth = 1 / scale;
       atlasLayout.positions.forEach((cell, index) => {
         ctx.strokeRect(cell.x, cell.y, cell.w, cell.h);
         if (index === currentFrameIndex) {
           ctx.save();
-          ctx.strokeStyle = "hsl(197 52% 48%)";
+          ctx.strokeStyle = accentColor;
           ctx.lineWidth = 2 / scale;
           ctx.strokeRect(cell.x, cell.y, cell.w, cell.h);
           ctx.restore();
@@ -887,8 +930,8 @@ function App() {
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen space-y-4 p-4 lg:grid lg:grid-cols-[280px_minmax(0,1fr)_320px] lg:gap-4 lg:space-y-0">
-        <aside className="space-y-4 rounded-3xl border border-border/60 bg-card/80 p-4 shadow-soft backdrop-blur">
+      <div className="min-h-screen w-full divide-y divide-border/60 p-0 lg:grid lg:h-screen lg:grid-cols-[280px_minmax(0,1fr)_320px] lg:divide-x lg:divide-y-0 lg:gap-0">
+        <aside className="space-y-4 rounded-none border-0 bg-card/80 p-4 shadow-none backdrop-blur">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
@@ -1138,7 +1181,7 @@ function App() {
           </div>
         </aside>
 
-        <main className="flex h-full flex-col gap-4">
+        <main className="flex h-full flex-col gap-4 bg-card/70 p-4">
           <section className="rounded-3xl border border-border/60 bg-card/80 p-5 shadow-soft backdrop-blur">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
@@ -1408,7 +1451,7 @@ function App() {
           </section>
         </main>
 
-        <aside className="space-y-4 rounded-3xl border border-border/60 bg-card/80 p-4 shadow-soft backdrop-blur">
+        <aside className="space-y-4 rounded-none border-0 bg-card/80 p-4 shadow-none backdrop-blur">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
