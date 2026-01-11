@@ -52,6 +52,8 @@ type FramePoint = {
   name: string;
   x: number;
   y: number;
+  color: string;
+  isKeyframe?: boolean;
 };
 
 type FrameData = {
@@ -84,6 +86,47 @@ type StageTransform = {
   viewHeight: number;
 };
 
+type KeyframePoint = {
+  frameIndex: number;
+  x: number;
+  y: number;
+};
+
+type AutoFillShape = "ellipse" | "circle" | "square" | "tangent" | "linear";
+type SpriteDirection = "clockwise" | "counterclockwise";
+
+type AutoFillModel =
+  | {
+      shape: "ellipse";
+      cx: number;
+      cy: number;
+      rx: number;
+      ry: number;
+      phase: number;
+    }
+  | {
+      shape: "circle";
+      cx: number;
+      cy: number;
+      r: number;
+      phase: number;
+    }
+  | {
+      shape: "square";
+      cx: number;
+      cy: number;
+      size: number;
+      phase: number;
+    }
+  | {
+      shape: "linear";
+      points: KeyframePoint[];
+    }
+  | {
+      shape: "tangent";
+      points: KeyframePoint[];
+    };
+
 const SPEED_OPTIONS = [0.25, 0.5, 1, 2, 4];
 const MIN_FRAME_ZOOM = 0.5;
 const MAX_FRAME_ZOOM = 8;
@@ -104,6 +147,11 @@ const clamp = (value: number, min: number, max: number) =>
 const toNumber = (value: string, fallback: number) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const createPointColor = () => {
+  const hue = Math.floor(Math.random() * 360);
+  return `hsl(${hue} 70% 55%)`;
 };
 
 const drawCheckerboard = (
@@ -217,6 +265,387 @@ const parsePivotMode = (value: unknown): PivotMode => {
   return "top-left";
 };
 
+const solveLinear = (inputs: number[], outputs: number[]) => {
+  const count = inputs.length;
+  if (count === 0) {
+    return { intercept: 0, slope: 0, valid: false };
+  }
+  let sumInput = 0;
+  let sumInput2 = 0;
+  let sumOutput = 0;
+  let sumOutputInput = 0;
+  for (let i = 0; i < count; i += 1) {
+    const input = inputs[i];
+    const output = outputs[i];
+    sumInput += input;
+    sumInput2 += input * input;
+    sumOutput += output;
+    sumOutputInput += output * input;
+  }
+  const det = count * sumInput2 - sumInput * sumInput;
+  if (Math.abs(det) < 1e-6) {
+    return {
+      intercept: sumOutput / count,
+      slope: 0,
+      valid: false,
+    };
+  }
+  const intercept = (sumOutput * sumInput2 - sumInput * sumOutputInput) / det;
+  const slope = (count * sumOutputInput - sumInput * sumOutput) / det;
+  return { intercept, slope, valid: true };
+};
+
+const computeEllipseFit = (
+  keyframes: KeyframePoint[],
+  totalFrames: number,
+  direction: SpriteDirection
+) => {
+  if (keyframes.length < 2 || totalFrames <= 0) {
+    return null;
+  }
+  const directionSign = direction === "clockwise" ? 1 : -1;
+  const baseAngles = keyframes.map(
+    (point) =>
+      directionSign * (point.frameIndex / totalFrames) * Math.PI * 2
+  );
+  const xs = keyframes.map((point) => point.x);
+  const ys = keyframes.map((point) => point.y);
+  const phaseSteps = 720;
+  let best:
+    | {
+        error: number;
+        cx: number;
+        cy: number;
+        rx: number;
+        ry: number;
+        phase: number;
+      }
+    | null = null;
+
+  for (let step = 0; step < phaseSteps; step += 1) {
+    const phase = (step / phaseSteps) * Math.PI * 2;
+    const cosValues = baseAngles.map((angle) => Math.cos(angle + phase));
+    const sinValues = baseAngles.map((angle) => Math.sin(angle + phase));
+    const xFit = solveLinear(cosValues, xs);
+    const yFit = solveLinear(sinValues, ys);
+    const cx = xFit.intercept;
+    const rx = xFit.slope;
+    const cy = yFit.intercept;
+    const ry = yFit.slope;
+    let error = 0;
+    for (let i = 0; i < keyframes.length; i += 1) {
+      const dx = xs[i] - (cx + rx * cosValues[i]);
+      const dy = ys[i] - (cy + ry * sinValues[i]);
+      error += dx * dx + dy * dy;
+    }
+    if (!best || error < best.error) {
+      best = { error, cx, cy, rx, ry, phase };
+    }
+  }
+  if (!best) {
+    return null;
+  }
+  const minRadius = 1;
+  const rx =
+    Math.abs(best.rx) < minRadius
+      ? Math.sign(best.rx || 1) * minRadius
+      : best.rx;
+  const ry =
+    Math.abs(best.ry) < minRadius
+      ? Math.sign(best.ry || 1) * minRadius
+      : best.ry;
+  return { cx: best.cx, cy: best.cy, rx, ry, phase: best.phase };
+};
+
+const computeCircleFit = (
+  keyframes: KeyframePoint[],
+  totalFrames: number,
+  direction: SpriteDirection
+) => {
+  if (keyframes.length < 2 || totalFrames <= 0) {
+    return null;
+  }
+  const directionSign = direction === "clockwise" ? 1 : -1;
+  const baseAngles = keyframes.map(
+    (point) =>
+      directionSign * (point.frameIndex / totalFrames) * Math.PI * 2
+  );
+  const xs = keyframes.map((point) => point.x);
+  const ys = keyframes.map((point) => point.y);
+  const phaseSteps = 720;
+  let best:
+    | {
+        error: number;
+        cx: number;
+        cy: number;
+        r: number;
+        phase: number;
+      }
+    | null = null;
+
+  for (let step = 0; step < phaseSteps; step += 1) {
+    const phase = (step / phaseSteps) * Math.PI * 2;
+    const cosValues = baseAngles.map((angle) => Math.cos(angle + phase));
+    const sinValues = baseAngles.map((angle) => Math.sin(angle + phase));
+    const count = keyframes.length;
+    let sumC = 0;
+    let sumS = 0;
+    let sumX = 0;
+    let sumY = 0;
+    let sumXC = 0;
+    let sumYS = 0;
+    for (let i = 0; i < count; i += 1) {
+      sumC += cosValues[i];
+      sumS += sinValues[i];
+      sumX += xs[i];
+      sumY += ys[i];
+      sumXC += xs[i] * cosValues[i];
+      sumYS += ys[i] * sinValues[i];
+    }
+    const denom = count - 1;
+    let r = 0;
+    if (denom <= 0) {
+      const avgX = sumX / count;
+      const avgY = sumY / count;
+      r =
+        keyframes.reduce(
+          (sum, point) => sum + Math.hypot(point.x - avgX, point.y - avgY),
+          0
+        ) / count;
+    } else {
+      const term = (sumC * sumX + sumS * sumY) / count;
+      r = (sumXC + sumYS - term) / denom;
+    }
+    const cx = (sumX - r * sumC) / count;
+    const cy = (sumY - r * sumS) / count;
+    let error = 0;
+    for (let i = 0; i < count; i += 1) {
+      const dx = xs[i] - (cx + r * cosValues[i]);
+      const dy = ys[i] - (cy + r * sinValues[i]);
+      error += dx * dx + dy * dy;
+    }
+    if (!best || error < best.error) {
+      best = { error, cx, cy, r, phase };
+    }
+  }
+  if (!best) {
+    return null;
+  }
+  const minRadius = 1;
+  const r =
+    Math.abs(best.r) < minRadius
+      ? Math.sign(best.r || 1) * minRadius
+      : best.r;
+  return { cx: best.cx, cy: best.cy, r, phase: best.phase };
+};
+
+const normalizeCycle = (value: number) => ((value % 1) + 1) % 1;
+
+const computeSquareParam = (
+  point: KeyframePoint,
+  cx: number,
+  cy: number,
+  size: number
+) => {
+  if (size <= 0) {
+    return 0;
+  }
+  const dx = point.x - cx;
+  const dy = point.y - cy;
+  const absX = Math.abs(dx);
+  const absY = Math.abs(dy);
+  const clampAxis = (value: number) => clamp(value, -size, size);
+  if (absX >= absY) {
+    const y = clampAxis(dy);
+    if (dx >= 0) {
+      return (y + size) / (8 * size);
+    }
+    return (4 * size + (size - y)) / (8 * size);
+  }
+  const x = clampAxis(dx);
+  if (dy >= 0) {
+    return (2 * size + (size - x)) / (8 * size);
+  }
+  return (6 * size + (x + size)) / (8 * size);
+};
+
+const computeSquareFit = (
+  keyframes: KeyframePoint[],
+  totalFrames: number,
+  direction: SpriteDirection
+) => {
+  if (keyframes.length < 2 || totalFrames <= 0) {
+    return null;
+  }
+  const directionSign = direction === "clockwise" ? 1 : -1;
+  const center = keyframes.reduce(
+    (acc, point) => {
+      acc.x += point.x;
+      acc.y += point.y;
+      return acc;
+    },
+    { x: 0, y: 0 }
+  );
+  const cx = center.x / keyframes.length;
+  const cy = center.y / keyframes.length;
+  const size = Math.max(
+    1,
+    ...keyframes.map((point) =>
+      Math.max(Math.abs(point.x - cx), Math.abs(point.y - cy))
+    )
+  );
+  const offsets = keyframes.map((point) => {
+    const pointParam = computeSquareParam(point, cx, cy, size);
+    const frameParam = directionSign * (point.frameIndex / totalFrames);
+    return (pointParam - frameParam) * Math.PI * 2;
+  });
+  const avgSin = offsets.reduce((sum, value) => sum + Math.sin(value), 0);
+  const avgCos = offsets.reduce((sum, value) => sum + Math.cos(value), 0);
+  const phase =
+    Math.atan2(avgSin / offsets.length, avgCos / offsets.length) /
+    (Math.PI * 2);
+  return { cx, cy, size, phase };
+};
+
+const squarePointAt = (
+  cx: number,
+  cy: number,
+  size: number,
+  turn: number
+) => {
+  const safeSize = Math.max(1, size);
+  const normalized = normalizeCycle(turn);
+  const perimeter = 8 * safeSize;
+  const distance = normalized * perimeter;
+  if (distance <= 2 * safeSize) {
+    return { x: cx + safeSize, y: cy - safeSize + distance };
+  }
+  if (distance <= 4 * safeSize) {
+    return {
+      x: cx + safeSize - (distance - 2 * safeSize),
+      y: cy + safeSize,
+    };
+  }
+  if (distance <= 6 * safeSize) {
+    return {
+      x: cx - safeSize,
+      y: cy + safeSize - (distance - 4 * safeSize),
+    };
+  }
+  return {
+    x: cx - safeSize + (distance - 6 * safeSize),
+    y: cy - safeSize,
+  };
+};
+
+const resolveCyclicSegment = (
+  points: KeyframePoint[],
+  index: number,
+  totalFrames: number
+) => {
+  const count = points.length;
+  if (count === 0) {
+    return null;
+  }
+  if (count === 1) {
+    return {
+      start: points[0],
+      end: points[0],
+      t: 0,
+      startIndex: 0,
+      endIndex: 0,
+    };
+  }
+  const first = points[0];
+  const last = points[count - 1];
+  if (index <= first.frameIndex) {
+    const span = first.frameIndex + totalFrames - last.frameIndex;
+    const t = span === 0 ? 0 : (index + totalFrames - last.frameIndex) / span;
+    return {
+      start: last,
+      end: first,
+      t,
+      startIndex: count - 1,
+      endIndex: 0,
+    };
+  }
+  if (index >= last.frameIndex) {
+    const span = first.frameIndex + totalFrames - last.frameIndex;
+    const t = span === 0 ? 0 : (index - last.frameIndex) / span;
+    return {
+      start: last,
+      end: first,
+      t,
+      startIndex: count - 1,
+      endIndex: 0,
+    };
+  }
+  const endIndex = points.findIndex((item) => item.frameIndex >= index);
+  const safeEndIndex = Math.max(1, endIndex);
+  const startIndex = safeEndIndex - 1;
+  const start = points[startIndex];
+  const end = points[safeEndIndex];
+  const span = end.frameIndex - start.frameIndex;
+  const t = span === 0 ? 0 : (index - start.frameIndex) / span;
+  return { start, end, t, startIndex, endIndex: safeEndIndex };
+};
+
+const interpolateLinear = (
+  points: KeyframePoint[],
+  index: number,
+  totalFrames: number
+) => {
+  const first = points[0];
+  const last = points[points.length - 1];
+  if (!first || !last) {
+    return { x: 0, y: 0 };
+  }
+  const segment = resolveCyclicSegment(points, index, totalFrames);
+  if (!segment) {
+    return { x: first.x, y: first.y };
+  }
+  const { start, end, t } = segment;
+  return {
+    x: start.x + (end.x - start.x) * t,
+    y: start.y + (end.y - start.y) * t,
+  };
+};
+
+const catmullRom = (
+  p0: number,
+  p1: number,
+  p2: number,
+  p3: number,
+  t: number
+) =>
+  0.5 *
+  (2 * p1 +
+    (-p0 + p2) * t +
+    (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t +
+    (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
+
+const interpolateTangent = (
+  points: KeyframePoint[],
+  index: number,
+  totalFrames: number
+) => {
+  if (points.length === 0) {
+    return { x: 0, y: 0 };
+  }
+  const segment = resolveCyclicSegment(points, index, totalFrames);
+  if (!segment) {
+    return { x: points[0].x, y: points[0].y };
+  }
+  const { start, end, t, startIndex, endIndex } = segment;
+  const count = points.length;
+  const p0 = points[(startIndex - 1 + count) % count] ?? start;
+  const p3 = points[(endIndex + 1) % count] ?? end;
+  return {
+    x: catmullRom(p0.x, start.x, end.x, p3.x, t),
+    y: catmullRom(p0.y, start.y, end.y, p3.y, t),
+  };
+};
+
 const loadFrameFromFile = (file: File): Promise<FrameData> =>
   new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
@@ -276,6 +705,10 @@ function App() {
   const [showPoints, setShowPoints] = useState(true);
   const [frameZoom, setFrameZoom] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [autoFillShape, setAutoFillShape] =
+    useState<AutoFillShape>("ellipse");
+  const [spriteDirection, setSpriteDirection] =
+    useState<SpriteDirection>("clockwise");
   const [fps, setFps] = useState(DEFAULT_FPS);
   const [speed, setSpeed] = useState(1);
   const [reverse, setReverse] = useState(false);
@@ -293,6 +726,7 @@ function App() {
     originX: number;
     originY: number;
   } | null>(null);
+  const framesInputRef = useRef<HTMLInputElement>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
 
   const currentFrame = frames[currentFrameIndex];
@@ -304,6 +738,123 @@ function App() {
     "bottom-left": t("pivot.bottomLeft"),
     center: t("pivot.center"),
   };
+  const selectedPointKeyframes = useMemo(() => {
+    if (!selectedPointId) {
+      return [];
+    }
+    const keyframes = frames.flatMap((frame, frameIndex) => {
+      const point = frame.points.find((item) => item.id === selectedPointId);
+      if (point && point.isKeyframe) {
+        return [
+          {
+            frameIndex,
+            x: point.x,
+            y: point.y,
+          },
+        ];
+      }
+      return [];
+    });
+    return keyframes.sort((a, b) => a.frameIndex - b.frameIndex);
+  }, [frames, selectedPointId]);
+
+  const selectedAutoFillModel = useMemo<AutoFillModel | null>(() => {
+    if (selectedPointKeyframes.length < 2 || frames.length === 0) {
+      return null;
+    }
+    if (autoFillShape === "linear") {
+      return { shape: "linear", points: selectedPointKeyframes };
+    }
+    if (autoFillShape === "tangent") {
+      return { shape: "tangent", points: selectedPointKeyframes };
+    }
+    if (autoFillShape === "circle") {
+      const circle = computeCircleFit(
+        selectedPointKeyframes,
+        frames.length,
+        spriteDirection
+      );
+      return circle ? { shape: "circle", ...circle } : null;
+    }
+    if (autoFillShape === "square") {
+      const square = computeSquareFit(
+        selectedPointKeyframes,
+        frames.length,
+        spriteDirection
+      );
+      return square ? { shape: "square", ...square } : null;
+    }
+    const ellipse = computeEllipseFit(
+      selectedPointKeyframes,
+      frames.length,
+      spriteDirection
+    );
+    return ellipse ? { shape: "ellipse", ...ellipse } : null;
+  }, [
+    autoFillShape,
+    frames.length,
+    selectedPointKeyframes,
+    spriteDirection,
+  ]);
+
+  const selectedAutoFillPositions = useMemo(() => {
+    if (!selectedAutoFillModel || frames.length === 0) {
+      return null;
+    }
+    const totalFrames = frames.length;
+    const directionSign = spriteDirection === "clockwise" ? 1 : -1;
+    const positions = Array.from({ length: totalFrames }, (_, index) => {
+      if (selectedAutoFillModel.shape === "ellipse") {
+        const angle =
+          directionSign * (index / totalFrames) * Math.PI * 2 +
+          selectedAutoFillModel.phase;
+        return {
+          x: selectedAutoFillModel.cx +
+            selectedAutoFillModel.rx * Math.cos(angle),
+          y: selectedAutoFillModel.cy +
+            selectedAutoFillModel.ry * Math.sin(angle),
+        };
+      }
+      if (selectedAutoFillModel.shape === "circle") {
+        const angle =
+          directionSign * (index / totalFrames) * Math.PI * 2 +
+          selectedAutoFillModel.phase;
+        return {
+          x: selectedAutoFillModel.cx + selectedAutoFillModel.r * Math.cos(angle),
+          y: selectedAutoFillModel.cy + selectedAutoFillModel.r * Math.sin(angle),
+        };
+      }
+      if (selectedAutoFillModel.shape === "square") {
+        const turn = directionSign * (index / totalFrames) +
+          selectedAutoFillModel.phase;
+        return squarePointAt(
+          selectedAutoFillModel.cx,
+          selectedAutoFillModel.cy,
+          selectedAutoFillModel.size,
+          turn
+        );
+      }
+      if (selectedAutoFillModel.shape === "tangent") {
+        return interpolateTangent(
+          selectedAutoFillModel.points,
+          index,
+          totalFrames
+        );
+      }
+      return interpolateLinear(selectedAutoFillModel.points, index, totalFrames);
+    });
+    selectedPointKeyframes.forEach((keyframe) => {
+      if (keyframe.frameIndex >= 0 && keyframe.frameIndex < positions.length) {
+        positions[keyframe.frameIndex] = { x: keyframe.x, y: keyframe.y };
+      }
+    });
+    return positions;
+  }, [
+    frames.length,
+    selectedAutoFillModel,
+    selectedPointKeyframes,
+    spriteDirection,
+  ]);
 
   const atlasLayout = useMemo(
     () => computeAtlasLayout(frames, rows, padding),
@@ -319,6 +870,33 @@ function App() {
       (frame) => frame.width !== base.width || frame.height !== base.height
     );
   }, [frames]);
+
+  const getFrameTransform = (viewWidth: number, viewHeight: number) => {
+    if (!currentFrame) {
+      return null;
+    }
+    const margin = 32;
+    const safeWidth = Math.max(1, viewWidth - margin * 2);
+    const safeHeight = Math.max(1, viewHeight - margin * 2);
+    const baseScale = Math.min(
+      safeWidth / currentFrame.width,
+      safeHeight / currentFrame.height
+    );
+    const scale = baseScale * frameZoom;
+    const drawWidth = currentFrame.width * scale;
+    const drawHeight = currentFrame.height * scale;
+    const offsetX = (viewWidth - drawWidth) / 2 + panOffset.x;
+    const offsetY = (viewHeight - drawHeight) / 2 + panOffset.y;
+    return {
+      scale,
+      offsetX,
+      offsetY,
+      frameWidth: currentFrame.width,
+      frameHeight: currentFrame.height,
+      viewWidth,
+      viewHeight,
+    };
+  };
 
   const handleCanvasWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
     if (!currentFrame || viewMode !== "frame") {
@@ -370,6 +948,34 @@ function App() {
       x: nextOffsetX - nextCenterX,
       y: nextOffsetY - nextCenterY,
     });
+  };
+
+  const handleAutoFill = () => {
+    if (!selectedPoint || !selectedAutoFillPositions || frames.length === 0) {
+      return;
+    }
+    setFrames((prev) =>
+      prev.map((frame, index) => {
+        const point = frame.points.find((item) => item.id === selectedPoint.id);
+        if (!point || point.isKeyframe) {
+          return frame;
+        }
+        const target = selectedAutoFillPositions[index];
+        if (!target) {
+          return frame;
+        }
+        const nextX = clamp(Math.round(target.x), 0, frame.width);
+        const nextY = clamp(Math.round(target.y), 0, frame.height);
+        return {
+          ...frame,
+          points: frame.points.map((item) =>
+            item.id === selectedPoint.id
+              ? { ...item, x: nextX, y: nextY }
+              : item
+          ),
+        };
+      })
+    );
   };
 
   useEffect(() => {
@@ -479,10 +1085,6 @@ function App() {
       "rgba(44, 155, 167, 0.8)",
       0.85
     );
-    const foregroundColor = toHslColor(
-      styles.getPropertyValue("--foreground"),
-      "hsl(224 35% 18%)"
-    );
     const mutedColor = toHslColor(
       styles.getPropertyValue("--muted-foreground"),
       "rgba(28, 32, 40, 0.8)",
@@ -517,28 +1119,15 @@ function App() {
     drawCheckerboard(ctx, viewWidth, viewHeight, 18, checkerBase, checkerAlt);
 
     if (viewMode === "frame" && currentFrame) {
-      const margin = 32;
-      const safeWidth = Math.max(1, viewWidth - margin * 2);
-      const safeHeight = Math.max(1, viewHeight - margin * 2);
-      const baseScale = Math.min(
-        safeWidth / currentFrame.width,
-        safeHeight / currentFrame.height
-      );
-      const scale = baseScale * frameZoom;
+      const transform = getFrameTransform(viewWidth, viewHeight);
+      if (!transform) {
+        return;
+      }
+      const { scale, offsetX, offsetY } = transform;
       const drawWidth = currentFrame.width * scale;
       const drawHeight = currentFrame.height * scale;
-      const offsetX = (viewWidth - drawWidth) / 2 + panOffset.x;
-      const offsetY = (viewHeight - drawHeight) / 2 + panOffset.y;
 
-      transformRef.current = {
-        scale,
-        offsetX,
-        offsetY,
-        frameWidth: currentFrame.width,
-        frameHeight: currentFrame.height,
-        viewWidth,
-        viewHeight,
-      };
+      transformRef.current = transform;
 
       ctx.imageSmoothingEnabled = false;
       ctx.save();
@@ -601,15 +1190,43 @@ function App() {
       ctx.stroke();
       ctx.restore();
 
+      if (showPoints && selectedPoint && selectedAutoFillPositions) {
+        const shouldClose =
+          selectedAutoFillModel?.shape === "ellipse" ||
+          selectedAutoFillModel?.shape === "circle" ||
+          selectedAutoFillModel?.shape === "square" ||
+          selectedAutoFillModel?.shape === "tangent";
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        ctx.strokeStyle = selectedPoint.color || accentColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        selectedAutoFillPositions.forEach((point, index) => {
+          const px = offsetX + point.x * scale;
+          const py = offsetY + point.y * scale;
+          if (index === 0) {
+            ctx.moveTo(px, py);
+          } else {
+            ctx.lineTo(px, py);
+          }
+        });
+        if (shouldClose && selectedAutoFillPositions.length > 0) {
+          const first = selectedAutoFillPositions[0];
+          ctx.lineTo(offsetX + first.x * scale, offsetY + first.y * scale);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+
       if (showPoints) {
         currentPoints.forEach((point) => {
           const px = offsetX + point.x * scale;
           const py = offsetY + point.y * scale;
           const isSelected = point.id === selectedPointId;
           ctx.beginPath();
-          ctx.fillStyle = isSelected ? accentColor : foregroundColor;
+          ctx.fillStyle = point.color || accentColor;
           ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
-          ctx.lineWidth = isSelected ? 2 : 1.5;
+          ctx.lineWidth = isSelected ? 2.5 : 1.5;
           ctx.arc(px, py, isSelected ? 6 : 4.5, 0, Math.PI * 2);
           ctx.fill();
           ctx.stroke();
@@ -685,6 +1302,9 @@ function App() {
     frameZoom,
     panOffset,
     pivotMode,
+    selectedAutoFillModel,
+    selectedAutoFillPositions,
+    selectedPoint,
     selectedPointId,
     showGrid,
     showPoints,
@@ -724,6 +1344,7 @@ function App() {
     const nextIndex =
       frames.reduce((max, frame) => Math.max(max, frame.points.length), 0) + 1;
     const name = t("point.defaultName", { index: nextIndex });
+    const color = createPointColor();
     const ratioX = currentFrame.width ? x / currentFrame.width : 0;
     const ratioY = currentFrame.height ? y / currentFrame.height : 0;
 
@@ -738,8 +1359,10 @@ function App() {
       const point: FramePoint = {
         id: pointId,
         name,
+        color,
         x: frameX,
         y: frameY,
+        isKeyframe: isCurrentFrame,
       };
       return [...points, point];
     });
@@ -753,8 +1376,7 @@ function App() {
       return;
     }
     const canvas = canvasRef.current;
-    const transform = transformRef.current;
-    if (!canvas || !transform) {
+    if (!canvas) {
       return;
     }
     if (event.button === 1) {
@@ -770,6 +1392,10 @@ function App() {
       return;
     }
     const rect = canvas.getBoundingClientRect();
+    const transform = getFrameTransform(rect.width, rect.height);
+    if (!transform) {
+      return;
+    }
     const rawX = event.clientX - rect.left;
     const rawY = event.clientY - rect.top;
     const frameX = (rawX - transform.offsetX) / transform.scale;
@@ -794,7 +1420,7 @@ function App() {
     const hitRadius = Math.max(4, 10 / transform.scale);
     const hit = currentPoints.find(
       (point) =>
-        Math.hypot(point.x - clampedX, point.y - clampedY) <= hitRadius
+        Math.hypot(point.x - frameX, point.y - frameY) <= hitRadius
     );
     if (hit) {
       setSelectedPointId(hit.id);
@@ -819,11 +1445,14 @@ function App() {
       return;
     }
     const canvas = canvasRef.current;
-    const transform = transformRef.current;
-    if (!canvas || !transform) {
+    if (!canvas) {
       return;
     }
     const rect = canvas.getBoundingClientRect();
+    const transform = getFrameTransform(rect.width, rect.height);
+    if (!transform) {
+      return;
+    }
     const rawX = event.clientX - rect.left;
     const rawY = event.clientY - rect.top;
     const frameX = (rawX - transform.offsetX) / transform.scale;
@@ -833,7 +1462,7 @@ function App() {
     updateCurrentFramePoints((points) =>
       points.map((point) =>
         point.id === draggingPointId
-          ? { ...point, x: clampedX, y: clampedY }
+          ? { ...point, x: clampedX, y: clampedY, isKeyframe: true }
           : point
       )
     );
@@ -896,10 +1525,18 @@ function App() {
       const pivotFrom = parsePivotMode(
         parsed?.meta?.pivot ?? parsed?.meta?.pivotMode
       );
+      const importedDirection = parsed?.meta?.spriteDirection;
+      if (
+        importedDirection === "clockwise" ||
+        importedDirection === "counterclockwise"
+      ) {
+        setSpriteDirection(importedDirection);
+      }
       if (!Array.isArray(parsed?.frames)) {
         return;
       }
       const nameToId = new Map<string, string>();
+      const nameToColor = new Map<string, string>();
       setFrames((prev) =>
         prev.map((frame) => {
           const match = parsed.frames.find(
@@ -919,6 +1556,8 @@ function App() {
                   : t("point.defaultName", { index: index + 1 });
               const id = nameToId.get(name) ?? createId();
               nameToId.set(name, id);
+              const color = nameToColor.get(name) ?? createPointColor();
+              nameToColor.set(name, color);
               const pivotPoint = {
                 x: Number(point.x ?? 0),
                 y: Number(point.y ?? 0),
@@ -927,8 +1566,10 @@ function App() {
               return {
                 id,
                 name,
+                color,
                 x: clamp(Math.round(framePoint.x), 0, frame.width),
                 y: clamp(Math.round(framePoint.y), 0, frame.height),
+                isKeyframe: true,
               };
             }
           );
@@ -1013,6 +1654,7 @@ function App() {
         columns: layout.columns,
         padding: layout.padding,
         pivot: pivotMode,
+        spriteDirection,
       },
       frames: exportedFrames,
     };
@@ -1034,6 +1676,8 @@ function App() {
   const selectedPivotY = selectedPivotCoords
     ? Math.round(selectedPivotCoords.y)
     : 0;
+  const keyframeCount = selectedPointKeyframes.length;
+  const canAutoFill = Boolean(selectedAutoFillPositions);
 
   return (
     <TooltipProvider>
@@ -1146,10 +1790,16 @@ function App() {
                         )}
                         onClick={() => setSelectedPointId(point.id)}
                       >
-                        <div>
-                          <div className="text-sm font-medium">{point.name}</div>
-                          <div className="text-[11px] text-muted-foreground">
-                            {pivotLabels[pivotMode]}
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-2.5 w-2.5 rounded-full"
+                            style={{ backgroundColor: point.color || "#999" }}
+                          />
+                          <div>
+                            <div className="text-sm font-medium">{point.name}</div>
+                            <div className="text-[11px] text-muted-foreground">
+                              {pivotLabels[pivotMode]}
+                            </div>
                           </div>
                         </div>
                         <div className="text-xs font-mono text-muted-foreground">
@@ -1229,6 +1879,7 @@ function App() {
                                   0,
                                   currentFrame.height
                                 ),
+                                isKeyframe: true,
                               }
                             : point
                         )
@@ -1268,6 +1919,7 @@ function App() {
                                   0,
                                   currentFrame.height
                                 ),
+                                isKeyframe: true,
                               }
                             : point
                         )
@@ -1275,6 +1927,50 @@ function App() {
                     }}
                   />
                 </div>
+              </div>
+              <div className="space-y-2 rounded-xl border border-border/50 bg-muted/30 p-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{t("label.keyframes")}</span>
+                  <Badge variant="outline" className="text-[10px]">
+                    {keyframeCount}
+                  </Badge>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">
+                    {t("label.autoFillShape")}
+                  </Label>
+                  <Select
+                    value={autoFillShape}
+                    onValueChange={(value) =>
+                      setAutoFillShape(value as AutoFillShape)
+                    }
+                  >
+                    <SelectTrigger className="h-8">
+                      <SelectValue placeholder={t("label.autoFillShape")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ellipse">{t("shape.ellipse")}</SelectItem>
+                      <SelectItem value="circle">{t("shape.circle")}</SelectItem>
+                      <SelectItem value="square">{t("shape.square")}</SelectItem>
+                      <SelectItem value="tangent">{t("shape.tangent")}</SelectItem>
+                      <SelectItem value="linear">{t("shape.linear")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground">
+                    {t("hint.autoFillSettings")}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  className="w-full"
+                  onClick={handleAutoFill}
+                  disabled={!canAutoFill}
+                >
+                  {t("action.autoFill")}
+                </Button>
+                <p className="text-[11px] text-muted-foreground">
+                  {t("hint.autoFill")}
+                </p>
               </div>
             </div>
           )}
@@ -1390,9 +2086,14 @@ function App() {
 
               {frames.length === 0 && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-muted/60">
+                  <button
+                    type="button"
+                    className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-muted/60 transition hover:bg-muted/80"
+                    onClick={() => framesInputRef.current?.click()}
+                    aria-label={t("label.pngFrames")}
+                  >
                     <Upload className="h-5 w-5 text-muted-foreground" />
-                  </div>
+                  </button>
                   <p className="text-sm font-medium">
                     {t("hint.noFramesTitle")}
                   </p>
@@ -1537,15 +2238,40 @@ function App() {
                     total: frames.length,
                   })}
                 </div>
-                <Slider
-                  className="flex-1"
-                  min={0}
-                  max={Math.max(0, frames.length - 1)}
-                  step={1}
-                  value={[currentFrameIndex]}
-                  onValueChange={(value) => setCurrentFrameIndex(value[0] ?? 0)}
-                  disabled={frames.length === 0}
-                />
+                <div className="relative flex-1">
+                  <Slider
+                    className="w-full"
+                    min={0}
+                    max={Math.max(0, frames.length - 1)}
+                    step={1}
+                    value={[currentFrameIndex]}
+                    onValueChange={(value) =>
+                      setCurrentFrameIndex(value[0] ?? 0)
+                    }
+                    disabled={frames.length === 0}
+                  />
+                  {selectedPoint &&
+                    selectedPointKeyframes.length > 0 &&
+                    frames.length > 0 && (
+                      <div className="pointer-events-none absolute inset-0">
+                        {selectedPointKeyframes.map((keyframe) => {
+                          const span = Math.max(1, frames.length - 1);
+                          const ratio = keyframe.frameIndex / span;
+                          return (
+                            <span
+                              key={`${selectedPoint.id}-${keyframe.frameIndex}`}
+                              className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-[2px] border border-background/80"
+                              style={{
+                                left: `${ratio * 100}%`,
+                                backgroundColor:
+                                  selectedPoint.color || "rgba(120,120,120,0.9)",
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
+                </div>
               </div>
             </div>
           </section>
@@ -1562,9 +2288,45 @@ function App() {
             <Layers className="h-5 w-5 text-muted-foreground" />
           </div>
 
+          <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
+            <Label>{t("label.spriteSettings")}</Label>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">
+                {t("label.spriteDirection")}
+              </Label>
+              <Select
+                value={spriteDirection}
+                onValueChange={(value) =>
+                  setSpriteDirection(value as SpriteDirection)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t("label.spriteDirection")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="clockwise">
+                    {t("direction.clockwise")}
+                  </SelectItem>
+                  <SelectItem value="counterclockwise">
+                    {t("direction.counterclockwise")}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {t("hint.spriteSettings")}
+            </p>
+          </div>
+
           <div className="space-y-2 rounded-2xl border border-border/50 bg-background/70 p-3">
             <Label>{t("label.pngFrames")}</Label>
-            <Input type="file" accept="image/png" multiple onChange={handleFramesImport} />
+            <Input
+              ref={framesInputRef}
+              type="file"
+              accept="image/png"
+              multiple
+              onChange={handleFramesImport}
+            />
             <div className="text-xs text-muted-foreground">
               {t("hint.fileOrder")}
             </div>
@@ -1667,18 +2429,6 @@ function App() {
             <div className="text-xs text-muted-foreground">
               {t("label.pivotSpace")}: {pivotLabels[pivotMode]}
             </div>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3 text-xs text-muted-foreground">
-            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <Upload className="h-4 w-4" />
-              {t("hint.workflowTitle")}
-            </div>
-            <p>{t("hint.workflowStep1")}</p>
-            <p>{t("hint.workflowStep2")}</p>
-            <p>{t("hint.workflowStep3")}</p>
           </div>
         </aside>
       </div>
