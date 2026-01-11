@@ -6,6 +6,7 @@
 
 @layer base {
   :root {
+    color-scheme: light dark;
     --background: 40 42% 96%;
     --foreground: 224 28% 16%;
     --card: 40 40% 98%;
@@ -36,6 +37,33 @@
     --chart-5: 44 80% 60%;
   }
 
+  .dark {
+    --background: 222 28% 10%;
+    --foreground: 40 25% 92%;
+    --card: 222 26% 14%;
+    --card-foreground: 40 25% 92%;
+    --popover: 222 26% 14%;
+    --popover-foreground: 40 25% 92%;
+    --primary: 197 52% 48%;
+    --primary-foreground: 222 30% 10%;
+    --secondary: 222 20% 20%;
+    --secondary-foreground: 40 25% 92%;
+    --muted: 222 16% 22%;
+    --muted-foreground: 40 16% 70%;
+    --accent: 197 52% 48%;
+    --accent-foreground: 222 30% 10%;
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 40 45% 97%;
+    --border: 220 16% 22%;
+    --input: 220 16% 22%;
+    --ring: 197 52% 48%;
+    --chart-1: 197 52% 48%;
+    --chart-2: 30 70% 55%;
+    --chart-3: 12 70% 54%;
+    --chart-4: 200 35% 32%;
+    --chart-5: 44 80% 60%;
+  }
+
   * {
     @apply border-border;
   }
@@ -48,6 +76,13 @@
       radial-gradient(circle at 85% 15%, hsl(38 52% 90%) 0%, transparent 45%),
       linear-gradient(120deg, hsl(42 30% 96%), hsl(28 22% 94%));
     background-attachment: fixed;
+  }
+
+  .dark body {
+    background-image:
+      radial-gradient(circle at 15% 18%, hsl(197 35% 20%) 0%, transparent 45%),
+      radial-gradient(circle at 85% 18%, hsl(34 35% 18%) 0%, transparent 46%),
+      linear-gradient(125deg, hsl(222 28% 10%), hsl(220 26% 12%));
   }
 
   ::selection {

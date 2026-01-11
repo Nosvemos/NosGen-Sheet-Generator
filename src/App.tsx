@@ -21,12 +21,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import {
   Crosshair,
   Download,
   FastForward,
   Layers,
+  Moon,
   MousePointer2,
   Pause,
   Play,
@@ -35,6 +37,7 @@ import {
   SkipBack,
   SkipForward,
   Sparkles,
+  Sun,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -42,6 +45,7 @@ import {
 type PivotMode = "top-left" | "bottom-left" | "center";
 type EditorMode = "select" | "add";
 type ViewMode = "frame" | "atlas";
+type ThemeMode = "dark" | "light";
 
 type FramePoint = {
   id: string;
@@ -82,11 +86,7 @@ type StageTransform = {
 
 const SPEED_OPTIONS = [0.25, 0.5, 1, 2, 4];
 
-const PIVOT_LABELS: Record<PivotMode, string> = {
-  "top-left": "Top-left",
-  "bottom-left": "Bottom-left",
-  center: "Center",
-};
+const PIVOT_OPTIONS: PivotMode[] = ["top-left", "bottom-left", "center"];
 
 const createId = () => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -196,6 +196,13 @@ const fromPivotCoords = (
   return { x: point.x, y: point.y };
 };
 
+const parsePivotMode = (value: unknown): PivotMode => {
+  if (value === "top-left" || value === "bottom-left" || value === "center") {
+    return value;
+  }
+  return "top-left";
+};
+
 const loadFrameFromFile = (file: File): Promise<FrameData> =>
   new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
@@ -235,12 +242,20 @@ const DEFAULT_PADDING = 6;
 const DEFAULT_FPS = 12;
 
 function App() {
+  const { t } = useI18n();
   const [frames, setFrames] = useState<FrameData[]>([]);
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
   const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
   const [editorMode, setEditorMode] = useState<EditorMode>("select");
   const [pivotMode, setPivotMode] = useState<PivotMode>("top-left");
   const [viewMode, setViewMode] = useState<ViewMode>("frame");
+  const [theme, setTheme] = useState<ThemeMode>(() => {
+    if (typeof window === "undefined") {
+      return "dark";
+    }
+    const stored = window.localStorage.getItem("sg-theme");
+    return stored === "light" || stored === "dark" ? stored : "dark";
+  });
   const [rows, setRows] = useState(DEFAULT_ROWS);
   const [padding, setPadding] = useState(DEFAULT_PADDING);
   const [showGrid, setShowGrid] = useState(true);
@@ -261,6 +276,11 @@ function App() {
   const currentPoints = currentFrame?.points ?? [];
   const selectedPoint =
     currentPoints.find((point) => point.id === selectedPointId) ?? null;
+  const pivotLabels: Record<PivotMode, string> = {
+    "top-left": t("pivot.topLeft"),
+    "bottom-left": t("pivot.bottomLeft"),
+    center: t("pivot.center"),
+  };
 
   const atlasLayout = useMemo(
     () => computeAtlasLayout(frames, rows, padding),
@@ -276,6 +296,13 @@ function App() {
       (frame) => frame.width !== base.width || frame.height !== base.height
     );
   }, [frames]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("dark", theme === "dark");
+    root.style.colorScheme = theme;
+    window.localStorage.setItem("sg-theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     const element = stageRef.current;
@@ -545,7 +572,9 @@ function App() {
     viewMode,
   ]);
 
-  const updatePoints = (updater: (points: FramePoint[]) => FramePoint[]) => {
+  const updateCurrentFramePoints = (
+    updater: (points: FramePoint[]) => FramePoint[]
+  ) => {
     if (!currentFrame) {
       return;
     }
@@ -558,18 +587,37 @@ function App() {
     );
   };
 
+  const updateAllFramesPoints = (
+    updater: (points: FramePoint[], frame: FrameData) => FramePoint[]
+  ) => {
+    setFrames((prev) =>
+      prev.map((frame) => ({ ...frame, points: updater(frame.points, frame) }))
+    );
+  };
+
   const addPointAt = (x: number, y: number) => {
-    if (!currentFrame) {
+    if (!currentFrame || frames.length === 0) {
       return;
     }
-    const point: FramePoint = {
-      id: createId(),
-      name: `point-${currentFrame.points.length + 1}`,
-      x: clamp(Math.round(x), 0, currentFrame.width),
-      y: clamp(Math.round(y), 0, currentFrame.height),
-    };
-    updatePoints((points) => [...points, point]);
-    setSelectedPointId(point.id);
+    const pointId = createId();
+    const nextIndex =
+      frames.reduce((max, frame) => Math.max(max, frame.points.length), 0) + 1;
+    const name = t("point.defaultName", { index: nextIndex });
+    const ratioX = currentFrame.width ? x / currentFrame.width : 0;
+    const ratioY = currentFrame.height ? y / currentFrame.height : 0;
+
+    updateAllFramesPoints((points, frame) => {
+      const frameX = clamp(Math.round(frame.width * ratioX), 0, frame.width);
+      const frameY = clamp(Math.round(frame.height * ratioY), 0, frame.height);
+      const point: FramePoint = {
+        id: pointId,
+        name,
+        x: frameX,
+        y: frameY,
+      };
+      return [...points, point];
+    });
+    setSelectedPointId(pointId);
   };
 
   const handleCanvasPointerDown = (
@@ -637,7 +685,7 @@ function App() {
     const frameY = (rawY - transform.offsetY) / transform.scale;
     const clampedX = clamp(Math.round(frameX), 0, currentFrame.width);
     const clampedY = clamp(Math.round(frameY), 0, currentFrame.height);
-    updatePoints((points) =>
+    updateCurrentFramePoints((points) =>
       points.map((point) =>
         point.id === draggingPointId
           ? { ...point, x: clampedX, y: clampedY }
@@ -695,11 +743,13 @@ function App() {
     try {
       const raw = await file.text();
       const parsed = JSON.parse(raw);
-      const pivotFrom = (parsed?.meta?.pivotMode ||
-        "top-left") as PivotMode;
+      const pivotFrom = parsePivotMode(
+        parsed?.meta?.pivot ?? parsed?.meta?.pivotMode
+      );
       if (!Array.isArray(parsed?.frames)) {
         return;
       }
+      const nameToId = new Map<string, string>();
       setFrames((prev) =>
         prev.map((frame) => {
           const match = parsed.frames.find(
@@ -713,14 +763,20 @@ function App() {
           }
           const nextPoints = match.points.map(
             (point: { name?: string; x?: number; y?: number }, index: number) => {
+              const name =
+                typeof point.name === "string" && point.name.length > 0
+                  ? point.name
+                  : t("point.defaultName", { index: index + 1 });
+              const id = nameToId.get(name) ?? createId();
+              nameToId.set(name, id);
               const pivotPoint = {
                 x: Number(point.x ?? 0),
                 y: Number(point.y ?? 0),
               };
               const framePoint = fromPivotCoords(pivotPoint, frame, pivotFrom);
               return {
-                id: createId(),
-                name: point.name ?? `point-${index + 1}`,
+                id,
+                name,
                 x: clamp(Math.round(framePoint.x), 0, frame.width),
                 y: clamp(Math.round(framePoint.y), 0, frame.height),
               };
@@ -782,26 +838,14 @@ function App() {
       const offsetX = Math.floor((layout.cellWidth - frame.width) / 2);
       const offsetY = Math.floor((layout.cellHeight - frame.height) / 2);
       return {
-        id: frame.id,
         name: frame.name,
-        index,
-        frame: {
-          x: cell.x + offsetX,
-          y: cell.y + offsetY,
-          w: frame.width,
-          h: frame.height,
-        },
-        sourceSize: { w: frame.width, h: frame.height },
-        spriteSourceSize: {
-          x: offsetX,
-          y: offsetY,
-          w: frame.width,
-          h: frame.height,
-        },
+        x: cell.x + offsetX,
+        y: cell.y + offsetY,
+        w: frame.width,
+        h: frame.height,
         points: frame.points.map((point) => {
           const pivotPoint = toPivotCoords(point, frame, pivotMode);
           return {
-            id: point.id,
             name: point.name,
             x: Math.round(pivotPoint.x),
             y: Math.round(pivotPoint.y),
@@ -813,15 +857,12 @@ function App() {
     const payload = {
       meta: {
         app: "SheetGenerator",
-        version: 1,
         image: "sprite-atlas.png",
         size: { w: layout.width, h: layout.height },
         rows: layout.rows,
         columns: layout.columns,
         padding: layout.padding,
-        frameCount: frames.length,
-        cell: { w: layout.cellWidth, h: layout.cellHeight },
-        pivotMode,
+        pivot: pivotMode,
       },
       frames: exportedFrames,
     };
@@ -851,9 +892,9 @@ function App() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                Tools
+                {t("label.tools")}
               </p>
-              <h2 className="text-lg font-semibold">Point Studio</h2>
+              <h2 className="text-lg font-semibold">{t("panel.tools")}</h2>
             </div>
             <Badge variant="secondary">
               {frames.length ? `${currentFrameIndex + 1}/${frames.length}` : "0"}
@@ -863,10 +904,10 @@ function App() {
           <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
             <div className="flex items-center justify-between">
               <Label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                Mode
+                {t("label.mode")}
               </Label>
               <Badge variant="outline" className="font-mono text-xs">
-                {editorMode === "add" ? "Add" : "Select"}
+                {editorMode === "add" ? t("mode.add") : t("mode.select")}
               </Badge>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -876,7 +917,7 @@ function App() {
                 onClick={() => setEditorMode("select")}
               >
                 <MousePointer2 className="mr-2 h-4 w-4" />
-                Select
+                {t("action.select")}
               </Button>
               <Button
                 variant={editorMode === "add" ? "default" : "secondary"}
@@ -884,7 +925,7 @@ function App() {
                 onClick={() => setEditorMode("add")}
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Add Point
+                {t("action.addPoint")}
               </Button>
             </div>
             <Button
@@ -900,42 +941,42 @@ function App() {
               disabled={!currentFrame}
             >
               <Crosshair className="mr-2 h-4 w-4" />
-              Center Point
+              {t("action.centerPoint")}
             </Button>
           </div>
 
           <div className="space-y-2">
-            <Label>Pivot Space</Label>
+            <Label>{t("label.pivotSpace")}</Label>
             <Select
               value={pivotMode}
               onValueChange={(value) => setPivotMode(value as PivotMode)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Pivot mode" />
+                <SelectValue placeholder={t("placeholder.pivotMode")} />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(PIVOT_LABELS).map(([value, label]) => (
+                {PIVOT_OPTIONS.map((value) => (
                   <SelectItem key={value} value={value}>
-                    {label}
+                    {pivotLabels[value]}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Export coordinates use this origin.
+              {t("hint.pivotExport")}
             </p>
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Points</Label>
+              <Label>{t("label.points")}</Label>
               <Badge variant="outline">{currentPoints.length}</Badge>
             </div>
             <ScrollArea className="h-52 rounded-2xl border border-border/50 bg-background/70">
               <div className="space-y-2 p-3">
                 {currentPoints.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-border/70 p-4 text-center text-xs text-muted-foreground">
-                    Add points by clicking the frame.
+                    {t("hint.noPoints")}
                   </div>
                 ) : (
                   currentPoints.map((point) => {
@@ -958,7 +999,7 @@ function App() {
                         <div>
                           <div className="text-sm font-medium">{point.name}</div>
                           <div className="text-[11px] text-muted-foreground">
-                            {PIVOT_LABELS[pivotMode]}
+                            {pivotLabels[pivotMode]}
                           </div>
                         </div>
                         <div className="text-xs font-mono text-muted-foreground">
@@ -974,18 +1015,26 @@ function App() {
 
           <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
             <div className="flex items-center justify-between">
-              <Label>Selected Point</Label>
+              <Label>{t("label.selectedPoint")}</Label>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => selectedPoint && updatePoints((points) => points.filter((p) => p.id !== selectedPoint.id))}
+                onClick={() => {
+                  if (!selectedPoint) {
+                    return;
+                  }
+                  updateAllFramesPoints((points) =>
+                    points.filter((point) => point.id !== selectedPoint.id)
+                  );
+                  setSelectedPointId(null);
+                }}
                 disabled={!selectedPoint}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
             <div className="space-y-1">
-              <Label htmlFor="point-name">Name</Label>
+              <Label htmlFor="point-name">{t("label.name")}</Label>
               <Input
                 id="point-name"
                 value={selectedPoint?.name ?? ""}
@@ -994,19 +1043,19 @@ function App() {
                     return;
                   }
                   const name = event.target.value;
-                  updatePoints((points) =>
+                  updateAllFramesPoints((points) =>
                     points.map((point) =>
                       point.id === selectedPoint.id ? { ...point, name } : point
                     )
                   );
                 }}
-                placeholder="point-name"
+                placeholder={t("placeholder.pointName")}
                 disabled={!selectedPoint}
               />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label htmlFor="point-x">X</Label>
+                <Label htmlFor="point-x">{t("label.x")}</Label>
                 <Input
                   id="point-x"
                   type="number"
@@ -1022,7 +1071,7 @@ function App() {
                       currentFrame,
                       pivotMode
                     );
-                    updatePoints((points) =>
+                    updateCurrentFramePoints((points) =>
                       points.map((point) =>
                         point.id === selectedPoint.id
                           ? {
@@ -1046,7 +1095,7 @@ function App() {
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="point-y">Y</Label>
+                <Label htmlFor="point-y">{t("label.y")}</Label>
                 <Input
                   id="point-y"
                   type="number"
@@ -1062,7 +1111,7 @@ function App() {
                       currentFrame,
                       pivotMode
                     );
-                    updatePoints((points) =>
+                    updateCurrentFramePoints((points) =>
                       points.map((point) =>
                         point.id === selectedPoint.id
                           ? {
@@ -1095,24 +1144,56 @@ function App() {
               <div>
                 <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
                   <Sparkles className="h-4 w-4" />
-                  Sprite Atlas Studio
+                  {t("app.kicker")}
                 </div>
-                <h1 className="text-2xl font-semibold">SheetGenerator</h1>
+                <h1 className="text-2xl font-semibold">{t("app.title")}</h1>
                 <p className="text-sm text-muted-foreground">
-                  Build sprite sheets, attach points, and export instantly.
+                  {t("app.subtitle")}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="font-mono">
                   {currentFrame
-                    ? `${currentFrame.width}×${currentFrame.height}`
-                    : "No frame"}
+                    ? t("status.frameSize", {
+                        w: currentFrame.width,
+                        h: currentFrame.height,
+                      })
+                    : t("status.noFrame")}
                 </Badge>
                 <Badge variant="outline" className="font-mono">
-                  Atlas {atlasLayout.width}×{atlasLayout.height}
+                  {t("status.atlasSize", {
+                    w: atlasLayout.width,
+                    h: atlasLayout.height,
+                  })}
                 </Badge>
-                <Badge variant="secondary">Rows {atlasLayout.rows}</Badge>
-                <Badge variant="secondary">Cols {atlasLayout.columns}</Badge>
+                <Badge variant="secondary">
+                  {t("status.rows", { rows: atlasLayout.rows })}
+                </Badge>
+                <Badge variant="secondary">
+                  {t("status.columns", { columns: atlasLayout.columns })}
+                </Badge>
+                <div className="flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-1">
+                  {theme === "dark" ? (
+                    <Moon className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Sun className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <Select
+                    value={theme}
+                    onValueChange={(value) => setTheme(value as ThemeMode)}
+                  >
+                    <SelectTrigger
+                      className="h-8 w-[110px] border-0 bg-transparent px-0 text-xs"
+                      aria-label={t("label.theme")}
+                    >
+                      <SelectValue placeholder={t("label.theme")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="dark">{t("theme.dark")}</SelectItem>
+                      <SelectItem value="light">{t("theme.light")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           </section>
@@ -1124,8 +1205,8 @@ function App() {
                 onValueChange={(value) => setViewMode(value as ViewMode)}
               >
                 <TabsList>
-                  <TabsTrigger value="frame">Frame</TabsTrigger>
-                  <TabsTrigger value="atlas">Atlas</TabsTrigger>
+                  <TabsTrigger value="frame">{t("tab.frame")}</TabsTrigger>
+                  <TabsTrigger value="atlas">{t("tab.atlas")}</TabsTrigger>
                 </TabsList>
               </Tabs>
               <div className="flex flex-wrap items-center gap-3">
@@ -1135,7 +1216,7 @@ function App() {
                     checked={showGrid}
                     onCheckedChange={setShowGrid}
                   />
-                  <Label htmlFor="grid-toggle">Grid</Label>
+                  <Label htmlFor="grid-toggle">{t("label.grid")}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Switch
@@ -1143,7 +1224,7 @@ function App() {
                     checked={showPoints}
                     onCheckedChange={setShowPoints}
                   />
-                  <Label htmlFor="points-toggle">Points</Label>
+                  <Label htmlFor="points-toggle">{t("label.pointsToggle")}</Label>
                 </div>
               </div>
             </div>
@@ -1169,16 +1250,18 @@ function App() {
                   <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-muted/60">
                     <Upload className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <p className="text-sm font-medium">PNG karelerini içe aktar</p>
+                  <p className="text-sm font-medium">
+                    {t("hint.noFramesTitle")}
+                  </p>
                   <p className="text-xs text-muted-foreground">
-                    Sağ panelden çoklu PNG seç.
+                    {t("hint.noFramesBody")}
                   </p>
                 </div>
               )}
 
               {frames.length > 0 && editorMode === "add" && viewMode === "frame" && (
                 <div className="pointer-events-none absolute left-4 top-4 rounded-full border border-accent/40 bg-accent/10 px-3 py-1 text-xs text-accent-foreground">
-                  Add mode active
+                  {t("status.addMode")}
                 </div>
               )}
             </div>
@@ -1197,7 +1280,7 @@ function App() {
                         <SkipBack className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>First frame</TooltipContent>
+                    <TooltipContent>{t("action.first")}</TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -1212,7 +1295,7 @@ function App() {
                         <Rewind className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Previous</TooltipContent>
+                    <TooltipContent>{t("action.previous")}</TooltipContent>
                   </Tooltip>
                   <Button
                     variant="default"
@@ -1241,7 +1324,7 @@ function App() {
                         <FastForward className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Next</TooltipContent>
+                    <TooltipContent>{t("action.next")}</TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -1256,7 +1339,7 @@ function App() {
                         <SkipForward className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Last frame</TooltipContent>
+                    <TooltipContent>{t("action.last")}</TooltipContent>
                   </Tooltip>
                 </div>
 
@@ -1267,14 +1350,14 @@ function App() {
                       checked={reverse}
                       onCheckedChange={setReverse}
                     />
-                    <Label htmlFor="reverse-toggle">Reverse</Label>
+                    <Label htmlFor="reverse-toggle">{t("label.reverse")}</Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <Switch id="loop-toggle" checked={loop} onCheckedChange={setLoop} />
-                    <Label htmlFor="loop-toggle">Loop</Label>
+                    <Label htmlFor="loop-toggle">{t("label.loop")}</Label>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Label htmlFor="fps-input">FPS</Label>
+                    <Label htmlFor="fps-input">{t("label.fps")}</Label>
                     <Input
                       id="fps-input"
                       type="number"
@@ -1291,7 +1374,7 @@ function App() {
                     onValueChange={(value) => setSpeed(Number(value))}
                   >
                     <SelectTrigger className="w-24">
-                      <SelectValue placeholder="Speed" />
+                      <SelectValue placeholder={t("label.speed")} />
                     </SelectTrigger>
                     <SelectContent>
                       {SPEED_OPTIONS.map((option) => (
@@ -1306,8 +1389,10 @@ function App() {
 
               <div className="flex items-center gap-4">
                 <div className="text-xs font-mono text-muted-foreground">
-                  Frame {frames.length ? currentFrameIndex + 1 : 0} /{" "}
-                  {frames.length}
+                  {t("status.frameCounter", {
+                    current: frames.length ? currentFrameIndex + 1 : 0,
+                    total: frames.length,
+                  })}
                 </div>
                 <Slider
                   className="flex-1"
@@ -1327,18 +1412,18 @@ function App() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                Import / Export
+                {t("panel.importExport")}
               </p>
-              <h2 className="text-lg font-semibold">Atlas Pipeline</h2>
+              <h2 className="text-lg font-semibold">{t("panel.pipeline")}</h2>
             </div>
             <Layers className="h-5 w-5 text-muted-foreground" />
           </div>
 
           <div className="space-y-2 rounded-2xl border border-border/50 bg-background/70 p-3">
-            <Label>PNG Frames</Label>
+            <Label>{t("label.pngFrames")}</Label>
             <Input type="file" accept="image/png" multiple onChange={handleFramesImport} />
             <div className="text-xs text-muted-foreground">
-              Sıralama: dosya seçiminin sırası.
+              {t("hint.fileOrder")}
             </div>
             <Button
               variant="outline"
@@ -1353,15 +1438,15 @@ function App() {
               disabled={frames.length === 0}
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              Clear Frames
+              {t("action.clearFrames")}
             </Button>
           </div>
 
           <div className="space-y-2 rounded-2xl border border-border/50 bg-background/70 p-3">
-            <Label>Import Points JSON</Label>
+            <Label>{t("label.importJson")}</Label>
             <Input type="file" accept="application/json" onChange={handleJsonImport} />
             <div className="text-xs text-muted-foreground">
-              Frame name eşleşirse noktalar güncellenir.
+              {t("hint.jsonMatch")}
             </div>
           </div>
 
@@ -1369,16 +1454,16 @@ function App() {
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label>Atlas Settings</Label>
+              <Label>{t("label.atlasSettings")}</Label>
               {sizeMismatch && (
                 <Badge variant="destructive" className="text-[10px]">
-                  size mismatch
+                  {t("status.sizeMismatch")}
                 </Badge>
               )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="rows-input">Rows</Label>
+                <Label htmlFor="rows-input">{t("label.rows")}</Label>
                 <Input
                   id="rows-input"
                   type="number"
@@ -1390,7 +1475,7 @@ function App() {
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="padding-input">Padding</Label>
+                <Label htmlFor="padding-input">{t("label.padding")}</Label>
                 <Input
                   id="padding-input"
                   type="number"
@@ -1404,10 +1489,16 @@ function App() {
             </div>
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>
-                Cell {atlasLayout.cellWidth}×{atlasLayout.cellHeight}
+                {t("status.cellSize", {
+                  w: atlasLayout.cellWidth,
+                  h: atlasLayout.cellHeight,
+                })}
               </span>
               <span>
-                Atlas {atlasLayout.width}×{atlasLayout.height}
+                {t("status.atlasSize", {
+                  w: atlasLayout.width,
+                  h: atlasLayout.height,
+                })}
               </span>
             </div>
           </div>
@@ -1415,11 +1506,11 @@ function App() {
           <Separator />
 
           <div className="space-y-2">
-            <Label>Export</Label>
+            <Label>{t("label.export")}</Label>
             <div className="grid gap-2">
               <Button onClick={handleExportPng} disabled={frames.length === 0}>
                 <Download className="mr-2 h-4 w-4" />
-                Export Atlas PNG
+                {t("action.exportPng")}
               </Button>
               <Button
                 variant="secondary"
@@ -1427,11 +1518,11 @@ function App() {
                 disabled={frames.length === 0}
               >
                 <Download className="mr-2 h-4 w-4" />
-                Export Points JSON
+                {t("action.exportJson")}
               </Button>
             </div>
             <div className="text-xs text-muted-foreground">
-              Pivot: {PIVOT_LABELS[pivotMode]}
+              {t("label.pivotSpace")}: {pivotLabels[pivotMode]}
             </div>
           </div>
 
@@ -1440,11 +1531,11 @@ function App() {
           <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3 text-xs text-muted-foreground">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
               <Upload className="h-4 w-4" />
-              Workflow hint
+              {t("hint.workflowTitle")}
             </div>
-            <p>1. PNG karelerini import et.</p>
-            <p>2. Frame üzerinde nokta ekle ve isimlendir.</p>
-            <p>3. Atlas ayarlarını yap, JSON/PNG export al.</p>
+            <p>{t("hint.workflowStep1")}</p>
+            <p>{t("hint.workflowStep2")}</p>
+            <p>{t("hint.workflowStep3")}</p>
           </div>
         </aside>
       </div>
