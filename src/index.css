@@ -1,0 +1,60 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 42% 96%;
+    --foreground: 224 28% 16%;
+    --card: 40 40% 98%;
+    --card-foreground: 224 28% 16%;
+    --popover: 40 40% 98%;
+    --popover-foreground: 224 28% 16%;
+    --primary: 224 35% 18%;
+    --primary-foreground: 40 45% 97%;
+    --secondary: 34 20% 91%;
+    --secondary-foreground: 224 28% 18%;
+    --muted: 34 18% 90%;
+    --muted-foreground: 224 12% 40%;
+    --accent: 197 52% 48%;
+    --accent-foreground: 40 45% 97%;
+    --destructive: 0 72% 52%;
+    --destructive-foreground: 40 45% 97%;
+    --border: 30 12% 84%;
+    --input: 30 12% 84%;
+    --ring: 197 52% 48%;
+    --radius: 14px;
+    --shadow: 220 14% 24%;
+    --font-sans: "Space Grotesk";
+    --font-mono: "DM Mono";
+    --chart-1: 197 52% 48%;
+    --chart-2: 30 70% 55%;
+    --chart-3: 12 70% 54%;
+    --chart-4: 200 35% 32%;
+    --chart-5: 44 80% 60%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(circle at 15% 20%, hsl(197 55% 92%) 0%, transparent 42%),
+      radial-gradient(circle at 85% 15%, hsl(38 52% 90%) 0%, transparent 45%),
+      linear-gradient(120deg, hsl(42 30% 96%), hsl(28 22% 94%));
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: hsl(var(--accent) / 0.2);
+  }
+}
+
+#root {
+  min-height: 100vh;
+}
