@@ -93,3 +93,27 @@
 #root {
   min-height: 100vh;
 }
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--accent) / 0.45) hsl(var(--muted) / 0.6);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted) / 0.6);
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--accent) / 0.45);
+  border-radius: 999px;
+  border: 2px solid hsl(var(--muted) / 0.6);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--accent) / 0.7);
+}

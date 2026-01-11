@@ -1,4 +1,4 @@
-# SheetGenerator
+# NosGen
 
 Sprite sheet atlas editor for PNG frame sets. Build an atlas, preview playback, place points per frame, and export a clean PNG + JSON.
 
@@ -68,7 +68,7 @@ Smaller frames are centered inside their cell.
 ```json
 {
   "meta": {
-    "app": "SheetGenerator",
+    "app": "NosGen",
     "image": "sprite-atlas.png",
     "size": { "w": 1024, "h": 512 },
     "rows": 4,

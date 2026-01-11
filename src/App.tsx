@@ -27,7 +27,13 @@ import {
   Crosshair,
   Download,
   FastForward,
+  ArrowLeft,
+  ArrowRight,
+  ChevronDown,
+  ChevronRight,
   Layers,
+  MapPinPlusInside,
+  MapPinOff,
   Moon,
   MousePointer2,
   Pause,
@@ -39,6 +45,7 @@ import {
   Sparkles,
   Sun,
   Trash2,
+  X,
   Upload,
 } from "lucide-react";
 
@@ -128,6 +135,9 @@ type AutoFillModel =
     };
 
 const SPEED_OPTIONS = [0.25, 0.5, 1, 2, 4];
+const MIN_EXPORT_SCALE = 0.5;
+const MAX_EXPORT_SCALE = 4;
+const EXPORT_SCALE_STEP = 0.5;
 const MIN_FRAME_ZOOM = 0.5;
 const MAX_FRAME_ZOOM = 8;
 const ZOOM_STEP = 1.1;
@@ -715,6 +725,12 @@ function App() {
   const [loop, setLoop] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [draggingPointId, setDraggingPointId] = useState<string | null>(null);
+  const [isKeyframesOpen, setIsKeyframesOpen] = useState(true);
+  const [exportScale, setExportScale] = useState(1);
+  const [exportSmoothing, setExportSmoothing] = useState(false);
+  const [isSpriteSettingsOpen, setIsSpriteSettingsOpen] = useState(true);
+  const [isAtlasSettingsOpen, setIsAtlasSettingsOpen] = useState(true);
+  const [isExportQualityOpen, setIsExportQualityOpen] = useState(true);
 
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1588,15 +1604,23 @@ function App() {
       return;
     }
     const layout = computeAtlasLayout(frames, rows, padding);
+    const scale = clamp(exportScale, MIN_EXPORT_SCALE, MAX_EXPORT_SCALE);
+    const targetWidth = Math.max(1, Math.round(layout.width * scale));
+    const targetHeight = Math.max(1, Math.round(layout.height * scale));
+    const scaleX = targetWidth / layout.width;
+    const scaleY = targetHeight / layout.height;
     const canvas = document.createElement("canvas");
-    canvas.width = layout.width;
-    canvas.height = layout.height;
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
     const ctx = canvas.getContext("2d");
     if (!ctx) {
       return;
     }
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingEnabled = exportSmoothing;
+    if (exportSmoothing) {
+      ctx.imageSmoothingQuality = "high";
+    }
     layout.positions.forEach((cell, index) => {
       const frame = frames[index];
       if (!frame) {
@@ -1606,10 +1630,10 @@ function App() {
       const offsetY = Math.floor((layout.cellHeight - frame.height) / 2);
       ctx.drawImage(
         frame.image,
-        cell.x + offsetX,
-        cell.y + offsetY,
-        frame.width,
-        frame.height
+        (cell.x + offsetX) * scaleX,
+        (cell.y + offsetY) * scaleY,
+        frame.width * scaleX,
+        frame.height * scaleY
       );
     });
     canvas.toBlob((blob) => {
@@ -1647,7 +1671,7 @@ function App() {
 
     const payload = {
       meta: {
-        app: "SheetGenerator",
+        app: "NosGen",
         image: "sprite-atlas.png",
         size: { w: layout.width, h: layout.height },
         rows: layout.rows,
@@ -1678,11 +1702,16 @@ function App() {
     : 0;
   const keyframeCount = selectedPointKeyframes.length;
   const canAutoFill = Boolean(selectedAutoFillPositions);
+  const canAddKeyframe = Boolean(selectedPoint && currentFrame);
+  const isCurrentFrameKeyframe = selectedPoint?.isKeyframe ?? false;
+  const canRemoveKeyframe = Boolean(selectedPoint && isCurrentFrameKeyframe);
+  const canMoveFrameLeft = currentFrameIndex > 0;
+  const canMoveFrameRight = currentFrameIndex < frames.length - 1;
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen w-full divide-y divide-border/60 p-0 lg:grid lg:h-screen lg:grid-cols-[280px_minmax(0,1fr)_320px] lg:divide-x lg:divide-y-0 lg:gap-0">
-        <aside className="space-y-4 rounded-none border-0 bg-card/80 p-4 shadow-none backdrop-blur">
+      <div className="h-screen w-full divide-y divide-border/60 overflow-hidden p-0 lg:grid lg:grid-cols-[280px_minmax(0,1fr)_320px] lg:divide-x lg:divide-y-0 lg:gap-0">
+        <aside className="h-full min-h-0 space-y-4 overflow-y-auto rounded-none border-0 bg-card/80 p-4 shadow-none backdrop-blur">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
@@ -1766,7 +1795,7 @@ function App() {
               <Label>{t("label.points")}</Label>
               <Badge variant="outline">{currentPoints.length}</Badge>
             </div>
-            <ScrollArea className="h-52 rounded-2xl border border-border/50 bg-background/70">
+            <ScrollArea className="h-30 rounded-2xl border border-border/50 bg-background/70">
               <div className="space-y-2 p-3">
                 {currentPoints.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-border/70 p-4 text-center text-xs text-muted-foreground">
@@ -1930,36 +1959,131 @@ function App() {
               </div>
               <div className="space-y-2 rounded-xl border border-border/50 bg-muted/30 p-2">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{t("label.keyframes")}</span>
-                  <Badge variant="outline" className="text-[10px]">
-                    {keyframeCount}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => setIsKeyframesOpen((prev) => !prev)}
+                      aria-label={t("action.toggleKeyframes")}
+                    >
+                      {isKeyframesOpen ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <span>{t("label.keyframes")}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px]">
+                      {keyframeCount}
+                    </Badge>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => {
+                        if (!selectedPoint) {
+                          return;
+                        }
+                        setFrames((prev) =>
+                          prev.map((frame) => ({
+                            ...frame,
+                            points: frame.points.map((point) =>
+                              point.id === selectedPoint.id
+                                ? { ...point, isKeyframe: false }
+                                : point
+                            ),
+                          }))
+                        );
+                      }}
+                      disabled={keyframeCount === 0}
+                      aria-label={t("action.clearKeyframes")}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">
-                    {t("label.autoFillShape")}
-                  </Label>
-                  <Select
-                    value={autoFillShape}
-                    onValueChange={(value) =>
-                      setAutoFillShape(value as AutoFillShape)
-                    }
-                  >
-                    <SelectTrigger className="h-8">
-                      <SelectValue placeholder={t("label.autoFillShape")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ellipse">{t("shape.ellipse")}</SelectItem>
-                      <SelectItem value="circle">{t("shape.circle")}</SelectItem>
-                      <SelectItem value="square">{t("shape.square")}</SelectItem>
-                      <SelectItem value="tangent">{t("shape.tangent")}</SelectItem>
-                      <SelectItem value="linear">{t("shape.linear")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-[11px] text-muted-foreground">
-                    {t("hint.autoFillSettings")}
-                  </p>
-                </div>
+                {isKeyframesOpen && (
+                  <div className="space-y-2">
+                    <ScrollArea className="h-24 rounded-lg border border-border/60 bg-background/60 p-2">
+                      <div className="space-y-1">
+                        {selectedPointKeyframes.length === 0 ? (
+                          <div className="text-[11px] text-muted-foreground">
+                            {t("hint.noKeyframes")}
+                          </div>
+                        ) : (
+                          selectedPointKeyframes.map((keyframe) => (
+                            <div
+                              key={`${selectedPoint?.id}-${keyframe.frameIndex}`}
+                              className="flex items-center justify-between rounded-md border border-border/50 bg-muted/40 px-2 py-1 text-[11px]"
+                            >
+                              <span>
+                                {t("label.frame")} {keyframe.frameIndex + 1}
+                              </span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5"
+                                onClick={() => {
+                                  if (!selectedPoint) {
+                                    return;
+                                  }
+                                  setFrames((prev) =>
+                                    prev.map((frame, index) =>
+                                      index === keyframe.frameIndex
+                                        ? {
+                                            ...frame,
+                                            points: frame.points.map((point) =>
+                                              point.id === selectedPoint.id
+                                                ? { ...point, isKeyframe: false }
+                                                : point
+                                            ),
+                                          }
+                                        : frame
+                                    )
+                                  );
+                                }}
+                                aria-label={t("action.removeKeyframe")}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </ScrollArea>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">
+                        {t("label.autoFillShape")}
+                      </Label>
+                      <Select
+                        value={autoFillShape}
+                        onValueChange={(value) =>
+                          setAutoFillShape(value as AutoFillShape)
+                        }
+                      >
+                        <SelectTrigger className="h-8">
+                          <SelectValue placeholder={t("label.autoFillShape")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ellipse">{t("shape.ellipse")}</SelectItem>
+                          <SelectItem value="circle">{t("shape.circle")}</SelectItem>
+                          <SelectItem value="square">{t("shape.square")}</SelectItem>
+                          <SelectItem value="tangent">{t("shape.tangent")}</SelectItem>
+                          <SelectItem value="linear">{t("shape.linear")}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-muted-foreground">
+                        {t("hint.autoFillSettings")}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <Button
                   size="sm"
                   className="w-full"
@@ -1976,7 +2100,7 @@ function App() {
           )}
         </aside>
 
-        <main className="flex h-full flex-col gap-4 bg-card/70 p-4">
+        <main className="flex h-full min-h-0 flex-col gap-4 overflow-hidden bg-card/70 p-4">
           <section className="rounded-3xl border border-border/60 bg-card/80 p-5 shadow-soft backdrop-blur">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
@@ -2036,7 +2160,7 @@ function App() {
             </div>
           </section>
 
-          <section className="flex flex-1 flex-col rounded-3xl border border-border/60 bg-card/80 p-4 shadow-soft backdrop-blur">
+          <section className="flex min-h-0 flex-1 flex-col rounded-3xl border border-border/60 bg-card/80 p-4 shadow-soft backdrop-blur">
             <div className="flex flex-wrap items-center justify-between gap-3 px-2">
               <Tabs
                 value={viewMode}
@@ -2069,7 +2193,7 @@ function App() {
 
             <div
               ref={stageRef}
-              className="relative mt-4 flex-1 overflow-hidden rounded-2xl border border-border/60 bg-background/70"
+              className="relative mt-4 flex-1 min-h-0 max-h-[58vh] overflow-hidden rounded-2xl border border-border/60 bg-background/70"
             >
               <canvas
                 ref={canvasRef}
@@ -2185,6 +2309,119 @@ function App() {
                     </TooltipTrigger>
                     <TooltipContent>{t("action.last")}</TooltipContent>
                   </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        onClick={() => {
+                          if (!selectedPoint || !currentFrame) {
+                            return;
+                          }
+                          updateCurrentFramePoints((points) =>
+                            points.map((point) =>
+                              point.id === selectedPoint.id
+                                ? { ...point, isKeyframe: true }
+                                : point
+                            )
+                          );
+                        }}
+                        disabled={!canAddKeyframe || isCurrentFrameKeyframe}
+                      >
+                        <MapPinPlusInside className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t("action.addKeyframe")}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        onClick={() => {
+                          if (!selectedPoint || !currentFrame) {
+                            return;
+                          }
+                          updateCurrentFramePoints((points) =>
+                            points.map((point) =>
+                              point.id === selectedPoint.id
+                                ? { ...point, isKeyframe: false }
+                                : point
+                            )
+                          );
+                        }}
+                        disabled={!canRemoveKeyframe}
+                      >
+                        <MapPinOff className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t("action.removeKeyframeHere")}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        onClick={() => {
+                          if (!canMoveFrameLeft) {
+                            return;
+                          }
+                          setFrames((prev) => {
+                            const next = [...prev];
+                            const targetIndex = Math.max(0, currentFrameIndex - 1);
+                            if (targetIndex === currentFrameIndex) {
+                              return prev;
+                            }
+                            [next[currentFrameIndex], next[targetIndex]] = [
+                              next[targetIndex],
+                              next[currentFrameIndex],
+                            ];
+                            return next;
+                          });
+                          setCurrentFrameIndex((prev) => Math.max(0, prev - 1));
+                        }}
+                        disabled={!canMoveFrameLeft}
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t("action.moveFrameLeft")}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        onClick={() => {
+                          if (!canMoveFrameRight) {
+                            return;
+                          }
+                          setFrames((prev) => {
+                            const next = [...prev];
+                            const targetIndex = Math.min(
+                              prev.length - 1,
+                              currentFrameIndex + 1
+                            );
+                            if (targetIndex === currentFrameIndex) {
+                              return prev;
+                            }
+                            [next[currentFrameIndex], next[targetIndex]] = [
+                              next[targetIndex],
+                              next[currentFrameIndex],
+                            ];
+                            return next;
+                          });
+                          setCurrentFrameIndex((prev) =>
+                            Math.min(frames.length - 1, prev + 1)
+                          );
+                        }}
+                        disabled={!canMoveFrameRight}
+                      >
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t("action.moveFrameRight")}</TooltipContent>
+                  </Tooltip>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
@@ -2277,7 +2514,7 @@ function App() {
           </section>
         </main>
 
-        <aside className="space-y-4 rounded-none border-0 bg-card/80 p-4 shadow-none backdrop-blur">
+        <aside className="h-full min-h-0 space-y-4 overflow-y-auto rounded-none border-0 bg-card/80 p-4 shadow-none backdrop-blur">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
@@ -2286,36 +2523,6 @@ function App() {
               <h2 className="text-lg font-semibold">{t("panel.pipeline")}</h2>
             </div>
             <Layers className="h-5 w-5 text-muted-foreground" />
-          </div>
-
-          <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
-            <Label>{t("label.spriteSettings")}</Label>
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">
-                {t("label.spriteDirection")}
-              </Label>
-              <Select
-                value={spriteDirection}
-                onValueChange={(value) =>
-                  setSpriteDirection(value as SpriteDirection)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t("label.spriteDirection")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="clockwise">
-                    {t("direction.clockwise")}
-                  </SelectItem>
-                  <SelectItem value="counterclockwise">
-                    {t("direction.counterclockwise")}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {t("hint.spriteSettings")}
-            </p>
           </div>
 
           <div className="space-y-2 rounded-2xl border border-border/50 bg-background/70 p-3">
@@ -2357,55 +2564,180 @@ function App() {
 
           <Separator />
 
-          <div className="space-y-3">
+          <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
             <div className="flex items-center justify-between">
-              <Label>{t("label.atlasSettings")}</Label>
-              {sizeMismatch && (
-                <Badge variant="destructive" className="text-[10px]">
-                  {t("status.sizeMismatch")}
-                </Badge>
-              )}
+              <Label>{t("label.spriteSettings")}</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setIsSpriteSettingsOpen((prev) => !prev)}
+                aria-label={t("action.toggleSpriteSettings")}
+              >
+                {isSpriteSettingsOpen ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="rows-input">{t("label.rows")}</Label>
-                <Input
-                  id="rows-input"
-                  type="number"
-                  min={1}
-                  value={String(rows)}
-                  onChange={(event) =>
-                    setRows(Math.max(1, toNumber(event.target.value, rows)))
-                  }
-                />
+            {isSpriteSettingsOpen && (
+              <>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">
+                    {t("label.spriteDirection")}
+                  </Label>
+                  <Select
+                    value={spriteDirection}
+                    onValueChange={(value) =>
+                      setSpriteDirection(value as SpriteDirection)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t("label.spriteDirection")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="clockwise">
+                        {t("direction.clockwise")}
+                      </SelectItem>
+                      <SelectItem value="counterclockwise">
+                        {t("direction.counterclockwise")}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {t("hint.spriteSettings")}
+                </p>
+              </>
+            )}
+          </div>
+
+          <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Label>{t("label.atlasSettings")}</Label>
+                {sizeMismatch && (
+                  <Badge variant="destructive" className="text-[10px]">
+                    {t("status.sizeMismatch")}
+                  </Badge>
+                )}
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="padding-input">{t("label.padding")}</Label>
-                <Input
-                  id="padding-input"
-                  type="number"
-                  min={0}
-                  value={String(padding)}
-                  onChange={(event) =>
-                    setPadding(Math.max(0, toNumber(event.target.value, padding)))
-                  }
-                />
-              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setIsAtlasSettingsOpen((prev) => !prev)}
+                aria-label={t("action.toggleAtlasSettings")}
+              >
+                {isAtlasSettingsOpen ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
             </div>
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>
-                {t("status.cellSize", {
-                  w: atlasLayout.cellWidth,
-                  h: atlasLayout.cellHeight,
-                })}
-              </span>
-              <span>
-                {t("status.atlasSize", {
-                  w: atlasLayout.width,
-                  h: atlasLayout.height,
-                })}
-              </span>
+            {isAtlasSettingsOpen && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="rows-input">{t("label.rows")}</Label>
+                    <Input
+                      id="rows-input"
+                      type="number"
+                      min={1}
+                      value={String(rows)}
+                      onChange={(event) =>
+                        setRows(Math.max(1, toNumber(event.target.value, rows)))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="padding-input">{t("label.padding")}</Label>
+                    <Input
+                      id="padding-input"
+                      type="number"
+                      min={0}
+                      value={String(padding)}
+                      onChange={(event) =>
+                        setPadding(
+                          Math.max(0, toNumber(event.target.value, padding))
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>
+                    {t("status.cellSize", {
+                      w: atlasLayout.cellWidth,
+                      h: atlasLayout.cellHeight,
+                    })}
+                  </span>
+                  <span>
+                    {t("status.atlasSize", {
+                      w: atlasLayout.width,
+                      h: atlasLayout.height,
+                    })}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
+            <div className="flex items-center justify-between">
+              <Label>{t("label.exportQuality")}</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setIsExportQualityOpen((prev) => !prev)}
+                aria-label={t("action.toggleExportQuality")}
+              >
+                {isExportQualityOpen ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
             </div>
+            {isExportQualityOpen && (
+              <>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{t("label.exportScale")}</span>
+                    <span className="font-mono">{exportScale.toFixed(1)}x</span>
+                  </div>
+                  <Slider
+                    min={MIN_EXPORT_SCALE}
+                    max={MAX_EXPORT_SCALE}
+                    step={EXPORT_SCALE_STEP}
+                    value={[exportScale]}
+                    onValueChange={(value) => {
+                      const next = value[0] ?? exportScale;
+                      setExportScale(Math.round(next * 2) / 2);
+                    }}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="export-smoothing"
+                    checked={exportSmoothing}
+                    onCheckedChange={setExportSmoothing}
+                  />
+                  <Label htmlFor="export-smoothing">
+                    {t("label.smoothing")}
+                  </Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {t("hint.exportQuality")}
+                </p>
+              </>
+            )}
           </div>
 
           <Separator />
