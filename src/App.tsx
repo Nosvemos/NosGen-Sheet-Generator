@@ -1548,47 +1548,99 @@ function App() {
       ) {
         setSpriteDirection(importedDirection);
       }
-      if (!Array.isArray(parsed?.frames)) {
-        return;
-      }
       const nameToId = new Map<string, string>();
       const nameToColor = new Map<string, string>();
-      setFrames((prev) =>
-        prev.map((frame) => {
-          const match = parsed.frames.find(
-            (entry: { name?: string; filename?: string; id?: string }) =>
-              entry?.name === frame.name ||
-              entry?.filename === frame.name ||
-              entry?.id === frame.id
-          );
-          if (!match || !Array.isArray(match.points)) {
-            return frame;
-          }
-          const nextPoints = match.points.map(
-            (point: { name?: string; x?: number; y?: number }, index: number) => {
-              const name =
-                typeof point.name === "string" && point.name.length > 0
-                  ? point.name
-                  : t("point.defaultName", { index: index + 1 });
-              const id = nameToId.get(name) ?? createId();
-              nameToId.set(name, id);
-              const color = nameToColor.get(name) ?? createPointColor();
-              nameToColor.set(name, color);
-              const pivotPoint = {
-                x: Number(point.x ?? 0),
-                y: Number(point.y ?? 0),
-              };
-              const framePoint = fromPivotCoords(pivotPoint, frame, pivotFrom);
-              return {
-                id,
-                name,
-                color,
-                x: clamp(Math.round(framePoint.x), 0, frame.width),
-                y: clamp(Math.round(framePoint.y), 0, frame.height),
-                isKeyframe: true,
-              };
+      if (Array.isArray(parsed?.frames)) {
+        setFrames((prev) =>
+          prev.map((frame) => {
+            const match = parsed.frames.find(
+              (entry: { name?: string; filename?: string; id?: string }) =>
+                entry?.name === frame.name ||
+                entry?.filename === frame.name ||
+                entry?.id === frame.id
+            );
+            if (!match || !Array.isArray(match.points)) {
+              return frame;
             }
-          );
+            const nextPoints = match.points.map(
+              (point: { name?: string; x?: number; y?: number }, index: number) => {
+                const name =
+                  typeof point.name === "string" && point.name.length > 0
+                    ? point.name
+                    : t("point.defaultName", { index: index + 1 });
+                const id = nameToId.get(name) ?? createId();
+                nameToId.set(name, id);
+                const color = nameToColor.get(name) ?? createPointColor();
+                nameToColor.set(name, color);
+                const pivotPoint = {
+                  x: Number(point.x ?? 0),
+                  y: Number(point.y ?? 0),
+                };
+                const framePoint = fromPivotCoords(pivotPoint, frame, pivotFrom);
+                return {
+                  id,
+                  name,
+                  color,
+                  x: clamp(Math.round(framePoint.x), 0, frame.width),
+                  y: clamp(Math.round(framePoint.y), 0, frame.height),
+                  isKeyframe: true,
+                };
+              }
+            );
+            return { ...frame, points: nextPoints };
+          })
+        );
+        return;
+      }
+
+      if (!parsed || typeof parsed !== "object") {
+        return;
+      }
+      const entries = Object.entries(parsed).filter(
+        ([key, value]) => key !== "meta" && Array.isArray(value)
+      );
+      if (entries.length === 0) {
+        return;
+      }
+      setFrames((prev) =>
+        prev.map((frame, frameIndex) => {
+          const nextPoints = entries.map(([rawName, rawPoints], index) => {
+            const name =
+              typeof rawName === "string" && rawName.length > 0
+                ? rawName
+                : t("point.defaultName", { index: index + 1 });
+            const id = nameToId.get(name) ?? createId();
+            nameToId.set(name, id);
+            const color = nameToColor.get(name) ?? createPointColor();
+            nameToColor.set(name, color);
+            const pointList = Array.isArray(rawPoints) ? rawPoints : [];
+            const entry = pointList[frameIndex];
+            let x = 0;
+            let y = 0;
+            let isKeyframe = false;
+            if (Array.isArray(entry) && entry.length >= 2) {
+              const rawX = Number(entry[0]);
+              const rawY = Number(entry[1]);
+              if (Number.isFinite(rawX) && Number.isFinite(rawY)) {
+                const framePoint = fromPivotCoords(
+                  { x: rawX, y: rawY },
+                  frame,
+                  pivotFrom
+                );
+                x = clamp(Math.round(framePoint.x), 0, frame.width);
+                y = clamp(Math.round(framePoint.y), 0, frame.height);
+                isKeyframe = true;
+              }
+            }
+            return {
+              id,
+              name,
+              color,
+              x,
+              y,
+              isKeyframe,
+            };
+          });
           return { ...frame, points: nextPoints };
         })
       );
