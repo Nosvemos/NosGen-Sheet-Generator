@@ -53,6 +53,7 @@ type PivotMode = "top-left" | "bottom-left" | "center";
 type EditorMode = "select" | "add";
 type ViewMode = "frame" | "atlas";
 type ThemeMode = "dark" | "light";
+type AppMode = "character" | "animation";
 
 type FramePoint = {
   id: string;
@@ -61,6 +62,12 @@ type FramePoint = {
   y: number;
   color: string;
   isKeyframe?: boolean;
+};
+
+type PointGroup = {
+  id: string;
+  name: string;
+  entries: string[][];
 };
 
 type FrameData = {
@@ -162,6 +169,18 @@ const toNumber = (value: string, fallback: number) => {
 const createPointColor = () => {
   const hue = Math.floor(Math.random() * 360);
   return `hsl(${hue} 70% 55%)`;
+};
+
+const normalizeExportName = (value: string, fallback: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return fallback;
+  }
+  const safe = trimmed
+    .replace(/\s+/g, "_")
+    .replace(/[^a-zA-Z0-9_-]/g, "")
+    .slice(0, 64);
+  return safe || fallback;
 };
 
 const drawCheckerboard = (
@@ -702,6 +721,7 @@ function App() {
   const [editorMode, setEditorMode] = useState<EditorMode>("select");
   const [pivotMode, setPivotMode] = useState<PivotMode>("top-left");
   const [viewMode, setViewMode] = useState<ViewMode>("frame");
+  const [appMode, setAppMode] = useState<AppMode>("character");
   const [theme, setTheme] = useState<ThemeMode>(() => {
     if (typeof window === "undefined") {
       return "dark";
@@ -731,6 +751,23 @@ function App() {
   const [isSpriteSettingsOpen, setIsSpriteSettingsOpen] = useState(true);
   const [isAtlasSettingsOpen, setIsAtlasSettingsOpen] = useState(true);
   const [isExportQualityOpen, setIsExportQualityOpen] = useState(true);
+  const [pointGroups, setPointGroups] = useState<PointGroup[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [groupEntrySelection, setGroupEntrySelection] = useState<
+    Record<string, string>
+  >({});
+  const [isGroupPreviewActive, setIsGroupPreviewActive] = useState(false);
+  const [isGroupPreviewPlaying, setIsGroupPreviewPlaying] = useState(false);
+  const [groupPreviewIndex, setGroupPreviewIndex] = useState(0);
+  const [isPointsOpen, setIsPointsOpen] = useState(true);
+  const [isPointGroupsOpen, setIsPointGroupsOpen] = useState(true);
+  const [isProjectSettingsOpen, setIsProjectSettingsOpen] = useState(true);
+  const [projectName, setProjectName] = useState("project");
+  const [animationName, setAnimationName] = useState("animation");
+  const [animationFrameSelection, setAnimationFrameSelection] = useState<
+    Record<string, boolean>
+  >({});
 
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -773,6 +810,39 @@ function App() {
     });
     return keyframes.sort((a, b) => a.frameIndex - b.frameIndex);
   }, [frames, selectedPointId]);
+
+  const availablePoints = useMemo(() => {
+    const baseFrame = frames[0];
+    if (!baseFrame) {
+      return [];
+    }
+    return baseFrame.points.map((point) => ({
+      id: point.id,
+      name: point.name,
+      color: point.color,
+    }));
+  }, [frames]);
+
+  const selectedGroup =
+    pointGroups.find((group) => group.id === selectedGroupId) ?? null;
+
+  const groupPreviewIds = useMemo(() => {
+    if (!isGroupPreviewActive || !selectedGroup) {
+      return null;
+    }
+    if (selectedGroup.entries.length === 0) {
+      return null;
+    }
+    return selectedGroup.entries[
+      Math.max(0, Math.min(groupPreviewIndex, selectedGroup.entries.length - 1))
+    ];
+  }, [groupPreviewIndex, isGroupPreviewActive, selectedGroup]);
+
+  const isCharacterMode = appMode === "character";
+  const selectedAnimationFrames = useMemo(
+    () => frames.filter((frame) => animationFrameSelection[frame.id]),
+    [animationFrameSelection, frames]
+  );
 
   const selectedAutoFillModel = useMemo<AutoFillModel | null>(() => {
     if (selectedPointKeyframes.length < 2 || frames.length === 0) {
@@ -1056,6 +1126,16 @@ function App() {
   }, [currentFrame, selectedPointId]);
 
   useEffect(() => {
+    setAnimationFrameSelection((prev) => {
+      const next: Record<string, boolean> = {};
+      frames.forEach((frame) => {
+        next[frame.id] = prev[frame.id] ?? true;
+      });
+      return next;
+    });
+  }, [frames]);
+
+  useEffect(() => {
     if (!isPlaying || frames.length === 0) {
       return;
     }
@@ -1077,6 +1157,48 @@ function App() {
     }, intervalMs);
     return () => window.clearInterval(timer);
   }, [isPlaying, frames.length, fps, speed, reverse, loop]);
+
+  useEffect(() => {
+    if (!selectedGroup) {
+      setIsGroupPreviewPlaying(false);
+      setGroupPreviewIndex(0);
+      return;
+    }
+    if (selectedGroup.entries.length === 0) {
+      setIsGroupPreviewPlaying(false);
+      setGroupPreviewIndex(0);
+      return;
+    }
+    setGroupPreviewIndex((prev) =>
+      Math.max(0, Math.min(prev, selectedGroup.entries.length - 1))
+    );
+  }, [selectedGroup]);
+
+  useEffect(() => {
+    if (
+      !isGroupPreviewPlaying ||
+      !selectedGroup ||
+      selectedGroup.entries.length === 0
+    ) {
+      return;
+    }
+    const safeFps = Math.max(1, fps);
+    const intervalMs = 1000 / (safeFps * speed);
+    const timer = window.setInterval(() => {
+      setGroupPreviewIndex((prev) =>
+        selectedGroup.entries.length === 0
+          ? 0
+          : (prev + 1) % selectedGroup.entries.length
+      );
+    }, intervalMs);
+    return () => window.clearInterval(timer);
+  }, [
+    isGroupPreviewPlaying,
+    selectedGroup?.id,
+    selectedGroup?.entries.length,
+    fps,
+    speed,
+  ]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1124,7 +1246,7 @@ function App() {
     const gridColor = toHslColor(
       styles.getPropertyValue("--border"),
       "rgba(20, 20, 20, 0.08)",
-      0.35
+      0.6
     );
     const frameOutline = toHslColor(
       styles.getPropertyValue("--border"),
@@ -1234,8 +1356,11 @@ function App() {
         ctx.restore();
       }
 
-      if (showPoints) {
-        currentPoints.forEach((point) => {
+      if (showPoints && isCharacterMode) {
+        const pointsToRender = groupPreviewIds
+          ? currentPoints.filter((point) => groupPreviewIds.includes(point.id))
+          : currentPoints;
+        pointsToRender.forEach((point) => {
           const px = offsetX + point.x * scale;
           const py = offsetY + point.y * scale;
           const isSelected = point.id === selectedPointId;
@@ -1318,6 +1443,7 @@ function App() {
     frameZoom,
     panOffset,
     pivotMode,
+    groupPreviewIds,
     selectedAutoFillModel,
     selectedAutoFillPositions,
     selectedPoint,
@@ -1405,6 +1531,9 @@ function App() {
         originY: panOffset.y,
       };
       canvas.setPointerCapture(event.pointerId);
+      return;
+    }
+    if (!isCharacterMode) {
       return;
     }
     const rect = canvas.getBoundingClientRect();
@@ -1690,7 +1819,7 @@ function App() {
     });
     canvas.toBlob((blob) => {
       if (blob) {
-        downloadBlob(blob, "sprite-atlas.png");
+        downloadBlob(blob, `${exportAtlasName}.png`);
       }
     });
   };
@@ -1700,16 +1829,23 @@ function App() {
       return;
     }
     const layout = computeAtlasLayout(frames, rows, padding);
+    const includePoints = isCharacterMode;
     const exportedFrames = frames.map((frame, index) => {
       const cell = layout.positions[index];
       const offsetX = Math.floor((layout.cellWidth - frame.width) / 2);
       const offsetY = Math.floor((layout.cellHeight - frame.height) / 2);
-      return {
+      const base = {
         name: frame.name,
         x: cell.x + offsetX,
         y: cell.y + offsetY,
         w: frame.width,
         h: frame.height,
+      };
+      if (!includePoints) {
+        return base;
+      }
+      return {
+        ...base,
         points: frame.points.map((point) => {
           const pivotPoint = toPivotCoords(point, frame, pivotMode);
           return {
@@ -1721,17 +1857,49 @@ function App() {
       };
     });
 
+    let groups: Record<string, string[][]> | undefined;
+    if (includePoints && pointGroups.length > 0) {
+      const idToName = new Map<string, string>();
+      frames[0]?.points.forEach((point) => {
+        idToName.set(point.id, point.name);
+      });
+      groups = pointGroups.reduce<Record<string, string[][]>>(
+        (acc, group) => {
+          const safeName = group.name || `group-${group.id.slice(0, 6)}`;
+          acc[safeName] = group.entries.map((entry) =>
+            entry.map((id) => idToName.get(id) ?? id)
+          );
+          return acc;
+        },
+        {}
+      );
+    }
+
+    const animation =
+      appMode === "animation"
+        ? {
+            name: animationName.trim() || "animation",
+            fps,
+            speed,
+            loop,
+            frames: selectedAnimationFrames.map((frame) => frame.name),
+          }
+        : undefined;
+
     const payload = {
       meta: {
         app: "NosGen",
-        image: "sprite-atlas.png",
+        image: `${exportAtlasName}.png`,
         size: { w: layout.width, h: layout.height },
         rows: layout.rows,
         columns: layout.columns,
         padding: layout.padding,
         pivot: pivotMode,
         spriteDirection,
+        mode: appMode,
       },
+      ...(groups ? { groups } : {}),
+      ...(animation ? { animation } : {}),
       frames: exportedFrames,
     };
 
@@ -1739,7 +1907,7 @@ function App() {
       new Blob([JSON.stringify(payload, null, 2)], {
         type: "application/json",
       }),
-      "sprite-atlas.json"
+      `${exportDataName}.json`
     );
   };
 
@@ -1757,8 +1925,18 @@ function App() {
   const canAddKeyframe = Boolean(selectedPoint && currentFrame);
   const isCurrentFrameKeyframe = selectedPoint?.isKeyframe ?? false;
   const canRemoveKeyframe = Boolean(selectedPoint && isCurrentFrameKeyframe);
+  const canDeleteFrame = frames.length > 0;
   const canMoveFrameLeft = currentFrameIndex > 0;
   const canMoveFrameRight = currentFrameIndex < frames.length - 1;
+  const canPreviewGroup =
+    Boolean(selectedGroup) && (selectedGroup?.entries.length ?? 0) > 0;
+  const exportBaseName = normalizeExportName(projectName, "sprite-atlas");
+  const exportAtlasName = `${exportBaseName}_atlas`;
+  const exportDataName = `${exportBaseName}_data`;
+  const animationTotalSeconds =
+    appMode === "animation" && fps > 0 ? frames.length / fps : 0;
+  const animationCurrentSeconds =
+    appMode === "animation" && fps > 0 ? currentFrameIndex / fps : 0;
 
   return (
     <TooltipProvider>
@@ -1777,6 +1955,177 @@ function App() {
           </div>
 
           <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
+            <div className="flex items-center justify-between">
+              <Label>{t("label.projectSettings")}</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setIsProjectSettingsOpen((prev) => !prev)}
+                aria-label={t("action.toggleProjectSettings")}
+              >
+                {isProjectSettingsOpen ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            {isProjectSettingsOpen && (
+              <>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">
+                    {t("label.appMode")}
+                  </Label>
+                  <Select
+                    value={appMode}
+                    onValueChange={(value) => setAppMode(value as AppMode)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t("label.appMode")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="character">
+                        {t("mode.character")}
+                      </SelectItem>
+                      <SelectItem value="animation">
+                        {t("mode.animation")}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {t("hint.appMode")}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="project-name">{t("label.projectName")}</Label>
+                  <Input
+                    id="project-name"
+                    value={projectName}
+                    onChange={(event) => setProjectName(event.target.value)}
+                    placeholder={t("placeholder.projectName")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">
+                    {t("label.pivotSpace")}
+                  </Label>
+                  <Select
+                    value={pivotMode}
+                    onValueChange={(value) => setPivotMode(value as PivotMode)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t("placeholder.pivotMode")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PIVOT_OPTIONS.map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {pivotLabels[value]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {t("hint.pivotExport")}
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+
+          {appMode === "animation" && (
+            <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
+              <Label>{t("label.animationBuilder")}</Label>
+              <div className="space-y-1">
+                <Label htmlFor="animation-name">{t("label.animationName")}</Label>
+                <Input
+                  id="animation-name"
+                  value={animationName}
+                  onChange={(event) => setAnimationName(event.target.value)}
+                  placeholder={t("placeholder.animationName")}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label>{t("label.animationFrames")}</Label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() =>
+                      setAnimationFrameSelection((prev) => {
+                        const next = { ...prev };
+                        frames.forEach((frame) => {
+                          next[frame.id] = true;
+                        });
+                        return next;
+                      })
+                    }
+                  >
+                    {t("action.selectAll")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setAnimationFrameSelection((prev) => {
+                        const next = { ...prev };
+                        frames.forEach((frame) => {
+                          next[frame.id] = false;
+                        });
+                        return next;
+                      })
+                    }
+                  >
+                    {t("action.clearAll")}
+                  </Button>
+                </div>
+              </div>
+              <ScrollArea className="h-40 rounded-xl border border-border/50 bg-background/80">
+                <div className="space-y-2 p-3">
+                  {frames.length === 0 ? (
+                    <div className="text-xs text-muted-foreground">
+                      {t("hint.noFrames")}
+                    </div>
+                  ) : (
+                    frames.map((frame, index) => (
+                      <div
+                        key={frame.id}
+                        className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/40 px-3 py-2"
+                      >
+                        <div>
+                          <div className="text-sm font-medium">{frame.name}</div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {t("label.frame")} {index + 1}
+                          </div>
+                        </div>
+                        <Switch
+                          checked={Boolean(animationFrameSelection[frame.id])}
+                          onCheckedChange={(checked) =>
+                            setAnimationFrameSelection((prev) => ({
+                              ...prev,
+                              [frame.id]: checked,
+                            }))
+                          }
+                        />
+                      </div>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+              <p className="text-xs text-muted-foreground">
+                {t("hint.animationExport")}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {t("hint.animationFpsFromPlayback")}
+              </p>
+            </div>
+          )}
+
+          {isCharacterMode && (
+            <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
             <div className="flex items-center justify-between">
               <Label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                 {t("label.mode")}
@@ -1819,82 +2168,484 @@ function App() {
               {t("action.centerPoint")}
             </Button>
           </div>
+          )}
 
-          <div className="space-y-2">
-            <Label>{t("label.pivotSpace")}</Label>
-            <Select
-              value={pivotMode}
-              onValueChange={(value) => setPivotMode(value as PivotMode)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={t("placeholder.pivotMode")} />
-              </SelectTrigger>
-              <SelectContent>
-                {PIVOT_OPTIONS.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {pivotLabels[value]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              {t("hint.pivotExport")}
-            </p>
-          </div>
-
-          <div className="space-y-2">
+          {isCharacterMode && (
+          <div className="space-y-2 rounded-2xl border border-border/50 bg-background/70 p-3">
             <div className="flex items-center justify-between">
               <Label>{t("label.points")}</Label>
-              <Badge variant="outline">{currentPoints.length}</Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline">{currentPoints.length}</Badge>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => setIsPointsOpen((prev) => !prev)}
+                  aria-label={t("action.togglePoints")}
+                >
+                  {isPointsOpen ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </div>
-            <ScrollArea className="h-30 rounded-2xl border border-border/50 bg-background/70">
-              <div className="space-y-2 p-3">
-                {currentPoints.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-border/70 p-4 text-center text-xs text-muted-foreground">
-                    {t("hint.noPoints")}
-                  </div>
-                ) : (
-                  currentPoints.map((point) => {
-                    const pivotCoords =
-                      currentFrame && toPivotCoords(point, currentFrame, pivotMode);
-                    const displayX = pivotCoords ? Math.round(pivotCoords.x) : 0;
-                    const displayY = pivotCoords ? Math.round(pivotCoords.y) : 0;
-                    return (
-                      <button
-                        key={point.id}
-                        type="button"
-                        className={cn(
-                          "flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left transition",
-                          point.id === selectedPointId
-                            ? "border-accent/40 bg-accent/10"
-                            : "border-border/60 bg-muted/30 hover:bg-muted/60"
-                        )}
-                        onClick={() => setSelectedPointId(point.id)}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="h-2.5 w-2.5 rounded-full"
-                            style={{ backgroundColor: point.color || "#999" }}
-                          />
-                          <div>
-                            <div className="text-sm font-medium">{point.name}</div>
-                            <div className="text-[11px] text-muted-foreground">
-                              {pivotLabels[pivotMode]}
+            {isPointsOpen && (
+              <ScrollArea className="h-30 rounded-xl border border-border/50 bg-background/80">
+                <div className="space-y-2 p-3">
+                  {currentPoints.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border/70 p-4 text-center text-xs text-muted-foreground">
+                      {t("hint.noPoints")}
+                    </div>
+                  ) : (
+                    currentPoints.map((point) => {
+                      const pivotCoords =
+                        currentFrame && toPivotCoords(point, currentFrame, pivotMode);
+                      const displayX = pivotCoords ? Math.round(pivotCoords.x) : 0;
+                      const displayY = pivotCoords ? Math.round(pivotCoords.y) : 0;
+                      return (
+                        <button
+                          key={point.id}
+                          type="button"
+                          className={cn(
+                            "flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left transition",
+                            point.id === selectedPointId
+                              ? "border-accent/40 bg-accent/10"
+                              : "border-border/60 bg-muted/30 hover:bg-muted/60"
+                          )}
+                          onClick={() => setSelectedPointId(point.id)}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="h-2.5 w-2.5 rounded-full"
+                              style={{ backgroundColor: point.color || "#999" }}
+                            />
+                            <div>
+                              <div className="text-sm font-medium">{point.name}</div>
+                              <div className="text-[11px] text-muted-foreground">
+                                {pivotLabels[pivotMode]}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="text-xs font-mono text-muted-foreground">
-                          {displayX},{displayY}
-                        </div>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </ScrollArea>
+                          <div className="text-xs font-mono text-muted-foreground">
+                            {displayX},{displayY}
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </ScrollArea>
+            )}
           </div>
+          )}
 
-          {selectedPoint && (
+          {isCharacterMode && (
+          <div className="space-y-2 rounded-2xl border border-border/50 bg-background/70 p-3">
+            <div className="flex items-center justify-between">
+              <Label>{t("label.pointGroups")}</Label>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline">{pointGroups.length}</Badge>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => setIsPointGroupsOpen((prev) => !prev)}
+                  aria-label={t("action.togglePointGroups")}
+                >
+                  {isPointGroupsOpen ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+            {isPointGroupsOpen && (
+              <>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={newGroupName}
+                    onChange={(event) => setNewGroupName(event.target.value)}
+                    placeholder={t("placeholder.groupName")}
+                  />
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="secondary"
+                    onClick={() => {
+                      const trimmed = newGroupName.trim();
+                      const name =
+                        trimmed ||
+                        t("group.defaultName", { index: pointGroups.length + 1 });
+                      const id = createId();
+                      setPointGroups((prev) => [
+                        ...prev,
+                        { id, name, entries: [[]] },
+                      ]);
+                      setSelectedGroupId(id);
+                      setNewGroupName("");
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <ScrollArea className="h-28 rounded-xl border border-border/50 bg-background/80">
+                  <div className="space-y-2 p-3">
+                    {pointGroups.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-border/70 p-4 text-center text-xs text-muted-foreground">
+                        {t("hint.noGroups")}
+                      </div>
+                    ) : (
+                      pointGroups.map((group) => (
+                        <button
+                          key={group.id}
+                          type="button"
+                          className={cn(
+                            "flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left transition",
+                            group.id === selectedGroupId
+                              ? "border-accent/40 bg-accent/10"
+                              : "border-border/60 bg-muted/30 hover:bg-muted/60"
+                          )}
+                          onClick={() => setSelectedGroupId(group.id)}
+                        >
+                          <div>
+                            <div className="text-sm font-medium">{group.name}</div>
+                            <div className="text-[11px] text-muted-foreground">
+                              {t("label.groupEntries", {
+                                count: group.entries.length,
+                              })}
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+              </>
+            )}
+          </div>
+          )}
+
+          {isCharacterMode && selectedGroup && (
+            <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
+              <div className="flex items-center justify-between">
+                <Label>{t("label.groupEditor")}</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setPointGroups((prev) =>
+                      prev.filter((group) => group.id !== selectedGroup.id)
+                    );
+                    setSelectedGroupId(null);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="group-name">{t("label.groupName")}</Label>
+                <Input
+                  id="group-name"
+                  value={selectedGroup.name}
+                  onChange={(event) => {
+                    const name = event.target.value;
+                    setPointGroups((prev) =>
+                      prev.map((group) =>
+                        group.id === selectedGroup.id ? { ...group, name } : group
+                      )
+                    );
+                  }}
+                  placeholder={t("placeholder.groupName")}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label>{t("label.groupIndices")}</Label>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setPointGroups((prev) =>
+                      prev.map((group) =>
+                        group.id === selectedGroup.id
+                          ? { ...group, entries: [...group.entries, []] }
+                          : group
+                      )
+                    );
+                  }}
+                >
+                  {t("action.addIndex")}
+                </Button>
+              </div>
+              <div className="space-y-2 rounded-xl border border-border/50 bg-muted/30 p-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{t("label.groupPlayback")}</span>
+                  <span className="font-mono">
+                    {selectedGroup.entries.length > 0
+                      ? `${groupPreviewIndex + 1}/${selectedGroup.entries.length}`
+                      : "0/0"}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-1">
+                  <Switch
+                    id="group-preview"
+                    checked={isGroupPreviewActive}
+                    onCheckedChange={(checked) => {
+                      setIsGroupPreviewActive(checked);
+                      if (!checked) {
+                        setIsGroupPreviewPlaying(false);
+                      }
+                    }}
+                  />
+                  <Label htmlFor="group-preview">{t("label.previewOnCanvas")}</Label>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={!canPreviewGroup}
+                    onClick={() => {
+                      if (!canPreviewGroup) {
+                        return;
+                      }
+                      setIsGroupPreviewActive(true);
+                      setIsGroupPreviewPlaying((prev) => !prev);
+                    }}
+                  >
+                    {isGroupPreviewPlaying
+                      ? t("action.stopGroup")
+                      : t("action.playGroup")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    disabled={!canPreviewGroup}
+                    onClick={() => {
+                      if (!canPreviewGroup) {
+                        return;
+                      }
+                      setIsGroupPreviewActive(true);
+                      setGroupPreviewIndex((prev) =>
+                        prev === 0
+                          ? selectedGroup.entries.length - 1
+                          : prev - 1
+                      );
+                    }}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    disabled={!canPreviewGroup}
+                    onClick={() => {
+                      if (!canPreviewGroup) {
+                        return;
+                      }
+                      setIsGroupPreviewActive(true);
+                      setGroupPreviewIndex((prev) =>
+                        (prev + 1) % selectedGroup.entries.length
+                      );
+                    }}
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Slider
+                  min={0}
+                  max={Math.max(0, selectedGroup.entries.length - 1)}
+                  step={1}
+                  value={[groupPreviewIndex]}
+                  onValueChange={(value) => {
+                    const next = value[0] ?? 0;
+                    setGroupPreviewIndex(next);
+                    setIsGroupPreviewActive(true);
+                  }}
+                  disabled={!canPreviewGroup}
+                />
+              </div>
+              <ScrollArea className="h-40 rounded-xl border border-border/50 bg-background/60 p-2">
+                <div className="space-y-3">
+                  {selectedGroup.entries.map((entry, entryIndex) => (
+                    <div
+                      key={`${selectedGroup.id}-${entryIndex}`}
+                      className="rounded-xl border border-border/60 bg-muted/40 p-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {t("label.index")} {entryIndex}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => {
+                            setPointGroups((prev) =>
+                              prev.map((group) =>
+                                group.id === selectedGroup.id
+                                  ? {
+                                      ...group,
+                                      entries: group.entries.filter(
+                                        (_, idx) => idx !== entryIndex
+                                      ),
+                                    }
+                                  : group
+                              )
+                            );
+                          }}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <div className="mt-2 space-y-2">
+                        {availablePoints.length === 0 ? (
+                          <div className="text-xs text-muted-foreground">
+                            {t("hint.noGroupPoints")}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Select
+                              value={
+                                groupEntrySelection[
+                                  `${selectedGroup.id}-${entryIndex}`
+                                ] ?? ""
+                              }
+                              onValueChange={(value) => {
+                                const key = `${selectedGroup.id}-${entryIndex}`;
+                                setGroupEntrySelection((prev) => ({
+                                  ...prev,
+                                  [key]: value,
+                                }));
+                              }}
+                            >
+                              <SelectTrigger className="h-8 flex-1">
+                                <SelectValue placeholder={t("placeholder.addPoint")} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availablePoints
+                                  .filter((point) => !entry.includes(point.id))
+                                  .map((point) => (
+                                    <SelectItem key={point.id} value={point.id}>
+                                      {point.name}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="secondary"
+                              disabled={
+                                !(
+                                  groupEntrySelection[
+                                    `${selectedGroup.id}-${entryIndex}`
+                                  ] ?? ""
+                                )
+                              }
+                              onClick={() => {
+                                const key = `${selectedGroup.id}-${entryIndex}`;
+                                const selectedId = groupEntrySelection[key];
+                                if (!selectedId) {
+                                  return;
+                                }
+                                setPointGroups((prev) =>
+                                  prev.map((group) => {
+                                    if (group.id !== selectedGroup.id) {
+                                      return group;
+                                    }
+                                    const nextEntries = group.entries.map(
+                                      (entryPoints, idx) =>
+                                        idx === entryIndex
+                                          ? entryPoints.includes(selectedId)
+                                            ? entryPoints
+                                            : [...entryPoints, selectedId]
+                                          : entryPoints
+                                    );
+                                    return { ...group, entries: nextEntries };
+                                  })
+                                );
+                                setGroupEntrySelection((prev) => ({
+                                  ...prev,
+                                  [key]: "",
+                                }));
+                              }}
+                            >
+                              {t("action.addPointToIndex")}
+                            </Button>
+                          </div>
+                        )}
+                        {entry.length === 0 ? (
+                          <div className="text-xs text-muted-foreground">
+                            {t("hint.noPointsInIndex")}
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {entry.map((pointId) => {
+                              const point = availablePoints.find(
+                                (item) => item.id === pointId
+                              );
+                              return (
+                                <div
+                                  key={pointId}
+                                  className="flex items-center gap-2 rounded-full border border-border/60 bg-muted/50 px-2 py-1 text-[11px]"
+                                >
+                                  <span
+                                    className="h-2 w-2 rounded-full"
+                                    style={{
+                                      backgroundColor: point?.color || "#999",
+                                    }}
+                                  />
+                                  <span>{point?.name ?? pointId}</span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-5 w-5"
+                                    onClick={() => {
+                                      setPointGroups((prev) =>
+                                        prev.map((group) => {
+                                          if (group.id !== selectedGroup.id) {
+                                            return group;
+                                          }
+                                          const nextEntries = group.entries.map(
+                                            (entryPoints, idx) =>
+                                              idx === entryIndex
+                                                ? entryPoints.filter(
+                                                    (id) => id !== pointId
+                                                  )
+                                                : entryPoints
+                                          );
+                                          return { ...group, entries: nextEntries };
+                                        })
+                                      );
+                                    }}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+
+          {isCharacterMode && selectedPoint && (
             <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
               <div className="flex items-center justify-between">
                 <Label>{t("label.selectedPoint")}</Label>
@@ -2361,6 +3112,8 @@ function App() {
                     </TooltipTrigger>
                     <TooltipContent>{t("action.last")}</TooltipContent>
                   </Tooltip>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -2409,6 +3162,8 @@ function App() {
                     </TooltipTrigger>
                     <TooltipContent>{t("action.removeKeyframeHere")}</TooltipContent>
                   </Tooltip>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -2438,6 +3193,41 @@ function App() {
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>{t("action.moveFrameLeft")}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        onClick={() => {
+                          if (!canDeleteFrame) {
+                            return;
+                          }
+                          setFrames((prev) => {
+                            if (prev.length === 0) {
+                              return prev;
+                            }
+                            const next = prev.filter(
+                              (_, index) => index !== currentFrameIndex
+                            );
+                            const nextIndex = Math.min(
+                              currentFrameIndex,
+                              Math.max(0, next.length - 1)
+                            );
+                            setCurrentFrameIndex(nextIndex);
+                            if (next.length === 0) {
+                              setSelectedPointId(null);
+                              setIsPlaying(false);
+                            }
+                            return next;
+                          });
+                        }}
+                        disabled={!canDeleteFrame}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t("action.deleteFrame")}</TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -2561,6 +3351,12 @@ function App() {
                       </div>
                     )}
                 </div>
+                {appMode === "animation" && (
+                  <div className="text-xs font-mono text-muted-foreground">
+                    {animationCurrentSeconds.toFixed(2)}s /{" "}
+                    {animationTotalSeconds.toFixed(2)}s
+                  </div>
+                )}
               </div>
             </div>
           </section>
