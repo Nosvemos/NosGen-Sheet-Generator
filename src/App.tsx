@@ -287,13 +287,6 @@ const fromPivotCoords = (
   return { x: point.x, y: point.y };
 };
 
-const parsePivotMode = (value: unknown): PivotMode => {
-  if (value === "top-left" || value === "bottom-left" || value === "center") {
-    return value;
-  }
-  return "top-left";
-};
-
 const solveLinear = (inputs: number[], outputs: number[]) => {
   const count = inputs.length;
   if (count === 0) {
@@ -780,6 +773,12 @@ function App() {
     originY: number;
   } | null>(null);
   const framesInputRef = useRef<HTMLInputElement>(null);
+  const newPointsInputRef = useRef<HTMLInputElement>(null);
+  const editAtlasPngInputRef = useRef<HTMLInputElement>(null);
+  const editAtlasJsonInputRef = useRef<HTMLInputElement>(null);
+  const [editAtlasPngFile, setEditAtlasPngFile] = useState<File | null>(null);
+  const [editAtlasJsonFile, setEditAtlasJsonFile] = useState<File | null>(null);
+  const [isEditImporting, setIsEditImporting] = useState(false);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
 
   const currentFrame = frames[currentFrameIndex];
@@ -956,6 +955,191 @@ function App() {
       (frame) => frame.width !== base.width || frame.height !== base.height
     );
   }, [frames]);
+
+  const importPointsJsonToFrames = (
+    parsed: unknown,
+    baseFrames: FrameData[]
+  ): {
+    frames: FrameData[];
+    spriteDirection?: SpriteDirection;
+    pivotMode?: PivotMode;
+  } => {
+    if (!parsed || typeof parsed !== "object") {
+      return { frames: baseFrames };
+    }
+    const payload = parsed as {
+      meta?: {
+        pivot?: unknown;
+        pivotMode?: unknown;
+        spriteDirection?: unknown;
+      };
+      frames?: unknown;
+    };
+    const pivotRaw = payload.meta?.pivot ?? payload.meta?.pivotMode;
+    const pivotMode =
+      pivotRaw === "top-left" ||
+      pivotRaw === "bottom-left" ||
+      pivotRaw === "center"
+        ? pivotRaw
+        : undefined;
+    const spriteDirection =
+      payload.meta?.spriteDirection === "clockwise" ||
+      payload.meta?.spriteDirection === "counterclockwise"
+        ? payload.meta?.spriteDirection
+        : undefined;
+    const nameToId = new Map<string, string>();
+    const nameToColor = new Map<string, string>();
+    const buildPoint = (
+      name: string,
+      point: { x?: number; y?: number },
+      frame: FrameData
+    ) => {
+      const id = nameToId.get(name) ?? createId();
+      nameToId.set(name, id);
+      const color = nameToColor.get(name) ?? createPointColor();
+      nameToColor.set(name, color);
+      const pivotPoint = {
+        x: Number(point.x ?? 0),
+        y: Number(point.y ?? 0),
+      };
+      const framePoint = fromPivotCoords(
+        pivotPoint,
+        frame,
+        pivotMode ?? "top-left"
+      );
+      return {
+        id,
+        name,
+        color,
+        x: clamp(Math.round(framePoint.x), 0, frame.width),
+        y: clamp(Math.round(framePoint.y), 0, frame.height),
+        isKeyframe: true,
+      };
+    };
+
+    const framesPayload = Array.isArray(payload.frames)
+      ? (payload.frames as Array<{ name?: string; filename?: string; id?: string; points?: unknown }>)
+      : null;
+    if (framesPayload) {
+      const nextFrames = baseFrames.map((frame) => {
+        const match = framesPayload.find(
+          (entry: { name?: string; filename?: string; id?: string }) =>
+            entry?.name === frame.name ||
+            entry?.filename === frame.name ||
+            entry?.id === frame.id
+        );
+        if (!match || !Array.isArray(match.points)) {
+          return frame;
+        }
+        const nextPoints = match.points.map(
+          (point: { name?: string; x?: number; y?: number }, index: number) => {
+            const name =
+              typeof point.name === "string" && point.name.length > 0
+                ? point.name
+                : t("point.defaultName", { index: index + 1 });
+            return buildPoint(name, point, frame);
+          }
+        );
+        return { ...frame, points: nextPoints };
+      });
+      return { frames: nextFrames, spriteDirection, pivotMode };
+    }
+
+    const entries = Object.entries(payload).filter(
+      ([key, value]) => key !== "meta" && Array.isArray(value)
+    );
+    if (entries.length === 0) {
+      return { frames: baseFrames, spriteDirection, pivotMode };
+    }
+    const nextFrames = baseFrames.map((frame, frameIndex) => {
+      const nextPoints = entries.map(([rawName, rawPoints], index) => {
+        const name =
+          typeof rawName === "string" && rawName.length > 0
+            ? rawName
+            : t("point.defaultName", { index: index + 1 });
+        const id = nameToId.get(name) ?? createId();
+        nameToId.set(name, id);
+        const color = nameToColor.get(name) ?? createPointColor();
+        nameToColor.set(name, color);
+        const pointList = Array.isArray(rawPoints) ? rawPoints : [];
+        const entry = pointList[frameIndex];
+        let x = 0;
+        let y = 0;
+        let isKeyframe = false;
+        if (Array.isArray(entry) && entry.length >= 2) {
+          const rawX = Number(entry[0]);
+          const rawY = Number(entry[1]);
+          if (Number.isFinite(rawX) && Number.isFinite(rawY)) {
+            const framePoint = fromPivotCoords(
+              { x: rawX, y: rawY },
+              frame,
+              pivotMode ?? "top-left"
+            );
+            x = clamp(Math.round(framePoint.x), 0, frame.width);
+            y = clamp(Math.round(framePoint.y), 0, frame.height);
+            isKeyframe = true;
+          }
+        }
+        return {
+          id,
+          name,
+          color,
+          x,
+          y,
+          isKeyframe,
+        };
+      });
+      return { ...frame, points: nextPoints };
+    });
+    return { frames: nextFrames, spriteDirection, pivotMode };
+  };
+
+  const buildGroupsFromJson = (parsed: unknown, baseFrames: FrameData[]) => {
+    if (!parsed || typeof parsed !== "object") {
+      return [];
+    }
+    const payload = parsed as { groups?: Record<string, unknown> };
+    if (!payload.groups || typeof payload.groups !== "object") {
+      return [];
+    }
+    const nameToId = new Map<string, string>();
+    baseFrames[0]?.points.forEach((point) => {
+      nameToId.set(point.name, point.id);
+    });
+    return Object.entries(payload.groups).map(([name, rawEntries]) => {
+      const entries = Array.isArray(rawEntries) ? rawEntries : [];
+      const mappedEntries = entries.map((entry) => {
+        if (!Array.isArray(entry)) {
+          return [];
+        }
+        return entry
+          .map((pointName) =>
+            typeof pointName === "string" ? nameToId.get(pointName) : undefined
+          )
+          .filter(Boolean) as string[];
+      });
+      return {
+        id: createId(),
+        name,
+        entries: mappedEntries,
+      };
+    });
+  };
+
+  const loadImageFromFile = (file: File): Promise<HTMLImageElement> =>
+    new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(img);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error(`Failed to load ${file.name}`));
+      };
+      img.src = url;
+    });
 
   const getFrameTransform = (viewWidth: number, viewHeight: number) => {
     if (!currentFrame) {
@@ -1134,6 +1318,37 @@ function App() {
       return next;
     });
   }, [frames]);
+
+  useEffect(() => {
+    if (!editAtlasPngFile || !editAtlasJsonFile) {
+      return;
+    }
+    let cancelled = false;
+    const run = async () => {
+      setIsEditImporting(true);
+      try {
+        await handleEditAtlasImport(editAtlasPngFile, editAtlasJsonFile);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        if (!cancelled) {
+          setIsEditImporting(false);
+          setEditAtlasPngFile(null);
+          setEditAtlasJsonFile(null);
+          if (editAtlasPngInputRef.current) {
+            editAtlasPngInputRef.current.value = "";
+          }
+          if (editAtlasJsonInputRef.current) {
+            editAtlasJsonInputRef.current.value = "";
+          }
+        }
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [editAtlasPngFile, editAtlasJsonFile]);
 
   useEffect(() => {
     if (!isPlaying || frames.length === 0) {
@@ -1627,10 +1842,8 @@ function App() {
     setDraggingPointId(null);
   };
 
-  const handleFramesImport = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const files = event.target.files;
+  const handleNewAtlasCreate = async () => {
+    const files = framesInputRef.current?.files;
     if (!files || files.length === 0) {
       return;
     }
@@ -1642,142 +1855,181 @@ function App() {
     if (pngFiles.length === 0) {
       return;
     }
+    const pointsFile = newPointsInputRef.current?.files?.[0] ?? null;
     try {
       const loaded = await Promise.all(
         pngFiles.map((file) => loadFrameFromFile(file))
       );
-      setFrames(loaded);
+      let nextFrames = loaded;
+      if (pointsFile) {
+        const raw = await pointsFile.text();
+        const parsed = JSON.parse(raw);
+        const imported = importPointsJsonToFrames(parsed, nextFrames);
+        nextFrames = imported.frames;
+        if (imported.spriteDirection) {
+          setSpriteDirection(imported.spriteDirection);
+        }
+        if (imported.pivotMode) {
+          setPivotMode(imported.pivotMode);
+        }
+        const groups = buildGroupsFromJson(parsed, nextFrames);
+        setPointGroups(groups);
+        setSelectedGroupId(groups[0]?.id ?? null);
+      } else {
+        setPointGroups([]);
+        setSelectedGroupId(null);
+      }
+      setFrames(nextFrames);
       setCurrentFrameIndex(0);
       setSelectedPointId(null);
       setIsPlaying(false);
+      setIsGroupPreviewActive(false);
+      setIsGroupPreviewPlaying(false);
+      setGroupPreviewIndex(0);
     } catch (error) {
       console.error(error);
     } finally {
-      event.target.value = "";
+      if (framesInputRef.current) {
+        framesInputRef.current.value = "";
+      }
+      if (newPointsInputRef.current) {
+        newPointsInputRef.current.value = "";
+      }
     }
   };
 
-  const handleJsonImport = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) {
+  const handleEditAtlasImport = async (pngFile: File, jsonFile: File) => {
+    const raw = await jsonFile.text();
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed?.frames)) {
       return;
     }
-    try {
-      const raw = await file.text();
-      const parsed = JSON.parse(raw);
-      const pivotFrom = parsePivotMode(
-        parsed?.meta?.pivot ?? parsed?.meta?.pivotMode
-      );
-      const importedDirection = parsed?.meta?.spriteDirection;
-      if (
-        importedDirection === "clockwise" ||
-        importedDirection === "counterclockwise"
-      ) {
-        setSpriteDirection(importedDirection);
-      }
-      const nameToId = new Map<string, string>();
-      const nameToColor = new Map<string, string>();
-      if (Array.isArray(parsed?.frames)) {
-        setFrames((prev) =>
-          prev.map((frame) => {
-            const match = parsed.frames.find(
-              (entry: { name?: string; filename?: string; id?: string }) =>
-                entry?.name === frame.name ||
-                entry?.filename === frame.name ||
-                entry?.id === frame.id
-            );
-            if (!match || !Array.isArray(match.points)) {
-              return frame;
-            }
-            const nextPoints = match.points.map(
-              (point: { name?: string; x?: number; y?: number }, index: number) => {
-                const name =
-                  typeof point.name === "string" && point.name.length > 0
-                    ? point.name
-                    : t("point.defaultName", { index: index + 1 });
-                const id = nameToId.get(name) ?? createId();
-                nameToId.set(name, id);
-                const color = nameToColor.get(name) ?? createPointColor();
-                nameToColor.set(name, color);
-                const pivotPoint = {
-                  x: Number(point.x ?? 0),
-                  y: Number(point.y ?? 0),
-                };
-                const framePoint = fromPivotCoords(pivotPoint, frame, pivotFrom);
-                return {
-                  id,
-                  name,
-                  color,
-                  x: clamp(Math.round(framePoint.x), 0, frame.width),
-                  y: clamp(Math.round(framePoint.y), 0, frame.height),
-                  isKeyframe: true,
-                };
-              }
-            );
-            return { ...frame, points: nextPoints };
-          })
+    const atlasImage = await loadImageFromFile(pngFile);
+    const entries = parsed.frames
+      .map((entry: { name?: string; filename?: string; id?: string; w?: number; h?: number; width?: number; height?: number; x?: number; y?: number }) => {
+        const width = Number(entry.w ?? entry.width ?? 0);
+        const height = Number(entry.h ?? entry.height ?? 0);
+        const x = Number(entry.x ?? 0);
+        const y = Number(entry.y ?? 0);
+        if (!Number.isFinite(width) || !Number.isFinite(height)) {
+          return null;
+        }
+        if (width <= 0 || height <= 0) {
+          return null;
+        }
+        return {
+          name: entry.name || entry.filename || entry.id || "frame",
+          x,
+          y,
+          w: width,
+          h: height,
+        };
+      })
+      .filter(Boolean) as { name: string; x: number; y: number; w: number; h: number }[];
+    const framesFromAtlas = await Promise.all(
+      entries.map(async (entry, index) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = entry.w;
+        canvas.height = entry.h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          return null;
+        }
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(
+          atlasImage,
+          entry.x,
+          entry.y,
+          entry.w,
+          entry.h,
+          0,
+          0,
+          entry.w,
+          entry.h
         );
-        return;
-      }
-
-      if (!parsed || typeof parsed !== "object") {
-        return;
-      }
-      const entries = Object.entries(parsed).filter(
-        ([key, value]) => key !== "meta" && Array.isArray(value)
-      );
-      if (entries.length === 0) {
-        return;
-      }
-      setFrames((prev) =>
-        prev.map((frame, frameIndex) => {
-          const nextPoints = entries.map(([rawName, rawPoints], index) => {
-            const name =
-              typeof rawName === "string" && rawName.length > 0
-                ? rawName
-                : t("point.defaultName", { index: index + 1 });
-            const id = nameToId.get(name) ?? createId();
-            nameToId.set(name, id);
-            const color = nameToColor.get(name) ?? createPointColor();
-            nameToColor.set(name, color);
-            const pointList = Array.isArray(rawPoints) ? rawPoints : [];
-            const entry = pointList[frameIndex];
-            let x = 0;
-            let y = 0;
-            let isKeyframe = false;
-            if (Array.isArray(entry) && entry.length >= 2) {
-              const rawX = Number(entry[0]);
-              const rawY = Number(entry[1]);
-              if (Number.isFinite(rawX) && Number.isFinite(rawY)) {
-                const framePoint = fromPivotCoords(
-                  { x: rawX, y: rawY },
-                  frame,
-                  pivotFrom
-                );
-                x = clamp(Math.round(framePoint.x), 0, frame.width);
-                y = clamp(Math.round(framePoint.y), 0, frame.height);
-                isKeyframe = true;
-              }
-            }
-            return {
-              id,
-              name,
-              color,
-              x,
-              y,
-              isKeyframe,
-            };
-          });
-          return { ...frame, points: nextPoints };
-        })
-      );
-    } catch (error) {
-      console.error(error);
-    } finally {
-      event.target.value = "";
+        const dataUrl = canvas.toDataURL("image/png");
+        const img = new Image();
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error("Failed to slice atlas frame"));
+          img.src = dataUrl;
+        });
+        return {
+          id: createId(),
+          name: entry.name || `frame-${index + 1}`,
+          image: img,
+          width: entry.w,
+          height: entry.h,
+          points: [],
+        } as FrameData;
+      })
+    );
+    const validFrames = framesFromAtlas.filter(Boolean) as FrameData[];
+    if (validFrames.length === 0) {
+      return;
     }
+    const imported = importPointsJsonToFrames(parsed, validFrames);
+    let nextFrames = imported.frames;
+    if (imported.spriteDirection) {
+      setSpriteDirection(imported.spriteDirection);
+    }
+    if (imported.pivotMode) {
+      setPivotMode(imported.pivotMode);
+    }
+    if (Number.isFinite(Number(parsed?.meta?.rows))) {
+      setRows(Math.max(1, Math.round(Number(parsed.meta.rows))));
+    }
+    if (Number.isFinite(Number(parsed?.meta?.padding))) {
+      setPadding(Math.max(0, Math.round(Number(parsed.meta.padding))));
+    }
+    if (parsed?.meta?.mode === "animation" || parsed?.meta?.mode === "character") {
+      setAppMode(parsed.meta.mode);
+    }
+    if (parsed?.animation) {
+      if (typeof parsed.animation.name === "string") {
+        setAnimationName(parsed.animation.name);
+      }
+      if (Number.isFinite(Number(parsed.animation.fps))) {
+        setFps(Math.max(1, Math.round(Number(parsed.animation.fps))));
+      }
+      if (Number.isFinite(Number(parsed.animation.speed))) {
+        setSpeed(Number(parsed.animation.speed));
+      }
+      if (typeof parsed.animation.loop === "boolean") {
+        setLoop(parsed.animation.loop);
+      }
+    }
+    if (typeof pngFile.name === "string") {
+      const baseName = pngFile.name.replace(/\.[^/.]+$/, "");
+      const trimmed = baseName.endsWith("_atlas")
+        ? baseName.slice(0, -6)
+        : baseName;
+      if (trimmed) {
+        setProjectName(trimmed);
+      }
+    }
+    const importedGroups = buildGroupsFromJson(parsed, nextFrames);
+    setPointGroups(importedGroups);
+    setSelectedGroupId(importedGroups[0]?.id ?? null);
+    if (parsed?.animation?.frames && Array.isArray(parsed.animation.frames)) {
+      const selection = new Set(
+        parsed.animation.frames.filter((name: unknown) => typeof name === "string")
+      );
+      setAnimationFrameSelection(() => {
+        const next: Record<string, boolean> = {};
+        nextFrames.forEach((frame) => {
+          next[frame.id] = selection.has(frame.name);
+        });
+        return next;
+      });
+    }
+    setFrames(nextFrames);
+    setCurrentFrameIndex(0);
+    setSelectedPointId(null);
+    setIsPlaying(false);
+    setIsGroupPreviewActive(false);
+    setIsGroupPreviewPlaying(false);
+    setGroupPreviewIndex(0);
   };
 
   const handleExportPng = () => {
@@ -2242,6 +2494,263 @@ function App() {
           </div>
           )}
 
+          {isCharacterMode && selectedPoint && (
+            <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
+              <div className="flex items-center justify-between">
+                <Label>{t("label.selectedPoint")}</Label>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    updateAllFramesPoints((points) =>
+                      points.filter((point) => point.id !== selectedPoint.id)
+                    );
+                    setSelectedPointId(null);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="point-name">{t("label.name")}</Label>
+                <Input
+                  id="point-name"
+                  value={selectedPoint.name}
+                  onChange={(event) => {
+                    const name = event.target.value;
+                    updateAllFramesPoints((points) =>
+                      points.map((point) =>
+                        point.id === selectedPoint.id ? { ...point, name } : point
+                      )
+                    );
+                  }}
+                  placeholder={t("placeholder.pointName")}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="point-x">{t("label.x")}</Label>
+                  <Input
+                    id="point-x"
+                    type="number"
+                    value={String(selectedPivotX)}
+                    onChange={(event) => {
+                      if (!currentFrame) {
+                        return;
+                      }
+                      const nextX = toNumber(event.target.value, selectedPivotX);
+                      const nextPivot = { x: nextX, y: selectedPivotY };
+                      const nextFramePoint = fromPivotCoords(
+                        nextPivot,
+                        currentFrame,
+                        pivotMode
+                      );
+                      updateCurrentFramePoints((points) =>
+                        points.map((point) =>
+                          point.id === selectedPoint.id
+                            ? {
+                                ...point,
+                                x: clamp(
+                                  Math.round(nextFramePoint.x),
+                                  0,
+                                  currentFrame.width
+                                ),
+                                y: clamp(
+                                  Math.round(nextFramePoint.y),
+                                  0,
+                                  currentFrame.height
+                                ),
+                                isKeyframe: true,
+                              }
+                            : point
+                        )
+                      );
+                    }}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="point-y">{t("label.y")}</Label>
+                  <Input
+                    id="point-y"
+                    type="number"
+                    value={String(selectedPivotY)}
+                    onChange={(event) => {
+                      if (!currentFrame) {
+                        return;
+                      }
+                      const nextY = toNumber(event.target.value, selectedPivotY);
+                      const nextPivot = { x: selectedPivotX, y: nextY };
+                      const nextFramePoint = fromPivotCoords(
+                        nextPivot,
+                        currentFrame,
+                        pivotMode
+                      );
+                      updateCurrentFramePoints((points) =>
+                        points.map((point) =>
+                          point.id === selectedPoint.id
+                            ? {
+                                ...point,
+                                x: clamp(
+                                  Math.round(nextFramePoint.x),
+                                  0,
+                                  currentFrame.width
+                                ),
+                                y: clamp(
+                                  Math.round(nextFramePoint.y),
+                                  0,
+                                  currentFrame.height
+                                ),
+                                isKeyframe: true,
+                              }
+                            : point
+                        )
+                      );
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2 rounded-xl border border-border/50 bg-muted/30 p-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => setIsKeyframesOpen((prev) => !prev)}
+                      aria-label={t("action.toggleKeyframes")}
+                    >
+                      {isKeyframesOpen ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <span>{t("label.keyframes")}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px]">
+                      {keyframeCount}
+                    </Badge>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => {
+                        if (!selectedPoint) {
+                          return;
+                        }
+                        setFrames((prev) =>
+                          prev.map((frame) => ({
+                            ...frame,
+                            points: frame.points.map((point) =>
+                              point.id === selectedPoint.id
+                                ? { ...point, isKeyframe: false }
+                                : point
+                            ),
+                          }))
+                        );
+                      }}
+                      disabled={keyframeCount === 0}
+                      aria-label={t("action.clearKeyframes")}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                {isKeyframesOpen && (
+                  <div className="space-y-2">
+                    <ScrollArea className="h-24 rounded-lg border border-border/60 bg-background/60 p-2">
+                      <div className="space-y-1">
+                        {selectedPointKeyframes.length === 0 ? (
+                          <div className="text-[11px] text-muted-foreground">
+                            {t("hint.noKeyframes")}
+                          </div>
+                        ) : (
+                          selectedPointKeyframes.map((keyframe) => (
+                            <div
+                              key={`${selectedPoint?.id}-${keyframe.frameIndex}`}
+                              className="flex items-center justify-between rounded-md border border-border/50 bg-muted/40 px-2 py-1 text-[11px]"
+                            >
+                              <span>
+                                {t("label.frame")} {keyframe.frameIndex + 1}
+                              </span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5"
+                                onClick={() => {
+                                  if (!selectedPoint) {
+                                    return;
+                                  }
+                                  setFrames((prev) =>
+                                    prev.map((frame, index) =>
+                                      index === keyframe.frameIndex
+                                        ? {
+                                            ...frame,
+                                            points: frame.points.map((point) =>
+                                              point.id === selectedPoint.id
+                                                ? { ...point, isKeyframe: false }
+                                                : point
+                                            ),
+                                          }
+                                        : frame
+                                    )
+                                  );
+                                }}
+                                aria-label={t("action.removeKeyframe")}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </ScrollArea>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">
+                        {t("label.autoFillShape")}
+                      </Label>
+                      <Select
+                        value={autoFillShape}
+                        onValueChange={(value) =>
+                          setAutoFillShape(value as AutoFillShape)
+                        }
+                      >
+                        <SelectTrigger className="h-8">
+                          <SelectValue placeholder={t("label.autoFillShape")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ellipse">{t("shape.ellipse")}</SelectItem>
+                          <SelectItem value="circle">{t("shape.circle")}</SelectItem>
+                          <SelectItem value="square">{t("shape.square")}</SelectItem>
+                          <SelectItem value="tangent">{t("shape.tangent")}</SelectItem>
+                          <SelectItem value="linear">{t("shape.linear")}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-muted-foreground">
+                        {t("hint.autoFillSettings")}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <Button
+                  size="sm"
+                  className="w-full"
+                  onClick={handleAutoFill}
+                  disabled={!canAutoFill}
+                >
+                  {t("action.autoFill")}
+                </Button>
+                <p className="text-[11px] text-muted-foreground">
+                  {t("hint.autoFill")}
+                </p>
+              </div>
+            </div>
+          )}
+
           {isCharacterMode && (
           <div className="space-y-2 rounded-2xl border border-border/50 bg-background/70 p-3">
             <div className="flex items-center justify-between">
@@ -2642,263 +3151,6 @@ function App() {
                   ))}
                 </div>
               </ScrollArea>
-            </div>
-          )}
-
-          {isCharacterMode && selectedPoint && (
-            <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
-              <div className="flex items-center justify-between">
-                <Label>{t("label.selectedPoint")}</Label>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    updateAllFramesPoints((points) =>
-                      points.filter((point) => point.id !== selectedPoint.id)
-                    );
-                    setSelectedPointId(null);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="point-name">{t("label.name")}</Label>
-                <Input
-                  id="point-name"
-                  value={selectedPoint.name}
-                  onChange={(event) => {
-                    const name = event.target.value;
-                    updateAllFramesPoints((points) =>
-                      points.map((point) =>
-                        point.id === selectedPoint.id ? { ...point, name } : point
-                      )
-                    );
-                  }}
-                  placeholder={t("placeholder.pointName")}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label htmlFor="point-x">{t("label.x")}</Label>
-                  <Input
-                    id="point-x"
-                    type="number"
-                    value={String(selectedPivotX)}
-                    onChange={(event) => {
-                      if (!currentFrame) {
-                        return;
-                      }
-                      const nextX = toNumber(event.target.value, selectedPivotX);
-                      const nextPivot = { x: nextX, y: selectedPivotY };
-                      const nextFramePoint = fromPivotCoords(
-                        nextPivot,
-                        currentFrame,
-                        pivotMode
-                      );
-                      updateCurrentFramePoints((points) =>
-                        points.map((point) =>
-                          point.id === selectedPoint.id
-                            ? {
-                                ...point,
-                                x: clamp(
-                                  Math.round(nextFramePoint.x),
-                                  0,
-                                  currentFrame.width
-                                ),
-                                y: clamp(
-                                  Math.round(nextFramePoint.y),
-                                  0,
-                                  currentFrame.height
-                                ),
-                                isKeyframe: true,
-                              }
-                            : point
-                        )
-                      );
-                    }}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="point-y">{t("label.y")}</Label>
-                  <Input
-                    id="point-y"
-                    type="number"
-                    value={String(selectedPivotY)}
-                    onChange={(event) => {
-                      if (!currentFrame) {
-                        return;
-                      }
-                      const nextY = toNumber(event.target.value, selectedPivotY);
-                      const nextPivot = { x: selectedPivotX, y: nextY };
-                      const nextFramePoint = fromPivotCoords(
-                        nextPivot,
-                        currentFrame,
-                        pivotMode
-                      );
-                      updateCurrentFramePoints((points) =>
-                        points.map((point) =>
-                          point.id === selectedPoint.id
-                            ? {
-                                ...point,
-                                x: clamp(
-                                  Math.round(nextFramePoint.x),
-                                  0,
-                                  currentFrame.width
-                                ),
-                                y: clamp(
-                                  Math.round(nextFramePoint.y),
-                                  0,
-                                  currentFrame.height
-                                ),
-                                isKeyframe: true,
-                              }
-                            : point
-                        )
-                      );
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2 rounded-xl border border-border/50 bg-muted/30 p-2">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => setIsKeyframesOpen((prev) => !prev)}
-                      aria-label={t("action.toggleKeyframes")}
-                    >
-                      {isKeyframesOpen ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                    </Button>
-                    <span>{t("label.keyframes")}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-[10px]">
-                      {keyframeCount}
-                    </Badge>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => {
-                        if (!selectedPoint) {
-                          return;
-                        }
-                        setFrames((prev) =>
-                          prev.map((frame) => ({
-                            ...frame,
-                            points: frame.points.map((point) =>
-                              point.id === selectedPoint.id
-                                ? { ...point, isKeyframe: false }
-                                : point
-                            ),
-                          }))
-                        );
-                      }}
-                      disabled={keyframeCount === 0}
-                      aria-label={t("action.clearKeyframes")}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                {isKeyframesOpen && (
-                  <div className="space-y-2">
-                    <ScrollArea className="h-24 rounded-lg border border-border/60 bg-background/60 p-2">
-                      <div className="space-y-1">
-                        {selectedPointKeyframes.length === 0 ? (
-                          <div className="text-[11px] text-muted-foreground">
-                            {t("hint.noKeyframes")}
-                          </div>
-                        ) : (
-                          selectedPointKeyframes.map((keyframe) => (
-                            <div
-                              key={`${selectedPoint?.id}-${keyframe.frameIndex}`}
-                              className="flex items-center justify-between rounded-md border border-border/50 bg-muted/40 px-2 py-1 text-[11px]"
-                            >
-                              <span>
-                                {t("label.frame")} {keyframe.frameIndex + 1}
-                              </span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-5 w-5"
-                                onClick={() => {
-                                  if (!selectedPoint) {
-                                    return;
-                                  }
-                                  setFrames((prev) =>
-                                    prev.map((frame, index) =>
-                                      index === keyframe.frameIndex
-                                        ? {
-                                            ...frame,
-                                            points: frame.points.map((point) =>
-                                              point.id === selectedPoint.id
-                                                ? { ...point, isKeyframe: false }
-                                                : point
-                                            ),
-                                          }
-                                        : frame
-                                    )
-                                  );
-                                }}
-                                aria-label={t("action.removeKeyframe")}
-                              >
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </ScrollArea>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">
-                        {t("label.autoFillShape")}
-                      </Label>
-                      <Select
-                        value={autoFillShape}
-                        onValueChange={(value) =>
-                          setAutoFillShape(value as AutoFillShape)
-                        }
-                      >
-                        <SelectTrigger className="h-8">
-                          <SelectValue placeholder={t("label.autoFillShape")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="ellipse">{t("shape.ellipse")}</SelectItem>
-                          <SelectItem value="circle">{t("shape.circle")}</SelectItem>
-                          <SelectItem value="square">{t("shape.square")}</SelectItem>
-                          <SelectItem value="tangent">{t("shape.tangent")}</SelectItem>
-                          <SelectItem value="linear">{t("shape.linear")}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-[11px] text-muted-foreground">
-                        {t("hint.autoFillSettings")}
-                      </p>
-                    </div>
-                  </div>
-                )}
-                <Button
-                  size="sm"
-                  className="w-full"
-                  onClick={handleAutoFill}
-                  disabled={!canAutoFill}
-                >
-                  {t("action.autoFill")}
-                </Button>
-                <p className="text-[11px] text-muted-foreground">
-                  {t("hint.autoFill")}
-                </p>
-              </div>
             </div>
           )}
         </aside>
@@ -3373,17 +3625,39 @@ function App() {
             <Layers className="h-5 w-5 text-muted-foreground" />
           </div>
 
-          <div className="space-y-2 rounded-2xl border border-border/50 bg-background/70 p-3">
-            <Label>{t("label.pngFrames")}</Label>
-            <Input
-              ref={framesInputRef}
-              type="file"
-              accept="image/png"
-              multiple
-              onChange={handleFramesImport}
-            />
-            <div className="text-xs text-muted-foreground">
-              {t("hint.fileOrder")}
+          <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
+            <Label>{t("label.newAtlas")}</Label>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">
+                {t("label.pngFrames")}
+              </Label>
+              <Input
+                ref={framesInputRef}
+                type="file"
+                accept="image/png"
+                multiple
+                onChange={(event) => {
+                  if (event.target.files?.length) {
+                    void handleNewAtlasCreate();
+                  }
+                }}
+              />
+              <div className="text-xs text-muted-foreground">
+                {t("hint.fileOrder")}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">
+                {t("label.pointsJson")}
+              </Label>
+              <Input
+                ref={newPointsInputRef}
+                type="file"
+                accept="application/json"
+              />
+              <div className="text-xs text-muted-foreground">
+                {t("hint.pointsOptional")}
+              </div>
             </div>
             <Button
               variant="outline"
@@ -3402,11 +3676,38 @@ function App() {
             </Button>
           </div>
 
-          <div className="space-y-2 rounded-2xl border border-border/50 bg-background/70 p-3">
-            <Label>{t("label.importJson")}</Label>
-            <Input type="file" accept="application/json" onChange={handleJsonImport} />
+          <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
+            <Label>{t("label.editCurrent")}</Label>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">
+                {t("label.atlasPng")}
+              </Label>
+              <Input
+                ref={editAtlasPngInputRef}
+                type="file"
+                accept="image/png"
+                onChange={(event) =>
+                  setEditAtlasPngFile(event.target.files?.[0] ?? null)
+                }
+                disabled={isEditImporting}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">
+                {t("label.atlasJson")}
+              </Label>
+              <Input
+                ref={editAtlasJsonInputRef}
+                type="file"
+                accept="application/json"
+                onChange={(event) =>
+                  setEditAtlasJsonFile(event.target.files?.[0] ?? null)
+                }
+                disabled={isEditImporting}
+              />
+            </div>
             <div className="text-xs text-muted-foreground">
-              {t("hint.jsonMatch")}
+              {isEditImporting ? t("hint.importing") : t("hint.editCurrent")}
             </div>
           </div>
 
