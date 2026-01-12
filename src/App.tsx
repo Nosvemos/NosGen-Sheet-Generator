@@ -1,145 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { useI18n } from "@/lib/i18n";
-import { cn } from "@/lib/utils";
-import {
-  Crosshair,
-  Download,
-  FastForward,
-  ArrowLeft,
-  ArrowRight,
-  ChevronDown,
-  ChevronRight,
-  Layers,
-  MapPinPlusInside,
-  MapPinOff,
-  Moon,
-  MousePointer2,
-  Pause,
-  Play,
-  Plus,
-  Rewind,
-  SkipBack,
-  SkipForward,
-  Sparkles,
-  Sun,
-  Trash2,
-  X,
-  Upload,
-} from "lucide-react";
-
-type PivotMode = "top-left" | "bottom-left" | "center";
-type EditorMode = "select" | "add";
-type ViewMode = "frame" | "atlas";
-type ThemeMode = "dark" | "light";
-type AppMode = "character" | "animation";
-
-type FramePoint = {
-  id: string;
-  name: string;
-  x: number;
-  y: number;
-  color: string;
-  isKeyframe?: boolean;
-};
-
-type PointGroup = {
-  id: string;
-  name: string;
-  entries: string[][];
-};
-
-type FrameData = {
-  id: string;
-  name: string;
-  image: HTMLImageElement;
-  width: number;
-  height: number;
-  points: FramePoint[];
-};
-
-type AtlasLayout = {
-  rows: number;
-  columns: number;
-  padding: number;
-  cellWidth: number;
-  cellHeight: number;
-  width: number;
-  height: number;
-  positions: { x: number; y: number; w: number; h: number }[];
-};
-
-type StageTransform = {
-  scale: number;
-  offsetX: number;
-  offsetY: number;
-  frameWidth: number;
-  frameHeight: number;
-  viewWidth: number;
-  viewHeight: number;
-};
-
-type KeyframePoint = {
-  frameIndex: number;
-  x: number;
-  y: number;
-};
-
-type AutoFillShape = "ellipse" | "circle" | "square" | "tangent" | "linear";
-type SpriteDirection = "clockwise" | "counterclockwise";
-
-type AutoFillModel =
-  | {
-      shape: "ellipse";
-      cx: number;
-      cy: number;
-      rx: number;
-      ry: number;
-      phase: number;
-    }
-  | {
-      shape: "circle";
-      cx: number;
-      cy: number;
-      r: number;
-      phase: number;
-    }
-  | {
-      shape: "square";
-      cx: number;
-      cy: number;
-      size: number;
-      phase: number;
-    }
-  | {
-      shape: "linear";
-      points: KeyframePoint[];
-    }
-  | {
-      shape: "tangent";
-      points: KeyframePoint[];
-    };
+import type {
+  AppMode,
+  AtlasLayout,
+  AutoFillModel,
+  AutoFillShape,
+  EditorMode,
+  FrameData,
+  FramePoint,
+  KeyframePoint,
+  PivotMode,
+  PointGroup,
+  SpriteDirection,
+  StageTransform,
+  ThemeMode,
+  ViewMode,
+} from "@/lib/editor-types";
+import { LeftSidebar } from "@/components/editor/LeftSidebar";
+import { MainStage } from "@/components/editor/MainStage";
+import { RightSidebar } from "@/components/editor/RightSidebar";
 
 const SPEED_OPTIONS = [0.25, 0.5, 1, 2, 4];
 const MIN_EXPORT_SCALE = 0.5;
@@ -1898,6 +1778,44 @@ function App() {
     }
   };
 
+  const handleNewPointsImport = async (file: File) => {
+    if (frames.length === 0) {
+      return;
+    }
+    try {
+      const raw = await file.text();
+      const parsed = JSON.parse(raw);
+      const imported = importPointsJsonToFrames(parsed, frames);
+      setFrames(imported.frames);
+      if (imported.spriteDirection) {
+        setSpriteDirection(imported.spriteDirection);
+      }
+      if (imported.pivotMode) {
+        setPivotMode(imported.pivotMode);
+      }
+      const groups = buildGroupsFromJson(parsed, imported.frames);
+      setPointGroups(groups);
+      setSelectedGroupId(groups[0]?.id ?? null);
+      setSelectedPointId(null);
+      setIsGroupPreviewActive(false);
+      setIsGroupPreviewPlaying(false);
+      setGroupPreviewIndex(0);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      if (newPointsInputRef.current) {
+        newPointsInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleClearFrames = () => {
+    setFrames([]);
+    setCurrentFrameIndex(0);
+    setSelectedPointId(null);
+    setIsPlaying(false);
+  };
+
   const handleEditAtlasImport = async (pngFile: File, jsonFile: File) => {
     const raw = await jsonFile.text();
     const parsed = JSON.parse(raw);
@@ -2193,1725 +2111,162 @@ function App() {
   return (
     <TooltipProvider>
       <div className="h-screen w-full divide-y divide-border/60 overflow-hidden p-0 lg:grid lg:grid-cols-[280px_minmax(0,1fr)_320px] lg:divide-x lg:divide-y-0 lg:gap-0">
-        <aside className="h-full min-h-0 space-y-4 overflow-y-auto rounded-none border-0 bg-card/80 p-4 shadow-none backdrop-blur">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                {t("label.tools")}
-              </p>
-              <h2 className="text-lg font-semibold">{t("panel.tools")}</h2>
-            </div>
-            <Badge variant="secondary">
-              {frames.length ? `${currentFrameIndex + 1}/${frames.length}` : "0"}
-            </Badge>
-          </div>
-
-          <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
-            <div className="flex items-center justify-between">
-              <Label>{t("label.projectSettings")}</Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => setIsProjectSettingsOpen((prev) => !prev)}
-                aria-label={t("action.toggleProjectSettings")}
-              >
-                {isProjectSettingsOpen ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-            {isProjectSettingsOpen && (
-              <>
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">
-                    {t("label.appMode")}
-                  </Label>
-                  <Select
-                    value={appMode}
-                    onValueChange={(value) => setAppMode(value as AppMode)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("label.appMode")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="character">
-                        {t("mode.character")}
-                      </SelectItem>
-                      <SelectItem value="animation">
-                        {t("mode.animation")}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    {t("hint.appMode")}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="project-name">{t("label.projectName")}</Label>
-                  <Input
-                    id="project-name"
-                    value={projectName}
-                    onChange={(event) => setProjectName(event.target.value)}
-                    placeholder={t("placeholder.projectName")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">
-                    {t("label.pivotSpace")}
-                  </Label>
-                  <Select
-                    value={pivotMode}
-                    onValueChange={(value) => setPivotMode(value as PivotMode)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("placeholder.pivotMode")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PIVOT_OPTIONS.map((value) => (
-                        <SelectItem key={value} value={value}>
-                          {pivotLabels[value]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    {t("hint.pivotExport")}
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
-
-          {appMode === "animation" && (
-            <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
-              <Label>{t("label.animationBuilder")}</Label>
-              <div className="space-y-1">
-                <Label htmlFor="animation-name">{t("label.animationName")}</Label>
-                <Input
-                  id="animation-name"
-                  value={animationName}
-                  onChange={(event) => setAnimationName(event.target.value)}
-                  placeholder={t("placeholder.animationName")}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label>{t("label.animationFrames")}</Label>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() =>
-                      setAnimationFrameSelection((prev) => {
-                        const next = { ...prev };
-                        frames.forEach((frame) => {
-                          next[frame.id] = true;
-                        });
-                        return next;
-                      })
-                    }
-                  >
-                    {t("action.selectAll")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      setAnimationFrameSelection((prev) => {
-                        const next = { ...prev };
-                        frames.forEach((frame) => {
-                          next[frame.id] = false;
-                        });
-                        return next;
-                      })
-                    }
-                  >
-                    {t("action.clearAll")}
-                  </Button>
-                </div>
-              </div>
-              <ScrollArea className="h-40 rounded-xl border border-border/50 bg-background/80">
-                <div className="space-y-2 p-3">
-                  {frames.length === 0 ? (
-                    <div className="text-xs text-muted-foreground">
-                      {t("hint.noFrames")}
-                    </div>
-                  ) : (
-                    frames.map((frame, index) => (
-                      <div
-                        key={frame.id}
-                        className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/40 px-3 py-2"
-                      >
-                        <div>
-                          <div className="text-sm font-medium">{frame.name}</div>
-                          <div className="text-[11px] text-muted-foreground">
-                            {t("label.frame")} {index + 1}
-                          </div>
-                        </div>
-                        <Switch
-                          checked={Boolean(animationFrameSelection[frame.id])}
-                          onCheckedChange={(checked) =>
-                            setAnimationFrameSelection((prev) => ({
-                              ...prev,
-                              [frame.id]: checked,
-                            }))
-                          }
-                        />
-                      </div>
-                    ))
-                  )}
-                </div>
-              </ScrollArea>
-              <p className="text-xs text-muted-foreground">
-                {t("hint.animationExport")}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {t("hint.animationFpsFromPlayback")}
-              </p>
-            </div>
-          )}
-
-          {isCharacterMode && (
-            <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                {t("label.mode")}
-              </Label>
-              <Badge variant="outline" className="font-mono text-xs">
-                {editorMode === "add" ? t("mode.add") : t("mode.select")}
-              </Badge>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                variant={editorMode === "select" ? "default" : "secondary"}
-                size="sm"
-                onClick={() => setEditorMode("select")}
-              >
-                <MousePointer2 className="mr-2 h-4 w-4" />
-                {t("action.select")}
-              </Button>
-              <Button
-                variant={editorMode === "add" ? "default" : "secondary"}
-                size="sm"
-                onClick={() => setEditorMode("add")}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                {t("action.addPoint")}
-              </Button>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={() => {
-                if (!currentFrame) {
-                  return;
-                }
-                addPointAt(currentFrame.width / 2, currentFrame.height / 2);
-              }}
-              disabled={!currentFrame}
-            >
-              <Crosshair className="mr-2 h-4 w-4" />
-              {t("action.centerPoint")}
-            </Button>
-          </div>
-          )}
-
-          {isCharacterMode && (
-          <div className="space-y-2 rounded-2xl border border-border/50 bg-background/70 p-3">
-            <div className="flex items-center justify-between">
-              <Label>{t("label.points")}</Label>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">{currentPoints.length}</Badge>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => setIsPointsOpen((prev) => !prev)}
-                  aria-label={t("action.togglePoints")}
-                >
-                  {isPointsOpen ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
-            {isPointsOpen && (
-              <ScrollArea className="h-30 rounded-xl border border-border/50 bg-background/80">
-                <div className="space-y-2 p-3">
-                  {currentPoints.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-border/70 p-4 text-center text-xs text-muted-foreground">
-                      {t("hint.noPoints")}
-                    </div>
-                  ) : (
-                    currentPoints.map((point) => {
-                      const pivotCoords =
-                        currentFrame && toPivotCoords(point, currentFrame, pivotMode);
-                      const displayX = pivotCoords ? Math.round(pivotCoords.x) : 0;
-                      const displayY = pivotCoords ? Math.round(pivotCoords.y) : 0;
-                      return (
-                        <button
-                          key={point.id}
-                          type="button"
-                          className={cn(
-                            "flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left transition",
-                            point.id === selectedPointId
-                              ? "border-accent/40 bg-accent/10"
-                              : "border-border/60 bg-muted/30 hover:bg-muted/60"
-                          )}
-                          onClick={() => setSelectedPointId(point.id)}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="h-2.5 w-2.5 rounded-full"
-                              style={{ backgroundColor: point.color || "#999" }}
-                            />
-                            <div>
-                              <div className="text-sm font-medium">{point.name}</div>
-                              <div className="text-[11px] text-muted-foreground">
-                                {pivotLabels[pivotMode]}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-xs font-mono text-muted-foreground">
-                            {displayX},{displayY}
-                          </div>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              </ScrollArea>
-            )}
-          </div>
-          )}
-
-          {isCharacterMode && selectedPoint && (
-            <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
-              <div className="flex items-center justify-between">
-                <Label>{t("label.selectedPoint")}</Label>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    updateAllFramesPoints((points) =>
-                      points.filter((point) => point.id !== selectedPoint.id)
-                    );
-                    setSelectedPointId(null);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="point-name">{t("label.name")}</Label>
-                <Input
-                  id="point-name"
-                  value={selectedPoint.name}
-                  onChange={(event) => {
-                    const name = event.target.value;
-                    updateAllFramesPoints((points) =>
-                      points.map((point) =>
-                        point.id === selectedPoint.id ? { ...point, name } : point
-                      )
-                    );
-                  }}
-                  placeholder={t("placeholder.pointName")}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label htmlFor="point-x">{t("label.x")}</Label>
-                  <Input
-                    id="point-x"
-                    type="number"
-                    value={String(selectedPivotX)}
-                    onChange={(event) => {
-                      if (!currentFrame) {
-                        return;
-                      }
-                      const nextX = toNumber(event.target.value, selectedPivotX);
-                      const nextPivot = { x: nextX, y: selectedPivotY };
-                      const nextFramePoint = fromPivotCoords(
-                        nextPivot,
-                        currentFrame,
-                        pivotMode
-                      );
-                      updateCurrentFramePoints((points) =>
-                        points.map((point) =>
-                          point.id === selectedPoint.id
-                            ? {
-                                ...point,
-                                x: clamp(
-                                  Math.round(nextFramePoint.x),
-                                  0,
-                                  currentFrame.width
-                                ),
-                                y: clamp(
-                                  Math.round(nextFramePoint.y),
-                                  0,
-                                  currentFrame.height
-                                ),
-                                isKeyframe: true,
-                              }
-                            : point
-                        )
-                      );
-                    }}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="point-y">{t("label.y")}</Label>
-                  <Input
-                    id="point-y"
-                    type="number"
-                    value={String(selectedPivotY)}
-                    onChange={(event) => {
-                      if (!currentFrame) {
-                        return;
-                      }
-                      const nextY = toNumber(event.target.value, selectedPivotY);
-                      const nextPivot = { x: selectedPivotX, y: nextY };
-                      const nextFramePoint = fromPivotCoords(
-                        nextPivot,
-                        currentFrame,
-                        pivotMode
-                      );
-                      updateCurrentFramePoints((points) =>
-                        points.map((point) =>
-                          point.id === selectedPoint.id
-                            ? {
-                                ...point,
-                                x: clamp(
-                                  Math.round(nextFramePoint.x),
-                                  0,
-                                  currentFrame.width
-                                ),
-                                y: clamp(
-                                  Math.round(nextFramePoint.y),
-                                  0,
-                                  currentFrame.height
-                                ),
-                                isKeyframe: true,
-                              }
-                            : point
-                        )
-                      );
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2 rounded-xl border border-border/50 bg-muted/30 p-2">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => setIsKeyframesOpen((prev) => !prev)}
-                      aria-label={t("action.toggleKeyframes")}
-                    >
-                      {isKeyframesOpen ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                    </Button>
-                    <span>{t("label.keyframes")}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-[10px]">
-                      {keyframeCount}
-                    </Badge>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => {
-                        if (!selectedPoint) {
-                          return;
-                        }
-                        setFrames((prev) =>
-                          prev.map((frame) => ({
-                            ...frame,
-                            points: frame.points.map((point) =>
-                              point.id === selectedPoint.id
-                                ? { ...point, isKeyframe: false }
-                                : point
-                            ),
-                          }))
-                        );
-                      }}
-                      disabled={keyframeCount === 0}
-                      aria-label={t("action.clearKeyframes")}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                {isKeyframesOpen && (
-                  <div className="space-y-2">
-                    <ScrollArea className="h-24 rounded-lg border border-border/60 bg-background/60 p-2">
-                      <div className="space-y-1">
-                        {selectedPointKeyframes.length === 0 ? (
-                          <div className="text-[11px] text-muted-foreground">
-                            {t("hint.noKeyframes")}
-                          </div>
-                        ) : (
-                          selectedPointKeyframes.map((keyframe) => (
-                            <div
-                              key={`${selectedPoint?.id}-${keyframe.frameIndex}`}
-                              className="flex items-center justify-between rounded-md border border-border/50 bg-muted/40 px-2 py-1 text-[11px]"
-                            >
-                              <span>
-                                {t("label.frame")} {keyframe.frameIndex + 1}
-                              </span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-5 w-5"
-                                onClick={() => {
-                                  if (!selectedPoint) {
-                                    return;
-                                  }
-                                  setFrames((prev) =>
-                                    prev.map((frame, index) =>
-                                      index === keyframe.frameIndex
-                                        ? {
-                                            ...frame,
-                                            points: frame.points.map((point) =>
-                                              point.id === selectedPoint.id
-                                                ? { ...point, isKeyframe: false }
-                                                : point
-                                            ),
-                                          }
-                                        : frame
-                                    )
-                                  );
-                                }}
-                                aria-label={t("action.removeKeyframe")}
-                              >
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </ScrollArea>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">
-                        {t("label.autoFillShape")}
-                      </Label>
-                      <Select
-                        value={autoFillShape}
-                        onValueChange={(value) =>
-                          setAutoFillShape(value as AutoFillShape)
-                        }
-                      >
-                        <SelectTrigger className="h-8">
-                          <SelectValue placeholder={t("label.autoFillShape")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="ellipse">{t("shape.ellipse")}</SelectItem>
-                          <SelectItem value="circle">{t("shape.circle")}</SelectItem>
-                          <SelectItem value="square">{t("shape.square")}</SelectItem>
-                          <SelectItem value="tangent">{t("shape.tangent")}</SelectItem>
-                          <SelectItem value="linear">{t("shape.linear")}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-[11px] text-muted-foreground">
-                        {t("hint.autoFillSettings")}
-                      </p>
-                    </div>
-                  </div>
-                )}
-                <Button
-                  size="sm"
-                  className="w-full"
-                  onClick={handleAutoFill}
-                  disabled={!canAutoFill}
-                >
-                  {t("action.autoFill")}
-                </Button>
-                <p className="text-[11px] text-muted-foreground">
-                  {t("hint.autoFill")}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {isCharacterMode && (
-          <div className="space-y-2 rounded-2xl border border-border/50 bg-background/70 p-3">
-            <div className="flex items-center justify-between">
-              <Label>{t("label.pointGroups")}</Label>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">{pointGroups.length}</Badge>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => setIsPointGroupsOpen((prev) => !prev)}
-                  aria-label={t("action.togglePointGroups")}
-                >
-                  {isPointGroupsOpen ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
-            {isPointGroupsOpen && (
-              <>
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={newGroupName}
-                    onChange={(event) => setNewGroupName(event.target.value)}
-                    placeholder={t("placeholder.groupName")}
-                  />
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="secondary"
-                    onClick={() => {
-                      const trimmed = newGroupName.trim();
-                      const name =
-                        trimmed ||
-                        t("group.defaultName", { index: pointGroups.length + 1 });
-                      const id = createId();
-                      setPointGroups((prev) => [
-                        ...prev,
-                        { id, name, entries: [[]] },
-                      ]);
-                      setSelectedGroupId(id);
-                      setNewGroupName("");
-                    }}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-                <ScrollArea className="h-28 rounded-xl border border-border/50 bg-background/80">
-                  <div className="space-y-2 p-3">
-                    {pointGroups.length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-border/70 p-4 text-center text-xs text-muted-foreground">
-                        {t("hint.noGroups")}
-                      </div>
-                    ) : (
-                      pointGroups.map((group) => (
-                        <button
-                          key={group.id}
-                          type="button"
-                          className={cn(
-                            "flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left transition",
-                            group.id === selectedGroupId
-                              ? "border-accent/40 bg-accent/10"
-                              : "border-border/60 bg-muted/30 hover:bg-muted/60"
-                          )}
-                          onClick={() => setSelectedGroupId(group.id)}
-                        >
-                          <div>
-                            <div className="text-sm font-medium">{group.name}</div>
-                            <div className="text-[11px] text-muted-foreground">
-                              {t("label.groupEntries", {
-                                count: group.entries.length,
-                              })}
-                            </div>
-                          </div>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </ScrollArea>
-              </>
-            )}
-          </div>
-          )}
-
-          {isCharacterMode && selectedGroup && (
-            <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
-              <div className="flex items-center justify-between">
-                <Label>{t("label.groupEditor")}</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    setPointGroups((prev) =>
-                      prev.filter((group) => group.id !== selectedGroup.id)
-                    );
-                    setSelectedGroupId(null);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="group-name">{t("label.groupName")}</Label>
-                <Input
-                  id="group-name"
-                  value={selectedGroup.name}
-                  onChange={(event) => {
-                    const name = event.target.value;
-                    setPointGroups((prev) =>
-                      prev.map((group) =>
-                        group.id === selectedGroup.id ? { ...group, name } : group
-                      )
-                    );
-                  }}
-                  placeholder={t("placeholder.groupName")}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label>{t("label.groupIndices")}</Label>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    setPointGroups((prev) =>
-                      prev.map((group) =>
-                        group.id === selectedGroup.id
-                          ? { ...group, entries: [...group.entries, []] }
-                          : group
-                      )
-                    );
-                  }}
-                >
-                  {t("action.addIndex")}
-                </Button>
-              </div>
-              <div className="space-y-2 rounded-xl border border-border/50 bg-muted/30 p-2">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{t("label.groupPlayback")}</span>
-                  <span className="font-mono">
-                    {selectedGroup.entries.length > 0
-                      ? `${groupPreviewIndex + 1}/${selectedGroup.entries.length}`
-                      : "0/0"}
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-1">
-                  <Switch
-                    id="group-preview"
-                    checked={isGroupPreviewActive}
-                    onCheckedChange={(checked) => {
-                      setIsGroupPreviewActive(checked);
-                      if (!checked) {
-                        setIsGroupPreviewPlaying(false);
-                      }
-                    }}
-                  />
-                  <Label htmlFor="group-preview">{t("label.previewOnCanvas")}</Label>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    disabled={!canPreviewGroup}
-                    onClick={() => {
-                      if (!canPreviewGroup) {
-                        return;
-                      }
-                      setIsGroupPreviewActive(true);
-                      setIsGroupPreviewPlaying((prev) => !prev);
-                    }}
-                  >
-                    {isGroupPreviewPlaying
-                      ? t("action.stopGroup")
-                      : t("action.playGroup")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    disabled={!canPreviewGroup}
-                    onClick={() => {
-                      if (!canPreviewGroup) {
-                        return;
-                      }
-                      setIsGroupPreviewActive(true);
-                      setGroupPreviewIndex((prev) =>
-                        prev === 0
-                          ? selectedGroup.entries.length - 1
-                          : prev - 1
-                      );
-                    }}
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    disabled={!canPreviewGroup}
-                    onClick={() => {
-                      if (!canPreviewGroup) {
-                        return;
-                      }
-                      setIsGroupPreviewActive(true);
-                      setGroupPreviewIndex((prev) =>
-                        (prev + 1) % selectedGroup.entries.length
-                      );
-                    }}
-                  >
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </div>
-                <Slider
-                  min={0}
-                  max={Math.max(0, selectedGroup.entries.length - 1)}
-                  step={1}
-                  value={[groupPreviewIndex]}
-                  onValueChange={(value) => {
-                    const next = value[0] ?? 0;
-                    setGroupPreviewIndex(next);
-                    setIsGroupPreviewActive(true);
-                  }}
-                  disabled={!canPreviewGroup}
-                />
-              </div>
-              <ScrollArea className="h-40 rounded-xl border border-border/50 bg-background/60 p-2">
-                <div className="space-y-3">
-                  {selectedGroup.entries.map((entry, entryIndex) => (
-                    <div
-                      key={`${selectedGroup.id}-${entryIndex}`}
-                      className="rounded-xl border border-border/60 bg-muted/40 p-2"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          {t("label.index")} {entryIndex}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => {
-                            setPointGroups((prev) =>
-                              prev.map((group) =>
-                                group.id === selectedGroup.id
-                                  ? {
-                                      ...group,
-                                      entries: group.entries.filter(
-                                        (_, idx) => idx !== entryIndex
-                                      ),
-                                    }
-                                  : group
-                              )
-                            );
-                          }}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      <div className="mt-2 space-y-2">
-                        {availablePoints.length === 0 ? (
-                          <div className="text-xs text-muted-foreground">
-                            {t("hint.noGroupPoints")}
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <Select
-                              value={
-                                groupEntrySelection[
-                                  `${selectedGroup.id}-${entryIndex}`
-                                ] ?? ""
-                              }
-                              onValueChange={(value) => {
-                                const key = `${selectedGroup.id}-${entryIndex}`;
-                                setGroupEntrySelection((prev) => ({
-                                  ...prev,
-                                  [key]: value,
-                                }));
-                              }}
-                            >
-                              <SelectTrigger className="h-8 flex-1">
-                                <SelectValue placeholder={t("placeholder.addPoint")} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {availablePoints
-                                  .filter((point) => !entry.includes(point.id))
-                                  .map((point) => (
-                                    <SelectItem key={point.id} value={point.id}>
-                                      {point.name}
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="secondary"
-                              disabled={
-                                !(
-                                  groupEntrySelection[
-                                    `${selectedGroup.id}-${entryIndex}`
-                                  ] ?? ""
-                                )
-                              }
-                              onClick={() => {
-                                const key = `${selectedGroup.id}-${entryIndex}`;
-                                const selectedId = groupEntrySelection[key];
-                                if (!selectedId) {
-                                  return;
-                                }
-                                setPointGroups((prev) =>
-                                  prev.map((group) => {
-                                    if (group.id !== selectedGroup.id) {
-                                      return group;
-                                    }
-                                    const nextEntries = group.entries.map(
-                                      (entryPoints, idx) =>
-                                        idx === entryIndex
-                                          ? entryPoints.includes(selectedId)
-                                            ? entryPoints
-                                            : [...entryPoints, selectedId]
-                                          : entryPoints
-                                    );
-                                    return { ...group, entries: nextEntries };
-                                  })
-                                );
-                                setGroupEntrySelection((prev) => ({
-                                  ...prev,
-                                  [key]: "",
-                                }));
-                              }}
-                            >
-                              {t("action.addPointToIndex")}
-                            </Button>
-                          </div>
-                        )}
-                        {entry.length === 0 ? (
-                          <div className="text-xs text-muted-foreground">
-                            {t("hint.noPointsInIndex")}
-                          </div>
-                        ) : (
-                          <div className="flex flex-wrap gap-2">
-                            {entry.map((pointId) => {
-                              const point = availablePoints.find(
-                                (item) => item.id === pointId
-                              );
-                              return (
-                                <div
-                                  key={pointId}
-                                  className="flex items-center gap-2 rounded-full border border-border/60 bg-muted/50 px-2 py-1 text-[11px]"
-                                >
-                                  <span
-                                    className="h-2 w-2 rounded-full"
-                                    style={{
-                                      backgroundColor: point?.color || "#999",
-                                    }}
-                                  />
-                                  <span>{point?.name ?? pointId}</span>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-5 w-5"
-                                    onClick={() => {
-                                      setPointGroups((prev) =>
-                                        prev.map((group) => {
-                                          if (group.id !== selectedGroup.id) {
-                                            return group;
-                                          }
-                                          const nextEntries = group.entries.map(
-                                            (entryPoints, idx) =>
-                                              idx === entryIndex
-                                                ? entryPoints.filter(
-                                                    (id) => id !== pointId
-                                                  )
-                                                : entryPoints
-                                          );
-                                          return { ...group, entries: nextEntries };
-                                        })
-                                      );
-                                    }}
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            </div>
-          )}
-        </aside>
-
-        <main className="flex h-full min-h-0 flex-col gap-4 overflow-hidden bg-card/70 p-4">
-          <section className="rounded-3xl border border-border/60 bg-card/80 p-5 shadow-soft backdrop-blur">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                  <Sparkles className="h-4 w-4" />
-                  {t("app.kicker")}
-                </div>
-                <h1 className="text-2xl font-semibold">{t("app.title")}</h1>
-                <p className="text-sm text-muted-foreground">
-                  {t("app.subtitle")}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="font-mono">
-                  {currentFrame
-                    ? t("status.frameSize", {
-                        w: currentFrame.width,
-                        h: currentFrame.height,
-                      })
-                    : t("status.noFrame")}
-                </Badge>
-                <Badge variant="outline" className="font-mono">
-                  {t("status.atlasSize", {
-                    w: atlasLayout.width,
-                    h: atlasLayout.height,
-                  })}
-                </Badge>
-                <Badge variant="secondary">
-                  {t("status.rows", { rows: atlasLayout.rows })}
-                </Badge>
-                <Badge variant="secondary">
-                  {t("status.columns", { columns: atlasLayout.columns })}
-                </Badge>
-                <div className="flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-1">
-                  {theme === "dark" ? (
-                    <Moon className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <Sun className="h-4 w-4 text-muted-foreground" />
-                  )}
-                  <Select
-                    value={theme}
-                    onValueChange={(value) => setTheme(value as ThemeMode)}
-                  >
-                    <SelectTrigger
-                      className="h-8 w-[110px] border-0 bg-transparent px-0 text-xs shadow-none ring-0 ring-offset-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                      aria-label={t("label.theme")}
-                    >
-                      <SelectValue placeholder={t("label.theme")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="dark">{t("theme.dark")}</SelectItem>
-                      <SelectItem value="light">{t("theme.light")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="flex min-h-0 flex-1 flex-col rounded-3xl border border-border/60 bg-card/80 p-4 shadow-soft backdrop-blur">
-            <div className="flex flex-wrap items-center justify-between gap-3 px-2">
-              <Tabs
-                value={viewMode}
-                onValueChange={(value) => setViewMode(value as ViewMode)}
-              >
-                <TabsList>
-                  <TabsTrigger value="frame">{t("tab.frame")}</TabsTrigger>
-                  <TabsTrigger value="atlas">{t("tab.atlas")}</TabsTrigger>
-                </TabsList>
-              </Tabs>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="grid-toggle"
-                    checked={showGrid}
-                    onCheckedChange={setShowGrid}
-                  />
-                  <Label htmlFor="grid-toggle">{t("label.grid")}</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="points-toggle"
-                    checked={showPoints}
-                    onCheckedChange={setShowPoints}
-                  />
-                  <Label htmlFor="points-toggle">{t("label.pointsToggle")}</Label>
-                </div>
-              </div>
-            </div>
-
-            <div
-              ref={stageRef}
-              className="relative mt-4 flex-1 min-h-0 max-h-[58vh] overflow-hidden rounded-2xl border border-border/60 bg-background/70"
-            >
-              <canvas
-                ref={canvasRef}
-                className={cn(
-                  "h-full w-full touch-none",
-                  editorMode === "add" ? "cursor-crosshair" : "cursor-default"
-                )}
-                onPointerDown={handleCanvasPointerDown}
-                onPointerMove={handleCanvasPointerMove}
-                onPointerUp={handleCanvasPointerUp}
-                onPointerLeave={handleCanvasPointerUp}
-                onWheel={handleCanvasWheel}
-              />
-
-              {frames.length === 0 && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                  <button
-                    type="button"
-                    className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-muted/60 transition hover:bg-muted/80"
-                    onClick={() => framesInputRef.current?.click()}
-                    aria-label={t("label.pngFrames")}
-                  >
-                    <Upload className="h-5 w-5 text-muted-foreground" />
-                  </button>
-                  <p className="text-sm font-medium">
-                    {t("hint.noFramesTitle")}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {t("hint.noFramesBody")}
-                  </p>
-                </div>
-              )}
-
-              {frames.length > 0 && editorMode === "add" && viewMode === "frame" && (
-                <div className="pointer-events-none absolute left-4 top-4 rounded-full border border-accent/40 bg-accent/10 px-3 py-1 text-xs text-accent-foreground">
-                  {t("status.addMode")}
-                </div>
-              )}
-            </div>
-
-            <div className="mt-4 space-y-3 rounded-2xl border border-border/50 bg-background/70 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        onClick={() => setCurrentFrameIndex(0)}
-                        disabled={frames.length === 0}
-                      >
-                        <SkipBack className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t("action.first")}</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        onClick={() =>
-                          setCurrentFrameIndex((prev) => Math.max(0, prev - 1))
-                        }
-                        disabled={frames.length === 0}
-                      >
-                        <Rewind className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t("action.previous")}</TooltipContent>
-                  </Tooltip>
-                  <Button
-                    variant="default"
-                    size="icon"
-                    onClick={() => setIsPlaying((prev) => !prev)}
-                    disabled={frames.length === 0}
-                  >
-                    {isPlaying ? (
-                      <Pause className="h-4 w-4" />
-                    ) : (
-                      <Play className="h-4 w-4" />
-                    )}
-                  </Button>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        onClick={() =>
-                          setCurrentFrameIndex((prev) =>
-                            Math.min(frames.length - 1, prev + 1)
-                          )
-                        }
-                        disabled={frames.length === 0}
-                      >
-                        <FastForward className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t("action.next")}</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        onClick={() =>
-                          setCurrentFrameIndex(Math.max(0, frames.length - 1))
-                        }
-                        disabled={frames.length === 0}
-                      >
-                        <SkipForward className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t("action.last")}</TooltipContent>
-                  </Tooltip>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        onClick={() => {
-                          if (!selectedPoint || !currentFrame) {
-                            return;
-                          }
-                          updateCurrentFramePoints((points) =>
-                            points.map((point) =>
-                              point.id === selectedPoint.id
-                                ? { ...point, isKeyframe: true }
-                                : point
-                            )
-                          );
-                        }}
-                        disabled={!canAddKeyframe || isCurrentFrameKeyframe}
-                      >
-                        <MapPinPlusInside className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t("action.addKeyframe")}</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        onClick={() => {
-                          if (!selectedPoint || !currentFrame) {
-                            return;
-                          }
-                          updateCurrentFramePoints((points) =>
-                            points.map((point) =>
-                              point.id === selectedPoint.id
-                                ? { ...point, isKeyframe: false }
-                                : point
-                            )
-                          );
-                        }}
-                        disabled={!canRemoveKeyframe}
-                      >
-                        <MapPinOff className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t("action.removeKeyframeHere")}</TooltipContent>
-                  </Tooltip>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        onClick={() => {
-                          if (!canMoveFrameLeft) {
-                            return;
-                          }
-                          setFrames((prev) => {
-                            const next = [...prev];
-                            const targetIndex = Math.max(0, currentFrameIndex - 1);
-                            if (targetIndex === currentFrameIndex) {
-                              return prev;
-                            }
-                            [next[currentFrameIndex], next[targetIndex]] = [
-                              next[targetIndex],
-                              next[currentFrameIndex],
-                            ];
-                            return next;
-                          });
-                          setCurrentFrameIndex((prev) => Math.max(0, prev - 1));
-                        }}
-                        disabled={!canMoveFrameLeft}
-                      >
-                        <ArrowLeft className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t("action.moveFrameLeft")}</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        onClick={() => {
-                          if (!canDeleteFrame) {
-                            return;
-                          }
-                          setFrames((prev) => {
-                            if (prev.length === 0) {
-                              return prev;
-                            }
-                            const next = prev.filter(
-                              (_, index) => index !== currentFrameIndex
-                            );
-                            const nextIndex = Math.min(
-                              currentFrameIndex,
-                              Math.max(0, next.length - 1)
-                            );
-                            setCurrentFrameIndex(nextIndex);
-                            if (next.length === 0) {
-                              setSelectedPointId(null);
-                              setIsPlaying(false);
-                            }
-                            return next;
-                          });
-                        }}
-                        disabled={!canDeleteFrame}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t("action.deleteFrame")}</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        onClick={() => {
-                          if (!canMoveFrameRight) {
-                            return;
-                          }
-                          setFrames((prev) => {
-                            const next = [...prev];
-                            const targetIndex = Math.min(
-                              prev.length - 1,
-                              currentFrameIndex + 1
-                            );
-                            if (targetIndex === currentFrameIndex) {
-                              return prev;
-                            }
-                            [next[currentFrameIndex], next[targetIndex]] = [
-                              next[targetIndex],
-                              next[currentFrameIndex],
-                            ];
-                            return next;
-                          });
-                          setCurrentFrameIndex((prev) =>
-                            Math.min(frames.length - 1, prev + 1)
-                          );
-                        }}
-                        disabled={!canMoveFrameRight}
-                      >
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t("action.moveFrameRight")}</TooltipContent>
-                  </Tooltip>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="reverse-toggle"
-                      checked={reverse}
-                      onCheckedChange={setReverse}
-                    />
-                    <Label htmlFor="reverse-toggle">{t("label.reverse")}</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch id="loop-toggle" checked={loop} onCheckedChange={setLoop} />
-                    <Label htmlFor="loop-toggle">{t("label.loop")}</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="fps-input">{t("label.fps")}</Label>
-                    <Input
-                      id="fps-input"
-                      type="number"
-                      className="w-20"
-                      value={String(fps)}
-                      onChange={(event) =>
-                        setFps(Math.max(1, toNumber(event.target.value, fps)))
-                      }
-                      min={1}
-                    />
-                  </div>
-                  <Select
-                    value={String(speed)}
-                    onValueChange={(value) => setSpeed(Number(value))}
-                  >
-                    <SelectTrigger className="w-24">
-                      <SelectValue placeholder={t("label.speed")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SPEED_OPTIONS.map((option) => (
-                        <SelectItem key={option} value={String(option)}>
-                          {option}x
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="text-xs font-mono text-muted-foreground">
-                  {t("status.frameCounter", {
-                    current: frames.length ? currentFrameIndex + 1 : 0,
-                    total: frames.length,
-                  })}
-                </div>
-                <div className="relative flex-1">
-                  <Slider
-                    className="w-full"
-                    min={0}
-                    max={Math.max(0, frames.length - 1)}
-                    step={1}
-                    value={[currentFrameIndex]}
-                    onValueChange={(value) =>
-                      setCurrentFrameIndex(value[0] ?? 0)
-                    }
-                    disabled={frames.length === 0}
-                  />
-                  {selectedPoint &&
-                    selectedPointKeyframes.length > 0 &&
-                    frames.length > 0 && (
-                      <div className="pointer-events-none absolute inset-0">
-                        {selectedPointKeyframes.map((keyframe) => {
-                          const span = Math.max(1, frames.length - 1);
-                          const ratio = keyframe.frameIndex / span;
-                          return (
-                            <span
-                              key={`${selectedPoint.id}-${keyframe.frameIndex}`}
-                              className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-[2px] border border-background/80"
-                              style={{
-                                left: `${ratio * 100}%`,
-                                backgroundColor:
-                                  selectedPoint.color || "rgba(120,120,120,0.9)",
-                              }}
-                            />
-                          );
-                        })}
-                      </div>
-                    )}
-                </div>
-                {appMode === "animation" && (
-                  <div className="text-xs font-mono text-muted-foreground">
-                    {animationCurrentSeconds.toFixed(2)}s /{" "}
-                    {animationTotalSeconds.toFixed(2)}s
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-        </main>
-
-        <aside className="h-full min-h-0 space-y-4 overflow-y-auto rounded-none border-0 bg-card/80 p-4 shadow-none backdrop-blur">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                {t("panel.importExport")}
-              </p>
-              <h2 className="text-lg font-semibold">{t("panel.pipeline")}</h2>
-            </div>
-            <Layers className="h-5 w-5 text-muted-foreground" />
-          </div>
-
-          <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
-            <Label>{t("label.newAtlas")}</Label>
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">
-                {t("label.pngFrames")}
-              </Label>
-              <Input
-                ref={framesInputRef}
-                type="file"
-                accept="image/png"
-                multiple
-                onChange={(event) => {
-                  if (event.target.files?.length) {
-                    void handleNewAtlasCreate();
-                  }
-                }}
-              />
-              <div className="text-xs text-muted-foreground">
-                {t("hint.fileOrder")}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">
-                {t("label.pointsJson")}
-              </Label>
-              <Input
-                ref={newPointsInputRef}
-                type="file"
-                accept="application/json"
-              />
-              <div className="text-xs text-muted-foreground">
-                {t("hint.pointsOptional")}
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={() => {
-                setFrames([]);
-                setCurrentFrameIndex(0);
-                setSelectedPointId(null);
-                setIsPlaying(false);
-              }}
-              disabled={frames.length === 0}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              {t("action.clearFrames")}
-            </Button>
-          </div>
-
-          <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
-            <Label>{t("label.editCurrent")}</Label>
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">
-                {t("label.atlasPng")}
-              </Label>
-              <Input
-                ref={editAtlasPngInputRef}
-                type="file"
-                accept="image/png"
-                onChange={(event) =>
-                  setEditAtlasPngFile(event.target.files?.[0] ?? null)
-                }
-                disabled={isEditImporting}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">
-                {t("label.atlasJson")}
-              </Label>
-              <Input
-                ref={editAtlasJsonInputRef}
-                type="file"
-                accept="application/json"
-                onChange={(event) =>
-                  setEditAtlasJsonFile(event.target.files?.[0] ?? null)
-                }
-                disabled={isEditImporting}
-              />
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {isEditImporting ? t("hint.importing") : t("hint.editCurrent")}
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
-            <div className="flex items-center justify-between">
-              <Label>{t("label.spriteSettings")}</Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => setIsSpriteSettingsOpen((prev) => !prev)}
-                aria-label={t("action.toggleSpriteSettings")}
-              >
-                {isSpriteSettingsOpen ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-            {isSpriteSettingsOpen && (
-              <>
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">
-                    {t("label.spriteDirection")}
-                  </Label>
-                  <Select
-                    value={spriteDirection}
-                    onValueChange={(value) =>
-                      setSpriteDirection(value as SpriteDirection)
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("label.spriteDirection")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="clockwise">
-                        {t("direction.clockwise")}
-                      </SelectItem>
-                      <SelectItem value="counterclockwise">
-                        {t("direction.counterclockwise")}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {t("hint.spriteSettings")}
-                </p>
-              </>
-            )}
-          </div>
-
-          <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Label>{t("label.atlasSettings")}</Label>
-                {sizeMismatch && (
-                  <Badge variant="destructive" className="text-[10px]">
-                    {t("status.sizeMismatch")}
-                  </Badge>
-                )}
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => setIsAtlasSettingsOpen((prev) => !prev)}
-                aria-label={t("action.toggleAtlasSettings")}
-              >
-                {isAtlasSettingsOpen ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-            {isAtlasSettingsOpen && (
-              <>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="rows-input">{t("label.rows")}</Label>
-                    <Input
-                      id="rows-input"
-                      type="number"
-                      min={1}
-                      value={String(rows)}
-                      onChange={(event) =>
-                        setRows(Math.max(1, toNumber(event.target.value, rows)))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="padding-input">{t("label.padding")}</Label>
-                    <Input
-                      id="padding-input"
-                      type="number"
-                      min={0}
-                      value={String(padding)}
-                      onChange={(event) =>
-                        setPadding(
-                          Math.max(0, toNumber(event.target.value, padding))
-                        )
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>
-                    {t("status.cellSize", {
-                      w: atlasLayout.cellWidth,
-                      h: atlasLayout.cellHeight,
-                    })}
-                  </span>
-                  <span>
-                    {t("status.atlasSize", {
-                      w: atlasLayout.width,
-                      h: atlasLayout.height,
-                    })}
-                  </span>
-                </div>
-              </>
-            )}
-          </div>
-
-          <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
-            <div className="flex items-center justify-between">
-              <Label>{t("label.exportQuality")}</Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => setIsExportQualityOpen((prev) => !prev)}
-                aria-label={t("action.toggleExportQuality")}
-              >
-                {isExportQualityOpen ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-            {isExportQualityOpen && (
-              <>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{t("label.exportScale")}</span>
-                    <span className="font-mono">{exportScale.toFixed(1)}x</span>
-                  </div>
-                  <Slider
-                    min={MIN_EXPORT_SCALE}
-                    max={MAX_EXPORT_SCALE}
-                    step={EXPORT_SCALE_STEP}
-                    value={[exportScale]}
-                    onValueChange={(value) => {
-                      const next = value[0] ?? exportScale;
-                      setExportScale(Math.round(next * 2) / 2);
-                    }}
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="export-smoothing"
-                    checked={exportSmoothing}
-                    onCheckedChange={setExportSmoothing}
-                  />
-                  <Label htmlFor="export-smoothing">
-                    {t("label.smoothing")}
-                  </Label>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {t("hint.exportQuality")}
-                </p>
-              </>
-            )}
-          </div>
-
-          <Separator />
-
-          <div className="space-y-2">
-            <Label>{t("label.export")}</Label>
-            <div className="grid gap-2">
-              <Button onClick={handleExportPng} disabled={frames.length === 0}>
-                <Download className="mr-2 h-4 w-4" />
-                {t("action.exportPng")}
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={handleExportJson}
-                disabled={frames.length === 0}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                {t("action.exportJson")}
-              </Button>
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {t("label.pivotSpace")}: {pivotLabels[pivotMode]}
-            </div>
-          </div>
-        </aside>
+        <LeftSidebar
+          t={t}
+          frames={frames}
+          currentFrameIndex={currentFrameIndex}
+          isProjectSettingsOpen={isProjectSettingsOpen}
+          setIsProjectSettingsOpen={setIsProjectSettingsOpen}
+          appMode={appMode}
+          setAppMode={setAppMode}
+          projectName={projectName}
+          setProjectName={setProjectName}
+          pivotMode={pivotMode}
+          setPivotMode={setPivotMode}
+          pivotLabels={pivotLabels}
+          pivotOptions={PIVOT_OPTIONS}
+          animationName={animationName}
+          setAnimationName={setAnimationName}
+          animationFrameSelection={animationFrameSelection}
+          setAnimationFrameSelection={setAnimationFrameSelection}
+          editorMode={editorMode}
+          setEditorMode={setEditorMode}
+          currentFrame={currentFrame}
+          addPointAt={addPointAt}
+          currentPoints={currentPoints}
+          selectedPointId={selectedPointId}
+          setSelectedPointId={setSelectedPointId}
+          isPointsOpen={isPointsOpen}
+          setIsPointsOpen={setIsPointsOpen}
+          toPivotCoords={toPivotCoords}
+          selectedPoint={selectedPoint}
+          updateAllFramesPoints={updateAllFramesPoints}
+          selectedPivotX={selectedPivotX}
+          selectedPivotY={selectedPivotY}
+          updateCurrentFramePoints={updateCurrentFramePoints}
+          fromPivotCoords={fromPivotCoords}
+          clamp={clamp}
+          toNumber={toNumber}
+          isKeyframesOpen={isKeyframesOpen}
+          setIsKeyframesOpen={setIsKeyframesOpen}
+          keyframeCount={keyframeCount}
+          setFrames={setFrames}
+          selectedPointKeyframes={selectedPointKeyframes}
+          autoFillShape={autoFillShape}
+          setAutoFillShape={setAutoFillShape}
+          handleAutoFill={handleAutoFill}
+          canAutoFill={canAutoFill}
+          availablePoints={availablePoints}
+          pointGroups={pointGroups}
+          setPointGroups={setPointGroups}
+          selectedGroupId={selectedGroupId}
+          setSelectedGroupId={setSelectedGroupId}
+          newGroupName={newGroupName}
+          setNewGroupName={setNewGroupName}
+          isPointGroupsOpen={isPointGroupsOpen}
+          setIsPointGroupsOpen={setIsPointGroupsOpen}
+          selectedGroup={selectedGroup}
+          groupEntrySelection={groupEntrySelection}
+          setGroupEntrySelection={setGroupEntrySelection}
+          isGroupPreviewActive={isGroupPreviewActive}
+          setIsGroupPreviewActive={setIsGroupPreviewActive}
+          isGroupPreviewPlaying={isGroupPreviewPlaying}
+          setIsGroupPreviewPlaying={setIsGroupPreviewPlaying}
+          groupPreviewIndex={groupPreviewIndex}
+          setGroupPreviewIndex={setGroupPreviewIndex}
+          canPreviewGroup={canPreviewGroup}
+          createId={createId}
+        />
+        <MainStage
+          t={t}
+          theme={theme}
+          setTheme={setTheme}
+          currentFrame={currentFrame}
+          frames={frames}
+          currentFrameIndex={currentFrameIndex}
+          setCurrentFrameIndex={setCurrentFrameIndex}
+          atlasLayout={atlasLayout}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          showGrid={showGrid}
+          setShowGrid={setShowGrid}
+          showPoints={showPoints}
+          setShowPoints={setShowPoints}
+          stageRef={stageRef}
+          canvasRef={canvasRef}
+          editorMode={editorMode}
+          handleCanvasPointerDown={handleCanvasPointerDown}
+          handleCanvasPointerMove={handleCanvasPointerMove}
+          handleCanvasPointerUp={handleCanvasPointerUp}
+          handleCanvasWheel={handleCanvasWheel}
+          framesInputRef={framesInputRef}
+          selectedPoint={selectedPoint}
+          selectedPointKeyframes={selectedPointKeyframes}
+          fps={fps}
+          setFps={setFps}
+          speed={speed}
+          setSpeed={setSpeed}
+          reverse={reverse}
+          setReverse={setReverse}
+          loop={loop}
+          setLoop={setLoop}
+          isPlaying={isPlaying}
+          setIsPlaying={setIsPlaying}
+          setSelectedPointId={setSelectedPointId}
+          canAddKeyframe={canAddKeyframe}
+          canRemoveKeyframe={canRemoveKeyframe}
+          isCurrentFrameKeyframe={isCurrentFrameKeyframe}
+          updateCurrentFramePoints={updateCurrentFramePoints}
+          canMoveFrameLeft={canMoveFrameLeft}
+          canMoveFrameRight={canMoveFrameRight}
+          canDeleteFrame={canDeleteFrame}
+          setFrames={setFrames}
+          appMode={appMode}
+          animationCurrentSeconds={animationCurrentSeconds}
+          animationTotalSeconds={animationTotalSeconds}
+          speedOptions={SPEED_OPTIONS}
+          toNumber={toNumber}
+        />
+        <RightSidebar
+          t={t}
+          framesLength={frames.length}
+          framesInputRef={framesInputRef}
+          newPointsInputRef={newPointsInputRef}
+          handleNewAtlasCreate={handleNewAtlasCreate}
+          handleNewPointsImport={handleNewPointsImport}
+          onClearFrames={handleClearFrames}
+          editAtlasPngInputRef={editAtlasPngInputRef}
+          editAtlasJsonInputRef={editAtlasJsonInputRef}
+          setEditAtlasPngFile={setEditAtlasPngFile}
+          setEditAtlasJsonFile={setEditAtlasJsonFile}
+          isEditImporting={isEditImporting}
+          isSpriteSettingsOpen={isSpriteSettingsOpen}
+          setIsSpriteSettingsOpen={setIsSpriteSettingsOpen}
+          spriteDirection={spriteDirection}
+          setSpriteDirection={setSpriteDirection}
+          isAtlasSettingsOpen={isAtlasSettingsOpen}
+          setIsAtlasSettingsOpen={setIsAtlasSettingsOpen}
+          rows={rows}
+          setRows={setRows}
+          padding={padding}
+          setPadding={setPadding}
+          atlasLayout={atlasLayout}
+          sizeMismatch={sizeMismatch}
+          toNumber={toNumber}
+          isExportQualityOpen={isExportQualityOpen}
+          setIsExportQualityOpen={setIsExportQualityOpen}
+          exportScale={exportScale}
+          setExportScale={setExportScale}
+          exportSmoothing={exportSmoothing}
+          setExportSmoothing={setExportSmoothing}
+          handleExportPng={handleExportPng}
+          handleExportJson={handleExportJson}
+          pivotMode={pivotMode}
+          pivotLabels={pivotLabels}
+          minExportScale={MIN_EXPORT_SCALE}
+          maxExportScale={MAX_EXPORT_SCALE}
+          exportScaleStep={EXPORT_SCALE_STEP}
+        />
       </div>
     </TooltipProvider>
   );
