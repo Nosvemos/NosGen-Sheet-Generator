@@ -24,7 +24,7 @@ type Translate = (
   params?: Record<string, string | number>
 ) => string;
 
-type LeftSidebarProps = {
+export type LeftSidebarProps = {
   t: Translate;
   frames: FrameData[];
   currentFrameIndex: number;

@@ -26,7 +26,7 @@ type Translate = (
   params?: Record<string, string | number>
 ) => string;
 
-type MainStageProps = {
+export type MainStageProps = {
   t: Translate;
   theme: ThemeMode;
   setTheme: Dispatch<SetStateAction<ThemeMode>>;

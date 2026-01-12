@@ -15,7 +15,7 @@ type Translate = (
   params?: Record<string, string | number>
 ) => string;
 
-type RightSidebarProps = {
+export type RightSidebarProps = {
   t: Translate;
   framesLength: number;
   framesInputRef: RefObject<HTMLInputElement | null>;
