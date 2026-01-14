@@ -167,6 +167,13 @@ const translations = {
     "hint.noGroups": "Create a group to organize points.",
     "hint.noGroupPoints": "Load points to assign them to this index.",
     "hint.noPointsInIndex": "No points added to this index.",
+    "warn.missingFramesTitle": "Missing frames",
+    "warn.missingFramesBody": "No frames are loaded. Import PNG frames first.",
+    "warn.sizeMismatchTitle": "Frame size mismatch",
+    "warn.sizeMismatchBody": "Frames have different dimensions.",
+    "warn.unassignedPointsTitle": "Unassigned points",
+    "warn.unassignedPointsBody": (params) =>
+      `${params.count ?? 0} points have no keyframes.`,
     "shape.ellipse": "Ellipse",
     "shape.circle": "Circle",
     "shape.square": "Square",

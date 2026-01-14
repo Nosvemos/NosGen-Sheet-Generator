@@ -20,6 +20,7 @@ import { usePlayback } from "@/hooks/use-playback";
 import { usePointsEditor } from "@/hooks/use-points-editor";
 import { useStageInteractions } from "@/hooks/use-stage-interactions";
 import { useStageSizing } from "@/hooks/use-stage-sizing";
+import { useValidationAlerts } from "@/hooks/use-validation-alerts";
 import { useHotkeys } from "@/hooks/use-hotkeys";
 import { exportAtlasJson, exportAtlasPng } from "@/lib/editor-io";
 import { DEFAULT_HOTKEYS } from "@/lib/hotkeys";
@@ -365,6 +366,26 @@ export function useEditorPanels() {
     );
   }, [frames]);
 
+  const unassignedPointsCount = useMemo(() => {
+    if (frames.length === 0) {
+      return 0;
+    }
+    const keyframeMap = new Map<string, boolean>();
+    frames.forEach((frame) => {
+      frame.points.forEach((point) => {
+        const hasKeyframe = keyframeMap.get(point.id) ?? false;
+        keyframeMap.set(point.id, hasKeyframe || Boolean(point.isKeyframe));
+      });
+    });
+    let count = 0;
+    keyframeMap.forEach((hasKeyframe) => {
+      if (!hasKeyframe) {
+        count += 1;
+      }
+    });
+    return count;
+  }, [frames]);
+
   const getFrameTransform = useFrameTransform({
     currentFrame,
     frameZoom,
@@ -394,6 +415,14 @@ export function useEditorPanels() {
     transformRef,
     frameZoom,
     panOffset,
+  });
+
+  useValidationAlerts({
+    t,
+    framesLength: frames.length,
+    sizeMismatch,
+    unassignedPointsCount,
+    appMode,
   });
 
   const { updateCurrentFramePoints, updateAllFramesPoints, addPointAt } =
