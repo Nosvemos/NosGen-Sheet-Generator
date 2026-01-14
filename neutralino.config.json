@@ -20,6 +20,7 @@
     "os.*",
     "filesystem.*"
   ],
+  "applicationIcon": "icons/app.png",
   "modes": {
     "window": {
       "title": "NosGen",
@@ -35,6 +36,7 @@
       "maximize": false,
       "hidden": false,
       "resizable": true,
+      "icon": "icons/app.png",
       "exitProcessOnClose": true
     }
   },
