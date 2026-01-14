@@ -55,6 +55,49 @@ type AtlasEntry = {
   h: number;
 };
 
+const isNeutralinoRuntime = () =>
+  typeof window !== "undefined" && "NL_OS" in window;
+
+const saveBlobWithDialog = async (
+  blob: Blob,
+  filename: string,
+  filters: Array<{ name: string; extensions: string[] }>
+) => {
+  if (!isNeutralinoRuntime()) {
+    downloadBlob(blob, filename);
+    return;
+  }
+  try {
+    const { os, filesystem } = await import("@neutralinojs/lib");
+    let defaultPath = filename;
+    try {
+      const downloads = await os.getPath("downloads");
+      if (downloads) {
+        defaultPath = await filesystem.getJoinedPath(downloads, filename);
+      }
+    } catch {
+      // Ignore path lookup errors and keep default filename.
+    }
+    const path = await os.showSaveDialog("Save file", {
+      defaultPath,
+      filters,
+    });
+    if (!path) {
+      return;
+    }
+    if (blob.type === "application/json" || filename.endsWith(".json")) {
+      const text = await blob.text();
+      await filesystem.writeFile(path, text);
+    } else {
+      const data = await blob.arrayBuffer();
+      await filesystem.writeBinaryFile(path, data);
+    }
+  } catch (error) {
+    console.error(error);
+    downloadBlob(blob, filename);
+  }
+};
+
 const parseAtlasEntries = (parsed: unknown): AtlasEntry[] => {
   if (!parsed || typeof parsed !== "object") {
     return [];
@@ -338,7 +381,9 @@ export const exportAtlasPng = ({
   });
   canvas.toBlob((blob) => {
     if (blob) {
-      downloadBlob(blob, `${exportAtlasName}.png`);
+      void saveBlobWithDialog(blob, `${exportAtlasName}.png`, [
+        { name: "PNG Image", extensions: ["png"] },
+      ]);
     }
   });
 };
@@ -449,10 +494,10 @@ export const exportAtlasJson = ({
     frames: exportedFrames,
   };
 
-  downloadBlob(
-    new Blob([JSON.stringify(payload, null, 2)], {
-      type: "application/json",
-    }),
-    `${exportDataName}.json`
-  );
+  const jsonBlob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/json",
+  });
+  void saveBlobWithDialog(jsonBlob, `${exportDataName}.json`, [
+    { name: "JSON", extensions: ["json"] },
+  ]);
 };

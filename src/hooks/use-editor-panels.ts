@@ -3,7 +3,7 @@ import { useI18n } from "@/lib/i18n";
 import type { LeftSidebarProps } from "@/components/editor/LeftSidebar";
 import type { MainStageProps } from "@/components/editor/MainStage";
 import type { RightSidebarProps } from "@/components/editor/RightSidebar";
-import type { StageTransform } from "@/lib/editor-types";
+import type { PivotMode, StageTransform } from "@/lib/editor-types";
 import {
   createInitialEditorHistory,
   createStateSetter,

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://raw.githubusercontent.com/neutralinojs/neutralinojs/main/schemas/neutralino.config.schema.json",
+  "applicationId": "com.nosgen.app",
+  "version": "1.0.0",
+  "defaultMode": "window",
+  "port": 0,
+  "documentRoot": "/dist/",
+  "url": "/",
+  "enableServer": true,
+  "enableNativeAPI": true,
+  "tokenSecurity": "one-time",
+  "logging": {
+    "enabled": true,
+    "writeToLogFile": true
+  },
+  "nativeAllowList": [
+    "os.*",
+    "filesystem.*"
+  ],
+  "modes": {
+    "window": {
+      "title": "NosGen",
+      "width": 1280,
+      "height": 720,
+      "minWidth": 960,
+      "minHeight": 600,
+      "center": true,
+      "fullScreen": false,
+      "alwaysOnTop": false,
+      "enableInspector": false,
+      "borderless": false,
+      "maximize": false,
+      "hidden": false,
+      "resizable": true,
+      "exitProcessOnClose": false
+    }
+  },
+  "cli": {
+    "binaryName": "nosgen",
+    "resourcesPath": "/dist/",
+    "extensionsPath": "/extensions/",
+    "binaryVersion": "6.4.0",
+    "clientVersion": "6.4.0"
+  }
+}

@@ -227,8 +227,12 @@ const buildPatch = (prev: EditorState, next: EditorState) => {
   const inverse: Partial<EditorState> = {};
   (Object.keys(next) as Array<keyof EditorState>).forEach((key) => {
     if (!Object.is(prev[key], next[key])) {
-      patch[key] = next[key];
-      inverse[key] = prev[key];
+      (patch as Record<keyof EditorState, EditorState[keyof EditorState]>)[
+        key
+      ] = next[key] as EditorState[typeof key];
+      (inverse as Record<keyof EditorState, EditorState[keyof EditorState]>)[
+        key
+      ] = prev[key] as EditorState[typeof key];
     }
   });
   return { patch, inverse };
@@ -360,6 +364,11 @@ export const createStateSetter = <K extends keyof EditorState>(
   options?: HistoryMeta
 ): Dispatch<SetStateAction<EditorState[K]>> => {
   return (value) => {
-    dispatch({ type: "set", key, value, meta: options });
+    dispatch({
+      type: "set",
+      key,
+      value,
+      meta: options,
+    } as EditorHistoryAction);
   };
 };
