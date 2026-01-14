@@ -241,8 +241,8 @@ export const computeEllipseFit = (
   return {
     cx: best.cx,
     cy: best.cy,
-    rx: Math.abs(best.rx),
-    ry: Math.abs(best.ry),
+    rx: best.rx,
+    ry: best.ry,
     phase: best.phase,
   };
 };
@@ -260,6 +260,10 @@ export const computeCircleFit = (
     (point) =>
       directionSign * (point.frameIndex / totalFrames) * Math.PI * 2
   );
+  const xs = keyframes.map((point) => point.x);
+  const ys = keyframes.map((point) => point.y);
+  const meanX = xs.reduce((sum, value) => sum + value, 0) / xs.length;
+  const meanY = ys.reduce((sum, value) => sum + value, 0) / ys.length;
   const phaseSteps = 720;
   let best:
     | {
@@ -275,24 +279,33 @@ export const computeCircleFit = (
     const phase = (step / phaseSteps) * Math.PI * 2;
     const cosValues = baseAngles.map((angle) => Math.cos(angle + phase));
     const sinValues = baseAngles.map((angle) => Math.sin(angle + phase));
-    const sumC = cosValues.reduce((sum, value) => sum + value, 0);
-    const sumS = sinValues.reduce((sum, value) => sum + value, 0);
-    const count = keyframes.length;
-    const sumX = keyframes.reduce((sum, point) => sum + point.x, 0);
-    const sumY = keyframes.reduce((sum, point) => sum + point.y, 0);
-    const term = (sumC * sumX + sumS * sumY) / count;
-    const r =
-      (sumX * sumC + sumY * sumS - count * term) /
-      (sumC * sumC + sumS * sumS || 1);
-    const cx = (sumX - r * sumC) / count;
-    const cy = (sumY - r * sumS) / count;
+    const meanCos =
+      cosValues.reduce((sum, value) => sum + value, 0) / cosValues.length;
+    const meanSin =
+      sinValues.reduce((sum, value) => sum + value, 0) / sinValues.length;
+    let numerator = 0;
+    let denominator = 0;
+    for (let i = 0; i < keyframes.length; i += 1) {
+      const dx = xs[i] - meanX;
+      const dy = ys[i] - meanY;
+      const cosDelta = cosValues[i] - meanCos;
+      const sinDelta = sinValues[i] - meanSin;
+      numerator += dx * cosDelta + dy * sinDelta;
+      denominator += cosDelta * cosDelta + sinDelta * sinDelta;
+    }
+    if (Math.abs(denominator) < 1e-6) {
+      continue;
+    }
+    const r = numerator / denominator;
+    const cx = meanX - r * meanCos;
+    const cy = meanY - r * meanSin;
     const error = keyframes.reduce((acc, point, index) => {
       const x = cx + r * cosValues[index];
       const y = cy + r * sinValues[index];
       return acc + (x - point.x) ** 2 + (y - point.y) ** 2;
     }, 0);
     if (!best || error < best.error) {
-      best = { error, cx, cy, r: Math.abs(r), phase };
+      best = { error, cx, cy, r, phase };
     }
   }
 
@@ -302,7 +315,7 @@ export const computeCircleFit = (
   return {
     cx: best.cx,
     cy: best.cy,
-    r: Math.abs(best.r),
+    r: best.r,
     phase: best.phase,
   };
 };

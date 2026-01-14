@@ -592,6 +592,50 @@ export function useEditorPanels() {
       },
       toggleGrid: () => setShowGrid((prev) => !prev),
       togglePoints: () => setShowPoints((prev) => !prev),
+      selectMode: () => setEditorMode("select"),
+      addMode: () => setEditorMode("add"),
+      addPoint: () => {
+        if (!currentFrame || appMode !== "character") {
+          return;
+        }
+        addPointAt(currentFrame.width / 2, currentFrame.height / 2);
+      },
+      deletePoint: () => {
+        if (!selectedPointId || appMode !== "character") {
+          return;
+        }
+        updateAllFramesPoints((points) =>
+          points.filter((point) => point.id !== selectedPointId)
+        );
+        setSelectedPointId(null);
+      },
+      selectNextPoint: () => {
+        if (currentPoints.length === 0) {
+          return;
+        }
+        const currentIndex = currentPoints.findIndex(
+          (point) => point.id === selectedPointId
+        );
+        const nextIndex =
+          currentIndex >= 0
+            ? (currentIndex + 1) % currentPoints.length
+            : 0;
+        setSelectedPointId(currentPoints[nextIndex].id);
+      },
+      selectPrevPoint: () => {
+        if (currentPoints.length === 0) {
+          return;
+        }
+        const currentIndex = currentPoints.findIndex(
+          (point) => point.id === selectedPointId
+        );
+        const nextIndex =
+          currentIndex >= 0
+            ? (currentIndex - 1 + currentPoints.length) %
+              currentPoints.length
+            : currentPoints.length - 1;
+        setSelectedPointId(currentPoints[nextIndex].id);
+      },
     },
   });
 

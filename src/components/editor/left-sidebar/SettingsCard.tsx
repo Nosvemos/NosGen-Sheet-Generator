@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import type { TranslationKey } from "@/lib/i18n";
 import type { HotkeyAction, HotkeyMap } from "@/lib/hotkeys";
 import { DEFAULT_HOTKEYS, formatHotkey } from "@/lib/hotkeys";
@@ -39,6 +40,12 @@ const HOTKEY_ACTIONS: Array<{ id: HotkeyAction; label: TranslationKey }> = [
   { id: "lastFrame", label: "hotkey.lastFrame" },
   { id: "toggleGrid", label: "hotkey.toggleGrid" },
   { id: "togglePoints", label: "hotkey.togglePoints" },
+  { id: "selectMode", label: "hotkey.selectMode" },
+  { id: "addMode", label: "hotkey.addMode" },
+  { id: "addPoint", label: "hotkey.addPoint" },
+  { id: "deletePoint", label: "hotkey.deletePoint" },
+  { id: "selectPrevPoint", label: "hotkey.selectPrevPoint" },
+  { id: "selectNextPoint", label: "hotkey.selectNextPoint" },
 ];
 
 export function SettingsCard({
@@ -168,52 +175,59 @@ export function SettingsCard({
               </Button>
             </div>
             <div className="space-y-2">
-              {HOTKEY_ACTIONS.map((action) => (
-                <div
-                  key={action.id}
-                  className="flex items-center justify-between gap-2"
-                >
-                  <Label className="text-xs text-muted-foreground">
-                    {t(action.label)}
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      data-hotkey-input
-                      readOnly
-                      value={hotkeys[action.id] ?? ""}
-                      placeholder={t("placeholder.hotkey")}
-                      className="w-36 text-xs"
-                      onKeyDown={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        if (event.key === "Escape") {
-                          (event.currentTarget as HTMLInputElement).blur();
-                          return;
-                        }
-                        if (event.key === "Backspace" || event.key === "Delete") {
-                          handleHotkeyChange(action.id, "");
-                          return;
-                        }
-                        const combo = formatHotkey(event);
-                        if (!combo) {
-                          return;
-                        }
-                        handleHotkeyChange(action.id, combo);
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleHotkeyChange(action.id, "")}
-                      aria-label={t("action.clearHotkey")}
+              <ScrollArea
+                type="always"
+                className="h-52 rounded-lg border border-border/50 bg-background/40 p-2"
+              >
+                <div className="space-y-2 pr-2">
+                  {HOTKEY_ACTIONS.map((action) => (
+                    <div
+                      key={action.id}
+                      className="flex items-center justify-between gap-2"
                     >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
+                      <Label className="text-xs text-muted-foreground">
+                        {t(action.label)}
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          data-hotkey-input
+                          readOnly
+                          value={hotkeys[action.id] ?? ""}
+                          placeholder={t("placeholder.hotkey")}
+                          className="w-36 text-xs"
+                          onKeyDown={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            if (event.key === "Escape") {
+                              (event.currentTarget as HTMLInputElement).blur();
+                              return;
+                            }
+                            if (event.key === "Backspace" || event.key === "Delete") {
+                              handleHotkeyChange(action.id, "");
+                              return;
+                            }
+                            const combo = formatHotkey(event);
+                            if (!combo) {
+                              return;
+                            }
+                            handleHotkeyChange(action.id, combo);
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleHotkeyChange(action.id, "")}
+                          aria-label={t("action.clearHotkey")}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </ScrollArea>
             </div>
             <p className="text-xs text-muted-foreground">
               {t("hint.hotkeysCapture")}

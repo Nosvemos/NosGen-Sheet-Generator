@@ -7,7 +7,13 @@ export type HotkeyAction =
   | "firstFrame"
   | "lastFrame"
   | "toggleGrid"
-  | "togglePoints";
+  | "togglePoints"
+  | "selectMode"
+  | "addMode"
+  | "addPoint"
+  | "deletePoint"
+  | "selectNextPoint"
+  | "selectPrevPoint";
 
 export type HotkeyMap = Record<HotkeyAction, string>;
 
@@ -23,6 +29,12 @@ export const DEFAULT_HOTKEYS: HotkeyMap = {
   lastFrame: "End",
   toggleGrid: "G",
   togglePoints: "P",
+  selectMode: "S",
+  addMode: "A",
+  addPoint: "N",
+  deletePoint: "Delete",
+  selectNextPoint: "]",
+  selectPrevPoint: "[",
 };
 
 type HotkeyEvent = {
