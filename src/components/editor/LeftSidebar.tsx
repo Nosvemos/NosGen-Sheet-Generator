@@ -17,7 +17,9 @@ import { PointGroupsCard } from "@/components/editor/left-sidebar/PointGroupsCar
 import { PointModeCard } from "@/components/editor/left-sidebar/PointModeCard";
 import { PointsCard } from "@/components/editor/left-sidebar/PointsCard";
 import { ProjectSettingsCard } from "@/components/editor/left-sidebar/ProjectSettingsCard";
+import { SettingsModal } from "@/components/editor/left-sidebar/SettingsModal";
 import { SelectedPointCard } from "@/components/editor/left-sidebar/SelectedPointCard";
+import type { HotkeyMap } from "@/lib/hotkeys";
 
 type Translate = (
   key: TranslationKey,
@@ -42,6 +44,13 @@ export type LeftSidebarProps = {
   setAnimationName: Dispatch<SetStateAction<string>>;
   animationFrameSelection: Record<string, boolean>;
   setAnimationFrameSelection: Dispatch<SetStateAction<Record<string, boolean>>>;
+  isSettingsOpen: boolean;
+  setIsSettingsOpen: Dispatch<SetStateAction<boolean>>;
+  historyLimit: number;
+  setHistoryLimit: Dispatch<SetStateAction<number>>;
+  hotkeys: HotkeyMap;
+  setHotkeys: Dispatch<SetStateAction<HotkeyMap>>;
+  onResetHotkeys: () => void;
   editorMode: EditorMode;
   setEditorMode: Dispatch<SetStateAction<EditorMode>>;
   currentFrame?: FrameData;
@@ -117,6 +126,13 @@ export function LeftSidebar({
   setAnimationName,
   animationFrameSelection,
   setAnimationFrameSelection,
+  isSettingsOpen,
+  setIsSettingsOpen,
+  historyLimit,
+  setHistoryLimit,
+  hotkeys,
+  setHotkeys,
+  onResetHotkeys,
   editorMode,
   setEditorMode,
   currentFrame,
@@ -168,122 +184,136 @@ export function LeftSidebar({
   const isCharacterMode = appMode === "character";
 
   return (
-    <aside className="h-full min-h-0 space-y-4 overflow-y-auto rounded-none border-0 bg-card/80 p-4 shadow-none backdrop-blur">
-      <LeftSidebarHeader
-        t={t}
-        framesLength={frames.length}
-        currentFrameIndex={currentFrameIndex}
-      />
-
-      <ProjectSettingsCard
-        t={t}
-        isProjectSettingsOpen={isProjectSettingsOpen}
-        setIsProjectSettingsOpen={setIsProjectSettingsOpen}
-        appMode={appMode}
-        setAppMode={setAppMode}
-        projectName={projectName}
-        setProjectName={setProjectName}
-        pivotMode={pivotMode}
-        setPivotMode={setPivotMode}
-        pivotLabels={pivotLabels}
-        pivotOptions={pivotOptions}
-      />
-
-      {appMode === "animation" && (
-        <AnimationBuilderCard
+    <>
+      <aside className="h-full min-h-0 space-y-4 overflow-y-auto rounded-none border-0 bg-card/80 p-4 shadow-none backdrop-blur">
+        <LeftSidebarHeader
           t={t}
-          frames={frames}
-          animationName={animationName}
-          setAnimationName={setAnimationName}
-          animationFrameSelection={animationFrameSelection}
-          setAnimationFrameSelection={setAnimationFrameSelection}
+          framesLength={frames.length}
+          currentFrameIndex={currentFrameIndex}
+          onOpenSettings={() => setIsSettingsOpen(true)}
         />
-      )}
 
-      {isCharacterMode && (
-        <PointModeCard
+        <ProjectSettingsCard
           t={t}
-          editorMode={editorMode}
-          setEditorMode={setEditorMode}
-          currentFrame={currentFrame}
-          addPointAt={addPointAt}
-        />
-      )}
-
-      {isCharacterMode && (
-        <PointsCard
-          t={t}
-          currentPoints={currentPoints}
-          currentFrame={currentFrame}
+          isProjectSettingsOpen={isProjectSettingsOpen}
+          setIsProjectSettingsOpen={setIsProjectSettingsOpen}
+          appMode={appMode}
+          setAppMode={setAppMode}
+          projectName={projectName}
+          setProjectName={setProjectName}
           pivotMode={pivotMode}
+          setPivotMode={setPivotMode}
           pivotLabels={pivotLabels}
-          selectedPointId={selectedPointId}
-          setSelectedPointId={setSelectedPointId}
-          isPointsOpen={isPointsOpen}
-          setIsPointsOpen={setIsPointsOpen}
-          toPivotCoords={toPivotCoords}
+          pivotOptions={pivotOptions}
         />
-      )}
 
-      {isCharacterMode && selectedPoint && (
-        <SelectedPointCard
-          t={t}
-          selectedPoint={selectedPoint}
-          updateAllFramesPoints={updateAllFramesPoints}
-          setSelectedPointId={setSelectedPointId}
-          selectedPivotX={selectedPivotX}
-          selectedPivotY={selectedPivotY}
-          currentFrame={currentFrame}
-          updateCurrentFramePoints={updateCurrentFramePoints}
-          fromPivotCoords={fromPivotCoords}
-          clamp={clamp}
-          toNumber={toNumber}
-          pivotMode={pivotMode}
-          isKeyframesOpen={isKeyframesOpen}
-          setIsKeyframesOpen={setIsKeyframesOpen}
-          keyframeCount={keyframeCount}
-          setFrames={setFrames}
-          selectedPointKeyframes={selectedPointKeyframes}
-          autoFillShape={autoFillShape}
-          setAutoFillShape={setAutoFillShape}
-          handleAutoFill={handleAutoFill}
-          canAutoFill={canAutoFill}
-        />
-      )}
+        {appMode === "animation" && (
+          <AnimationBuilderCard
+            t={t}
+            frames={frames}
+            animationName={animationName}
+            setAnimationName={setAnimationName}
+            animationFrameSelection={animationFrameSelection}
+            setAnimationFrameSelection={setAnimationFrameSelection}
+          />
+        )}
 
-      {isCharacterMode && (
-        <PointGroupsCard
-          t={t}
-          pointGroups={pointGroups}
-          selectedGroupId={selectedGroupId}
-          setSelectedGroupId={setSelectedGroupId}
-          newGroupName={newGroupName}
-          setNewGroupName={setNewGroupName}
-          isPointGroupsOpen={isPointGroupsOpen}
-          setIsPointGroupsOpen={setIsPointGroupsOpen}
-          setPointGroups={setPointGroups}
-          createId={createId}
-        />
-      )}
+        {isCharacterMode && (
+          <PointModeCard
+            t={t}
+            editorMode={editorMode}
+            setEditorMode={setEditorMode}
+            currentFrame={currentFrame}
+            addPointAt={addPointAt}
+          />
+        )}
 
-      {isCharacterMode && selectedGroup && (
-        <GroupEditorCard
-          t={t}
-          selectedGroup={selectedGroup}
-          setPointGroups={setPointGroups}
-          setSelectedGroupId={setSelectedGroupId}
-          availablePoints={availablePoints}
-          groupEntrySelection={groupEntrySelection}
-          setGroupEntrySelection={setGroupEntrySelection}
-          isGroupPreviewActive={isGroupPreviewActive}
-          setIsGroupPreviewActive={setIsGroupPreviewActive}
-          isGroupPreviewPlaying={isGroupPreviewPlaying}
-          setIsGroupPreviewPlaying={setIsGroupPreviewPlaying}
-          groupPreviewIndex={groupPreviewIndex}
-          setGroupPreviewIndex={setGroupPreviewIndex}
-          canPreviewGroup={canPreviewGroup}
-        />
-      )}
-    </aside>
+        {isCharacterMode && (
+          <PointsCard
+            t={t}
+            currentPoints={currentPoints}
+            currentFrame={currentFrame}
+            pivotMode={pivotMode}
+            pivotLabels={pivotLabels}
+            selectedPointId={selectedPointId}
+            setSelectedPointId={setSelectedPointId}
+            isPointsOpen={isPointsOpen}
+            setIsPointsOpen={setIsPointsOpen}
+            toPivotCoords={toPivotCoords}
+          />
+        )}
+
+        {isCharacterMode && selectedPoint && (
+          <SelectedPointCard
+            t={t}
+            selectedPoint={selectedPoint}
+            updateAllFramesPoints={updateAllFramesPoints}
+            setSelectedPointId={setSelectedPointId}
+            selectedPivotX={selectedPivotX}
+            selectedPivotY={selectedPivotY}
+            currentFrame={currentFrame}
+            updateCurrentFramePoints={updateCurrentFramePoints}
+            fromPivotCoords={fromPivotCoords}
+            clamp={clamp}
+            toNumber={toNumber}
+            pivotMode={pivotMode}
+            isKeyframesOpen={isKeyframesOpen}
+            setIsKeyframesOpen={setIsKeyframesOpen}
+            keyframeCount={keyframeCount}
+            setFrames={setFrames}
+            selectedPointKeyframes={selectedPointKeyframes}
+            autoFillShape={autoFillShape}
+            setAutoFillShape={setAutoFillShape}
+            handleAutoFill={handleAutoFill}
+            canAutoFill={canAutoFill}
+          />
+        )}
+
+        {isCharacterMode && (
+          <PointGroupsCard
+            t={t}
+            pointGroups={pointGroups}
+            selectedGroupId={selectedGroupId}
+            setSelectedGroupId={setSelectedGroupId}
+            newGroupName={newGroupName}
+            setNewGroupName={setNewGroupName}
+            isPointGroupsOpen={isPointGroupsOpen}
+            setIsPointGroupsOpen={setIsPointGroupsOpen}
+            setPointGroups={setPointGroups}
+            createId={createId}
+          />
+        )}
+
+        {isCharacterMode && selectedGroup && (
+          <GroupEditorCard
+            t={t}
+            selectedGroup={selectedGroup}
+            setPointGroups={setPointGroups}
+            setSelectedGroupId={setSelectedGroupId}
+            availablePoints={availablePoints}
+            groupEntrySelection={groupEntrySelection}
+            setGroupEntrySelection={setGroupEntrySelection}
+            isGroupPreviewActive={isGroupPreviewActive}
+            setIsGroupPreviewActive={setIsGroupPreviewActive}
+            isGroupPreviewPlaying={isGroupPreviewPlaying}
+            setIsGroupPreviewPlaying={setIsGroupPreviewPlaying}
+            groupPreviewIndex={groupPreviewIndex}
+            setGroupPreviewIndex={setGroupPreviewIndex}
+            canPreviewGroup={canPreviewGroup}
+          />
+        )}
+      </aside>
+      <SettingsModal
+        t={t}
+        isOpen={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+        historyLimit={historyLimit}
+        setHistoryLimit={setHistoryLimit}
+        hotkeys={hotkeys}
+        setHotkeys={setHotkeys}
+        onResetHotkeys={onResetHotkeys}
+        toNumber={toNumber}
+      />
+    </>
   );
 }

@@ -11,6 +11,8 @@ import type {
   ViewMode,
 } from "@/lib/editor-types";
 import { DEFAULT_FPS, DEFAULT_PADDING, DEFAULT_ROWS } from "@/lib/editor-helpers";
+import type { HotkeyMap } from "@/lib/hotkeys";
+import { DEFAULT_HISTORY_LIMIT, DEFAULT_HOTKEYS } from "@/lib/hotkeys";
 
 export type EditorState = {
   frames: FrameData[];
@@ -40,6 +42,9 @@ export type EditorState = {
   isSpriteSettingsOpen: boolean;
   isAtlasSettingsOpen: boolean;
   isExportQualityOpen: boolean;
+  isSettingsOpen: boolean;
+  historyLimit: number;
+  hotkeys: HotkeyMap;
   pointGroups: PointGroup[];
   selectedGroupId: string | null;
   newGroupName: string;
@@ -86,7 +91,8 @@ export type EditorHistoryAction =
   | { type: "redo" }
   | { type: "reset"; state?: EditorState };
 
-const HISTORY_LIMIT = 50;
+const resolveHistoryLimit = (state: EditorState) =>
+  Math.max(0, Math.round(state.historyLimit ?? DEFAULT_HISTORY_LIMIT));
 
 export const createInitialEditorState = (): EditorState => {
   let theme: ThemeMode = "dark";
@@ -124,6 +130,9 @@ export const createInitialEditorState = (): EditorState => {
     isSpriteSettingsOpen: true,
     isAtlasSettingsOpen: true,
     isExportQualityOpen: true,
+    isSettingsOpen: false,
+    historyLimit: DEFAULT_HISTORY_LIMIT,
+    hotkeys: DEFAULT_HOTKEYS,
     pointGroups: [],
     selectedGroupId: null,
     newGroupName: "",
@@ -186,10 +195,11 @@ export const editorHistoryReducer = (
     }
     const previous = history.past[history.past.length - 1];
     const past = history.past.slice(0, -1);
+    const limit = resolveHistoryLimit(previous);
     return {
-      past,
+      past: past.slice(-limit),
       present: previous,
-      future: [history.present, ...history.future],
+      future: [history.present, ...history.future].slice(0, limit),
     };
   }
   if (action.type === "redo") {
@@ -197,10 +207,11 @@ export const editorHistoryReducer = (
       return history;
     }
     const [next, ...future] = history.future;
+    const limit = resolveHistoryLimit(next);
     return {
-      past: [...history.past, history.present].slice(-HISTORY_LIMIT),
+      past: [...history.past, history.present].slice(-limit),
       present: next,
-      future,
+      future: future.slice(0, limit),
     };
   }
   if (action.type === "reset") {
@@ -215,16 +226,18 @@ export const editorHistoryReducer = (
   if (Object.is(nextPresent, history.present)) {
     return history;
   }
+  const limit = resolveHistoryLimit(nextPresent);
   const ignoreHistory =
     "meta" in action && action.meta?.history === "ignore";
   if (ignoreHistory) {
     return {
-      ...history,
+      past: history.past.slice(-limit),
       present: nextPresent,
+      future: history.future.slice(0, limit),
     };
   }
   return {
-    past: [...history.past, history.present].slice(-HISTORY_LIMIT),
+    past: [...history.past, history.present].slice(-limit),
     present: nextPresent,
     future: [],
   };

@@ -20,7 +20,9 @@ import { usePlayback } from "@/hooks/use-playback";
 import { usePointsEditor } from "@/hooks/use-points-editor";
 import { useStageInteractions } from "@/hooks/use-stage-interactions";
 import { useStageSizing } from "@/hooks/use-stage-sizing";
+import { useHotkeys } from "@/hooks/use-hotkeys";
 import { exportAtlasJson, exportAtlasPng } from "@/lib/editor-io";
+import { DEFAULT_HOTKEYS } from "@/lib/hotkeys";
 import {
   EXPORT_SCALE_STEP,
   MAX_EXPORT_SCALE,
@@ -71,6 +73,9 @@ export function useEditorPanels() {
     isSpriteSettingsOpen,
     isAtlasSettingsOpen,
     isExportQualityOpen,
+    isSettingsOpen,
+    historyLimit,
+    hotkeys,
     pointGroups,
     selectedGroupId,
     newGroupName,
@@ -98,13 +103,13 @@ export function useEditorPanels() {
       setSelectedPointId: createStateSetter(dispatch, "selectedPointId", silent),
       setEditorMode: createStateSetter(dispatch, "editorMode"),
       setPivotMode: createStateSetter(dispatch, "pivotMode"),
-      setViewMode: createStateSetter(dispatch, "viewMode"),
-      setAppMode: createStateSetter(dispatch, "appMode"),
-      setTheme: createStateSetter(dispatch, "theme"),
+      setViewMode: createStateSetter(dispatch, "viewMode", silent),
+      setAppMode: createStateSetter(dispatch, "appMode", silent),
+      setTheme: createStateSetter(dispatch, "theme", silent),
       setRows: createStateSetter(dispatch, "rows"),
       setPadding: createStateSetter(dispatch, "padding"),
-      setShowGrid: createStateSetter(dispatch, "showGrid"),
-      setShowPoints: createStateSetter(dispatch, "showPoints"),
+      setShowGrid: createStateSetter(dispatch, "showGrid", silent),
+      setShowPoints: createStateSetter(dispatch, "showPoints", silent),
       setFrameZoom: createStateSetter(dispatch, "frameZoom", silent),
       setPanOffset: createStateSetter(dispatch, "panOffset", silent),
       setAutoFillShape: createStateSetter(dispatch, "autoFillShape"),
@@ -120,6 +125,13 @@ export function useEditorPanels() {
       setIsSpriteSettingsOpen: createStateSetter(dispatch, "isSpriteSettingsOpen"),
       setIsAtlasSettingsOpen: createStateSetter(dispatch, "isAtlasSettingsOpen"),
       setIsExportQualityOpen: createStateSetter(dispatch, "isExportQualityOpen"),
+      setIsSettingsOpen: createStateSetter(dispatch, "isSettingsOpen", silent),
+      setHistoryLimit: createStateSetter(
+        dispatch,
+        "historyLimit",
+        silent
+      ),
+      setHotkeys: createStateSetter(dispatch, "hotkeys", silent),
       setPointGroups: createStateSetter(dispatch, "pointGroups"),
       setSelectedGroupId: createStateSetter(dispatch, "selectedGroupId"),
       setNewGroupName: createStateSetter(dispatch, "newGroupName"),
@@ -135,11 +147,16 @@ export function useEditorPanels() {
         "groupPreviewIndex",
         silent
       ),
-      setIsPointsOpen: createStateSetter(dispatch, "isPointsOpen"),
-      setIsPointGroupsOpen: createStateSetter(dispatch, "isPointGroupsOpen"),
+      setIsPointsOpen: createStateSetter(dispatch, "isPointsOpen", silent),
+      setIsPointGroupsOpen: createStateSetter(
+        dispatch,
+        "isPointGroupsOpen",
+        silent
+      ),
       setIsProjectSettingsOpen: createStateSetter(
         dispatch,
-        "isProjectSettingsOpen"
+        "isProjectSettingsOpen",
+        silent
       ),
       setProjectName: createStateSetter(dispatch, "projectName"),
       setAnimationName: createStateSetter(dispatch, "animationName"),
@@ -182,6 +199,9 @@ export function useEditorPanels() {
     setIsSpriteSettingsOpen,
     setIsAtlasSettingsOpen,
     setIsExportQualityOpen,
+    setIsSettingsOpen,
+    setHistoryLimit,
+    setHotkeys,
     setPointGroups,
     setSelectedGroupId,
     setNewGroupName,
@@ -486,6 +506,52 @@ export function useEditorPanels() {
     setIsPlaying(false);
   };
 
+  const handleResetHotkeys = () => {
+    setHotkeys(DEFAULT_HOTKEYS);
+  };
+
+  useHotkeys({
+    hotkeys,
+    handlers: {
+      undo: handleUndo,
+      redo: handleRedo,
+      playPause: () => {
+        if (frames.length === 0) {
+          return;
+        }
+        setIsPlaying((prev) => !prev);
+      },
+      nextFrame: () => {
+        if (frames.length === 0) {
+          return;
+        }
+        setCurrentFrameIndex((prev) =>
+          Math.min(frames.length - 1, prev + 1)
+        );
+      },
+      prevFrame: () => {
+        if (frames.length === 0) {
+          return;
+        }
+        setCurrentFrameIndex((prev) => Math.max(0, prev - 1));
+      },
+      firstFrame: () => {
+        if (frames.length === 0) {
+          return;
+        }
+        setCurrentFrameIndex(0);
+      },
+      lastFrame: () => {
+        if (frames.length === 0) {
+          return;
+        }
+        setCurrentFrameIndex(Math.max(0, frames.length - 1));
+      },
+      toggleGrid: () => setShowGrid((prev) => !prev),
+      togglePoints: () => setShowPoints((prev) => !prev),
+    },
+  });
+
   const leftSidebar: LeftSidebarProps = {
     t,
     frames,
@@ -504,6 +570,13 @@ export function useEditorPanels() {
     setAnimationName,
     animationFrameSelection,
     setAnimationFrameSelection,
+    isSettingsOpen,
+    setIsSettingsOpen,
+    historyLimit,
+    setHistoryLimit,
+    hotkeys,
+    setHotkeys,
+    onResetHotkeys: handleResetHotkeys,
     editorMode,
     setEditorMode,
     currentFrame,
