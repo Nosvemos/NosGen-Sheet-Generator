@@ -42,6 +42,7 @@ const translations = {
     "label.keyframes": "Keyframes",
     "label.historyLimit": "History Limit",
     "label.hotkeys": "Hotkeys",
+    "label.historySnapshots": "History Snapshots",
     "label.generalSettings": "General Settings",
     "label.spriteSettings": "Sprite Settings",
     "label.autoFillShape": "Auto Fill Shape",
@@ -121,6 +122,7 @@ const translations = {
     "action.resetHotkeys": "Reset hotkeys",
     "action.clearHotkey": "Clear hotkey",
     "action.close": "Close",
+    "action.clearHistory": "Clear history",
     "mode.select": "Select",
     "mode.add": "Add",
     "mode.character": "Character",
@@ -140,6 +142,8 @@ const translations = {
       `Frame ${params.current ?? ""} / ${params.total ?? ""}`,
     "status.addMode": "Add mode active",
     "status.sizeMismatch": "Size mismatch",
+    "status.historyCounts": (params) =>
+      `Undo ${params.undo ?? 0} / Redo ${params.redo ?? 0}`,
     "placeholder.pivotMode": "Pivot mode",
     "placeholder.pointName": "point-name",
     "hint.pivotExport": "Exports use this origin.",
@@ -161,6 +165,8 @@ const translations = {
     "hint.noKeyframes": "No keyframes yet.",
     "hint.exportQuality": "Scale increases resolution; smoothing softens pixels.",
     "hint.historyLimit": "Limits how many undo steps are stored.",
+    "hint.historySnapshots": "Latest changes (newest first).",
+    "hint.noHistory": "No history yet.",
     "hint.hotkeysCapture": "Click a field and press a key combo.",
     "hint.hotkeysDefaults": (params) =>
       `Defaults: Undo ${params.undo ?? ""}, Redo ${params.redo ?? ""}.`,

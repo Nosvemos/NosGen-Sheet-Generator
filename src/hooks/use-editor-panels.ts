@@ -220,6 +220,16 @@ export function useEditorPanels() {
   } = setters;
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
+  const historyEntries = useMemo(
+    () =>
+      history.past
+        .slice(-5)
+        .map((entry) => entry.label)
+        .reverse(),
+    [history.past]
+  );
+  const undoCount = history.past.length;
+  const redoCount = history.future.length;
 
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -539,6 +549,10 @@ export function useEditorPanels() {
     setHotkeys(DEFAULT_HOTKEYS);
   };
 
+  const handleClearHistory = () => {
+    dispatch({ type: "clearHistory" });
+  };
+
   useHotkeys({
     hotkeys,
     handlers: {
@@ -606,6 +620,10 @@ export function useEditorPanels() {
     hotkeys,
     setHotkeys,
     onResetHotkeys: handleResetHotkeys,
+    historyEntries,
+    undoCount,
+    redoCount,
+    onClearHistory: handleClearHistory,
     editorMode,
     setEditorMode,
     currentFrame,

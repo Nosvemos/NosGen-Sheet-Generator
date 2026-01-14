@@ -51,6 +51,10 @@ export type LeftSidebarProps = {
   hotkeys: HotkeyMap;
   setHotkeys: Dispatch<SetStateAction<HotkeyMap>>;
   onResetHotkeys: () => void;
+  historyEntries: string[];
+  undoCount: number;
+  redoCount: number;
+  onClearHistory: () => void;
   editorMode: EditorMode;
   setEditorMode: Dispatch<SetStateAction<EditorMode>>;
   currentFrame?: FrameData;
@@ -133,6 +137,10 @@ export function LeftSidebar({
   hotkeys,
   setHotkeys,
   onResetHotkeys,
+  historyEntries,
+  undoCount,
+  redoCount,
+  onClearHistory,
   editorMode,
   setEditorMode,
   currentFrame,
@@ -312,6 +320,10 @@ export function LeftSidebar({
         hotkeys={hotkeys}
         setHotkeys={setHotkeys}
         onResetHotkeys={onResetHotkeys}
+        historyEntries={historyEntries}
+        undoCount={undoCount}
+        redoCount={redoCount}
+        onClearHistory={onClearHistory}
         toNumber={toNumber}
       />
     </>

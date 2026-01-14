@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import type { TranslationKey } from "@/lib/i18n";
 import type { HotkeyAction, HotkeyMap } from "@/lib/hotkeys";
 import { DEFAULT_HOTKEYS, formatHotkey } from "@/lib/hotkeys";
-import { ChevronDown, ChevronRight, RotateCcw, X } from "lucide-react";
+import { ChevronDown, ChevronRight, RotateCcw, Trash2, X } from "lucide-react";
 
 type Translate = (
   key: TranslationKey,
@@ -21,6 +21,10 @@ type SettingsCardProps = {
   hotkeys: HotkeyMap;
   setHotkeys: Dispatch<SetStateAction<HotkeyMap>>;
   onResetHotkeys: () => void;
+  historyEntries: string[];
+  undoCount: number;
+  redoCount: number;
+  onClearHistory: () => void;
   toNumber: (value: string, fallback: number) => number;
   variant?: "panel" | "modal";
 };
@@ -46,6 +50,10 @@ export function SettingsCard({
   hotkeys,
   setHotkeys,
   onResetHotkeys,
+  historyEntries,
+  undoCount,
+  redoCount,
+  onClearHistory,
   toNumber,
   variant = "panel",
 }: SettingsCardProps) {
@@ -103,6 +111,45 @@ export function SettingsCard({
             />
             <p className="text-xs text-muted-foreground">
               {t("hint.historyLimit")}
+            </p>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">
+                {t("label.historySnapshots")}
+              </Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onClearHistory}
+                disabled={undoCount === 0 && redoCount === 0}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                {t("action.clearHistory")}
+              </Button>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {t("status.historyCounts", {
+                undo: undoCount,
+                redo: redoCount,
+              })}
+            </div>
+            {historyEntries.length > 0 ? (
+              <div className="space-y-1">
+                {historyEntries.map((entry, index) => (
+                  <div key={`${entry}-${index}`} className="text-xs text-muted-foreground">
+                    {entry}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {t("hint.noHistory")}
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              {t("hint.historySnapshots")}
             </p>
           </div>
           <div className="space-y-2">

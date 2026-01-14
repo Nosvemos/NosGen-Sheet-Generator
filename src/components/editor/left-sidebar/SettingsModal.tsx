@@ -21,6 +21,10 @@ type SettingsModalProps = {
   hotkeys: HotkeyMap;
   setHotkeys: Dispatch<SetStateAction<HotkeyMap>>;
   onResetHotkeys: () => void;
+  historyEntries: string[];
+  undoCount: number;
+  redoCount: number;
+  onClearHistory: () => void;
   toNumber: (value: string, fallback: number) => number;
 };
 
@@ -33,6 +37,10 @@ export function SettingsModal({
   hotkeys,
   setHotkeys,
   onResetHotkeys,
+  historyEntries,
+  undoCount,
+  redoCount,
+  onClearHistory,
   toNumber,
 }: SettingsModalProps) {
   useEffect(() => {
@@ -91,6 +99,10 @@ export function SettingsModal({
             hotkeys={hotkeys}
             setHotkeys={setHotkeys}
             onResetHotkeys={onResetHotkeys}
+            historyEntries={historyEntries}
+            undoCount={undoCount}
+            redoCount={redoCount}
+            onClearHistory={onClearHistory}
             toNumber={toNumber}
             variant="modal"
           />
