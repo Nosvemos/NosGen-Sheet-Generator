@@ -57,17 +57,36 @@ export type EditorState = {
 
 export type StateUpdater<T> = T | ((prev: T) => T);
 
+export type HistoryMeta = {
+  history?: "ignore";
+};
+
 export type SetAction<K extends keyof EditorState> = {
   type: "set";
   key: K;
   value: StateUpdater<EditorState[K]>;
+  meta?: HistoryMeta;
 };
 
 export type EditorAction =
   | {
       [K in keyof EditorState]: SetAction<K>;
     }[keyof EditorState]
-  | { type: "setMany"; values: Partial<EditorState> };
+  | { type: "setMany"; values: Partial<EditorState>; meta?: HistoryMeta };
+
+export type EditorHistory = {
+  past: EditorState[];
+  present: EditorState;
+  future: EditorState[];
+};
+
+export type EditorHistoryAction =
+  | EditorAction
+  | { type: "undo" }
+  | { type: "redo" }
+  | { type: "reset"; state?: EditorState };
+
+const HISTORY_LIMIT = 50;
 
 export const createInitialEditorState = (): EditorState => {
   let theme: ThemeMode = "dark";
@@ -121,6 +140,12 @@ export const createInitialEditorState = (): EditorState => {
   };
 };
 
+export const createInitialEditorHistory = (): EditorHistory => ({
+  past: [],
+  present: createInitialEditorState(),
+  future: [],
+});
+
 export const editorReducer = (
   state: EditorState,
   action: EditorAction
@@ -151,11 +176,66 @@ export const editorReducer = (
   }
 };
 
+export const editorHistoryReducer = (
+  history: EditorHistory,
+  action: EditorHistoryAction
+): EditorHistory => {
+  if (action.type === "undo") {
+    if (history.past.length === 0) {
+      return history;
+    }
+    const previous = history.past[history.past.length - 1];
+    const past = history.past.slice(0, -1);
+    return {
+      past,
+      present: previous,
+      future: [history.present, ...history.future],
+    };
+  }
+  if (action.type === "redo") {
+    if (history.future.length === 0) {
+      return history;
+    }
+    const [next, ...future] = history.future;
+    return {
+      past: [...history.past, history.present].slice(-HISTORY_LIMIT),
+      present: next,
+      future,
+    };
+  }
+  if (action.type === "reset") {
+    return {
+      past: [],
+      present: action.state ?? createInitialEditorState(),
+      future: [],
+    };
+  }
+
+  const nextPresent = editorReducer(history.present, action);
+  if (Object.is(nextPresent, history.present)) {
+    return history;
+  }
+  const ignoreHistory =
+    "meta" in action && action.meta?.history === "ignore";
+  if (ignoreHistory) {
+    return {
+      ...history,
+      present: nextPresent,
+    };
+  }
+  return {
+    past: [...history.past, history.present].slice(-HISTORY_LIMIT),
+    present: nextPresent,
+    future: [],
+  };
+};
+
 export const createStateSetter = <K extends keyof EditorState>(
-  dispatch: Dispatch<EditorAction>,
-  key: K
+  dispatch: Dispatch<EditorHistoryAction>,
+  key: K,
+  options?: HistoryMeta
 ): Dispatch<SetStateAction<EditorState[K]>> => {
   return (value) => {
-    dispatch({ type: "set", key, value });
+    dispatch({ type: "set", key, value, meta: options });
   };
 };

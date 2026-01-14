@@ -5,9 +5,9 @@ import type { MainStageProps } from "@/components/editor/MainStage";
 import type { RightSidebarProps } from "@/components/editor/RightSidebar";
 import type { StageTransform } from "@/lib/editor-types";
 import {
-  createInitialEditorState,
+  createInitialEditorHistory,
   createStateSetter,
-  editorReducer,
+  editorHistoryReducer,
 } from "@/lib/editor-reducer";
 import { useAutoFill } from "@/hooks/use-auto-fill";
 import { useAtlasIO } from "@/hooks/use-atlas-io";
@@ -37,11 +37,12 @@ import {
 
 export function useEditorPanels() {
   const { t } = useI18n();
-  const [state, dispatch] = useReducer(
-    editorReducer,
+  const [history, dispatch] = useReducer(
+    editorHistoryReducer,
     undefined,
-    createInitialEditorState
+    createInitialEditorHistory
   );
+  const state = history.present;
   const {
     frames,
     currentFrameIndex,
@@ -85,11 +86,16 @@ export function useEditorPanels() {
     animationFrameSelection,
   } = state;
 
-  const setters = useMemo(
-    () => ({
+  const setters = useMemo(() => {
+    const silent = { history: "ignore" as const };
+    return {
       setFrames: createStateSetter(dispatch, "frames"),
-      setCurrentFrameIndex: createStateSetter(dispatch, "currentFrameIndex"),
-      setSelectedPointId: createStateSetter(dispatch, "selectedPointId"),
+      setCurrentFrameIndex: createStateSetter(
+        dispatch,
+        "currentFrameIndex",
+        silent
+      ),
+      setSelectedPointId: createStateSetter(dispatch, "selectedPointId", silent),
       setEditorMode: createStateSetter(dispatch, "editorMode"),
       setPivotMode: createStateSetter(dispatch, "pivotMode"),
       setViewMode: createStateSetter(dispatch, "viewMode"),
@@ -99,15 +105,15 @@ export function useEditorPanels() {
       setPadding: createStateSetter(dispatch, "padding"),
       setShowGrid: createStateSetter(dispatch, "showGrid"),
       setShowPoints: createStateSetter(dispatch, "showPoints"),
-      setFrameZoom: createStateSetter(dispatch, "frameZoom"),
-      setPanOffset: createStateSetter(dispatch, "panOffset"),
+      setFrameZoom: createStateSetter(dispatch, "frameZoom", silent),
+      setPanOffset: createStateSetter(dispatch, "panOffset", silent),
       setAutoFillShape: createStateSetter(dispatch, "autoFillShape"),
       setSpriteDirection: createStateSetter(dispatch, "spriteDirection"),
       setFps: createStateSetter(dispatch, "fps"),
       setSpeed: createStateSetter(dispatch, "speed"),
       setReverse: createStateSetter(dispatch, "reverse"),
       setLoop: createStateSetter(dispatch, "loop"),
-      setIsPlaying: createStateSetter(dispatch, "isPlaying"),
+      setIsPlaying: createStateSetter(dispatch, "isPlaying", silent),
       setIsKeyframesOpen: createStateSetter(dispatch, "isKeyframesOpen"),
       setExportScale: createStateSetter(dispatch, "exportScale"),
       setExportSmoothing: createStateSetter(dispatch, "exportSmoothing"),
@@ -121,9 +127,14 @@ export function useEditorPanels() {
       setIsGroupPreviewActive: createStateSetter(dispatch, "isGroupPreviewActive"),
       setIsGroupPreviewPlaying: createStateSetter(
         dispatch,
-        "isGroupPreviewPlaying"
+        "isGroupPreviewPlaying",
+        silent
       ),
-      setGroupPreviewIndex: createStateSetter(dispatch, "groupPreviewIndex"),
+      setGroupPreviewIndex: createStateSetter(
+        dispatch,
+        "groupPreviewIndex",
+        silent
+      ),
       setIsPointsOpen: createStateSetter(dispatch, "isPointsOpen"),
       setIsPointGroupsOpen: createStateSetter(dispatch, "isPointGroupsOpen"),
       setIsProjectSettingsOpen: createStateSetter(
@@ -136,9 +147,13 @@ export function useEditorPanels() {
         dispatch,
         "animationFrameSelection"
       ),
-    }),
-    [dispatch]
-  );
+      setAnimationFrameSelectionSilent: createStateSetter(
+        dispatch,
+        "animationFrameSelection",
+        silent
+      ),
+    };
+  }, [dispatch]);
   const {
     setFrames,
     setCurrentFrameIndex,
@@ -180,7 +195,10 @@ export function useEditorPanels() {
     setProjectName,
     setAnimationName,
     setAnimationFrameSelection,
+    setAnimationFrameSelectionSilent,
   } = setters;
+  const canUndo = history.past.length > 0;
+  const canRedo = history.future.length > 0;
 
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -221,7 +239,7 @@ export function useEditorPanels() {
     setSelectedPointId,
     setIsPlaying,
     currentFrame,
-    setAnimationFrameSelection,
+    setAnimationFrameSelection: setAnimationFrameSelectionSilent,
   });
 
   usePlayback({
@@ -452,6 +470,22 @@ export function useEditorPanels() {
     pivotMode,
   });
 
+  const handleUndo = () => {
+    if (!canUndo) {
+      return;
+    }
+    dispatch({ type: "undo" });
+    setIsPlaying(false);
+  };
+
+  const handleRedo = () => {
+    if (!canRedo) {
+      return;
+    }
+    dispatch({ type: "redo" });
+    setIsPlaying(false);
+  };
+
   const leftSidebar: LeftSidebarProps = {
     t,
     frames,
@@ -568,6 +602,10 @@ export function useEditorPanels() {
     animationTotalSeconds,
     speedOptions: SPEED_OPTIONS,
     toNumber,
+    canUndo,
+    canRedo,
+    onUndo: handleUndo,
+    onRedo: handleRedo,
   };
 
   const rightSidebar: RightSidebarProps = {

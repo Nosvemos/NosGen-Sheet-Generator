@@ -110,6 +110,8 @@ const translations = {
     "action.previous": "Previous",
     "action.next": "Next",
     "action.last": "Last frame",
+    "action.undo": "Undo",
+    "action.redo": "Redo",
     "mode.select": "Select",
     "mode.add": "Add",
     "mode.character": "Character",

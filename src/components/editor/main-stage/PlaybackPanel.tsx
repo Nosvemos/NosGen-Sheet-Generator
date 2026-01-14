@@ -27,6 +27,8 @@ import {
   Pause,
   Play,
   Rewind,
+  RotateCcw,
+  RotateCw,
   SkipBack,
   SkipForward,
   Trash2,
@@ -69,6 +71,10 @@ type PlaybackPanelProps = {
   appMode: AppMode;
   animationCurrentSeconds: number;
   animationTotalSeconds: number;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
 };
 
 export function PlaybackPanel({
@@ -103,6 +109,10 @@ export function PlaybackPanel({
   appMode,
   animationCurrentSeconds,
   animationTotalSeconds,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
 }: PlaybackPanelProps) {
   return (
     <div className="mt-4 space-y-3 rounded-2xl border border-border/50 bg-background/70 p-4">
@@ -175,6 +185,34 @@ export function PlaybackPanel({
               </Button>
             </TooltipTrigger>
             <TooltipContent>{t("action.last")}</TooltipContent>
+          </Tooltip>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="secondary"
+                size="icon"
+                onClick={onUndo}
+                disabled={!canUndo}
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t("action.undo")}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="secondary"
+                size="icon"
+                onClick={onRedo}
+                disabled={!canRedo}
+              >
+                <RotateCw className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t("action.redo")}</TooltipContent>
           </Tooltip>
         </div>
         <div className="flex flex-wrap items-center gap-2">

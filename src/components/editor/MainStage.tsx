@@ -75,6 +75,10 @@ export type MainStageProps = {
   animationTotalSeconds: number;
   speedOptions: number[];
   toNumber: (value: string, fallback: number) => number;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
 };
 
 export function MainStage({
@@ -126,6 +130,10 @@ export function MainStage({
   animationTotalSeconds,
   speedOptions,
   toNumber,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
 }: MainStageProps) {
   return (
     <main className="flex h-full min-h-0 flex-col gap-4 overflow-hidden bg-card/70 p-4">
@@ -194,6 +202,10 @@ export function MainStage({
           appMode={appMode}
           animationCurrentSeconds={animationCurrentSeconds}
           animationTotalSeconds={animationTotalSeconds}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={onUndo}
+          onRedo={onRedo}
         />
       </section>
     </main>
