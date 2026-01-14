@@ -3,10 +3,9 @@ import { Separator } from "@/components/ui/separator";
 import type { TranslationKey } from "@/lib/i18n";
 import type { AtlasLayout, PivotMode, SpriteDirection } from "@/lib/editor-types";
 import { AtlasSettingsCard } from "@/components/editor/right-sidebar/AtlasSettingsCard";
-import { EditCurrentCard } from "@/components/editor/right-sidebar/EditCurrentCard";
+import { AtlasImportCard } from "@/components/editor/right-sidebar/AtlasImportCard";
 import { ExportActions } from "@/components/editor/right-sidebar/ExportActions";
 import { ExportQualityCard } from "@/components/editor/right-sidebar/ExportQualityCard";
-import { NewAtlasCard } from "@/components/editor/right-sidebar/NewAtlasCard";
 import { RightSidebarHeader } from "@/components/editor/right-sidebar/RightSidebarHeader";
 import { SpriteSettingsCard } from "@/components/editor/right-sidebar/SpriteSettingsCard";
 
@@ -100,7 +99,7 @@ export function RightSidebar({
     <aside className="h-full min-h-0 space-y-4 overflow-y-auto rounded-none border-0 bg-card/80 p-4 shadow-none backdrop-blur">
       <RightSidebarHeader t={t} />
 
-      <NewAtlasCard
+      <AtlasImportCard
         t={t}
         framesLength={framesLength}
         framesInputRef={framesInputRef}
@@ -108,10 +107,6 @@ export function RightSidebar({
         handleNewAtlasCreate={handleNewAtlasCreate}
         handleNewPointsImport={handleNewPointsImport}
         onClearFrames={onClearFrames}
-      />
-
-      <EditCurrentCard
-        t={t}
         editAtlasPngInputRef={editAtlasPngInputRef}
         editAtlasJsonInputRef={editAtlasJsonInputRef}
         setEditAtlasPngFile={setEditAtlasPngFile}

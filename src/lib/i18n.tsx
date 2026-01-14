@@ -59,6 +59,7 @@ const translations = {
     "label.frames": "Frames",
     "label.pngFrames": "PNG Frames",
     "label.importJson": "Import Points JSON",
+    "label.atlasImport": "Atlas Import",
     "label.newAtlas": "New Atlas",
     "label.pointsJson": "Points JSON",
     "label.editCurrent": "Edit Current",
