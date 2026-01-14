@@ -46,6 +46,8 @@ export type RightSidebarProps = {
   setExportScale: Dispatch<SetStateAction<number>>;
   exportSmoothing: boolean;
   setExportSmoothing: Dispatch<SetStateAction<boolean>>;
+  exportSize: number;
+  setExportSize: Dispatch<SetStateAction<number>>;
   handleExportPng: () => void;
   handleExportJson: () => void;
   pivotMode: PivotMode;
@@ -87,6 +89,8 @@ export function RightSidebar({
   setExportScale,
   exportSmoothing,
   setExportSmoothing,
+  exportSize,
+  setExportSize,
   handleExportPng,
   handleExportJson,
   pivotMode,
@@ -143,6 +147,9 @@ export function RightSidebar({
         setExportScale={setExportScale}
         exportSmoothing={exportSmoothing}
         setExportSmoothing={setExportSmoothing}
+        exportSize={exportSize}
+        setExportSize={setExportSize}
+        toNumber={toNumber}
         minExportScale={minExportScale}
         maxExportScale={maxExportScale}
         exportScaleStep={exportScaleStep}

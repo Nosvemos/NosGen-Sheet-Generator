@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import type { TranslationKey } from "@/lib/i18n";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
@@ -19,6 +20,9 @@ type ExportQualityCardProps = {
   setExportScale: Dispatch<SetStateAction<number>>;
   exportSmoothing: boolean;
   setExportSmoothing: Dispatch<SetStateAction<boolean>>;
+  exportSize: number;
+  setExportSize: Dispatch<SetStateAction<number>>;
+  toNumber: (value: string, fallback: number) => number;
   minExportScale: number;
   maxExportScale: number;
   exportScaleStep: number;
@@ -32,6 +36,9 @@ export function ExportQualityCard({
   setExportScale,
   exportSmoothing,
   setExportSmoothing,
+  exportSize,
+  setExportSize,
+  toNumber,
   minExportScale,
   maxExportScale,
   exportScaleStep,
@@ -80,6 +87,24 @@ export function ExportQualityCard({
               onCheckedChange={setExportSmoothing}
             />
             <Label htmlFor="export-smoothing">{t("label.smoothing")}</Label>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">
+              {t("label.exportMetaSize")}
+            </Label>
+            <Input
+              type="number"
+              step="0.1"
+              min="0.1"
+              value={String(exportSize)}
+              onChange={(event) => {
+                const next = Math.max(0.1, toNumber(event.target.value, exportSize));
+                setExportSize(next);
+              }}
+            />
+            <p className="text-xs text-muted-foreground">
+              {t("hint.exportMetaSize")}
+            </p>
           </div>
           <p className="text-xs text-muted-foreground">{t("hint.exportQuality")}</p>
         </>

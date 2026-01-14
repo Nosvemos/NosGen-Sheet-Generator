@@ -1,6 +1,9 @@
 {
   "$schema": "https://raw.githubusercontent.com/neutralinojs/neutralinojs/main/schemas/neutralino.config.schema.json",
   "applicationId": "com.nosgen.app",
+  "applicationName": "NosGen",
+  "description": "NosGen Sprite Atlas Studio",
+  "author": "NosGen",
   "version": "1.0.0",
   "defaultMode": "window",
   "port": 0,
@@ -32,7 +35,7 @@
       "maximize": false,
       "hidden": false,
       "resizable": true,
-      "exitProcessOnClose": false
+      "exitProcessOnClose": true
     }
   },
   "cli": {

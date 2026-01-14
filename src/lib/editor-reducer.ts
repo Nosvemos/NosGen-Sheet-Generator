@@ -39,6 +39,7 @@ export type EditorState = {
   isKeyframesOpen: boolean;
   exportScale: number;
   exportSmoothing: boolean;
+  exportSize: number;
   isSpriteSettingsOpen: boolean;
   isAtlasSettingsOpen: boolean;
   isExportQualityOpen: boolean;
@@ -136,6 +137,7 @@ export const createInitialEditorState = (): EditorState => {
     isKeyframesOpen: true,
     exportScale: 1,
     exportSmoothing: false,
+    exportSize: 1,
     isSpriteSettingsOpen: true,
     isAtlasSettingsOpen: true,
     isExportQualityOpen: true,
@@ -189,6 +191,7 @@ const HISTORY_LABEL_OVERRIDES: Partial<Record<keyof EditorState, string>> = {
   isKeyframesOpen: "Keyframes panel",
   exportScale: "Export scale",
   exportSmoothing: "Export smoothing",
+  exportSize: "Export size",
   isSpriteSettingsOpen: "Sprite settings",
   isAtlasSettingsOpen: "Atlas settings",
   isExportQualityOpen: "Export quality",

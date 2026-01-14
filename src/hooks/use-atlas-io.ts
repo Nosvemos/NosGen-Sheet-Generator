@@ -41,6 +41,7 @@ type UseAtlasIOParams = {
   setSpeed: Dispatch<SetStateAction<number>>;
   setLoop: Dispatch<SetStateAction<boolean>>;
   setProjectName: Dispatch<SetStateAction<string>>;
+  setExportSize: Dispatch<SetStateAction<number>>;
   setAnimationFrameSelection: Dispatch<SetStateAction<Record<string, boolean>>>;
 };
 
@@ -79,6 +80,7 @@ export const useAtlasIO = ({
   setSpeed,
   setLoop,
   setProjectName,
+  setExportSize,
   setAnimationFrameSelection,
 }: UseAtlasIOParams): UseAtlasIOResult => {
   const framesInputRef = useRef<HTMLInputElement>(null);
@@ -124,6 +126,9 @@ export const useAtlasIO = ({
       if (result.pivotMode) {
         setPivotMode(result.pivotMode);
       }
+      if (typeof result.exportSize === "number") {
+        setExportSize(result.exportSize);
+      }
       setPointGroups(result.pointGroups);
       setSelectedGroupId(result.pointGroups[0]?.id ?? null);
       setFrames(result.frames);
@@ -156,6 +161,9 @@ export const useAtlasIO = ({
       }
       if (imported.pivotMode) {
         setPivotMode(imported.pivotMode);
+      }
+      if (typeof imported.exportSize === "number") {
+        setExportSize(imported.exportSize);
       }
       setPointGroups(imported.pointGroups);
       setSelectedGroupId(imported.pointGroups[0]?.id ?? null);
@@ -213,6 +221,9 @@ export const useAtlasIO = ({
     }
     if (imported.projectName) {
       setProjectName(imported.projectName);
+    }
+    if (typeof imported.exportSize === "number") {
+      setExportSize(imported.exportSize);
     }
     setPointGroups(imported.pointGroups);
     setSelectedGroupId(imported.pointGroups[0]?.id ?? null);

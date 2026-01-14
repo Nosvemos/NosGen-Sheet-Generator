@@ -3,10 +3,13 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { I18nProvider } from "@/lib/i18n";
-import { init as initNeutralino } from "@neutralinojs/lib";
+import { app, events, init as initNeutralino } from "@neutralinojs/lib";
 
 if (typeof window !== "undefined" && "NL_OS" in window) {
   initNeutralino();
+  events.on("windowClose", () => {
+    app.exit();
+  });
 }
 
 const storedTheme = window.localStorage.getItem("sg-theme");

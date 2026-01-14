@@ -20,16 +20,13 @@ export const importPointsJsonToFrames = (
   frames: FrameData[];
   spriteDirection?: SpriteDirection;
   pivotMode?: PivotMode;
+  exportSize?: number;
 } => {
   if (!parsed || typeof parsed !== "object") {
     return { frames: baseFrames };
   }
   const payload = parsed as {
-    meta?: {
-      pivot?: unknown;
-      pivotMode?: unknown;
-      spriteDirection?: unknown;
-    };
+    meta?: Record<string, unknown>;
     frames?: unknown;
   };
   const pivotRaw = payload.meta?.pivot ?? payload.meta?.pivotMode;
@@ -44,6 +41,8 @@ export const importPointsJsonToFrames = (
     payload.meta?.spriteDirection === "counterclockwise"
       ? payload.meta?.spriteDirection
       : undefined;
+  const exportSizeRaw = Number(payload.meta?.scale ?? payload.meta?.exportSize);
+  const exportSize = Number.isFinite(exportSizeRaw) ? exportSizeRaw : undefined;
   const nameToId = new Map<string, string>();
   const nameToColor = new Map<string, string>();
   const buildPoint = (
@@ -107,14 +106,14 @@ export const importPointsJsonToFrames = (
       );
       return { ...frame, points: nextPoints };
     });
-    return { frames: nextFrames, spriteDirection, pivotMode };
+    return { frames: nextFrames, spriteDirection, pivotMode, exportSize };
   }
 
   const entries = Object.entries(payload).filter(
     ([key, value]) => key !== "meta" && Array.isArray(value)
   );
   if (entries.length === 0) {
-    return { frames: baseFrames, spriteDirection, pivotMode };
+    return { frames: baseFrames, spriteDirection, pivotMode, exportSize };
   }
   const nextFrames = baseFrames.map((frame, frameIndex) => {
     const nextPoints = entries.map(([rawName, rawPoints], index) => {
@@ -156,7 +155,7 @@ export const importPointsJsonToFrames = (
     });
     return { ...frame, points: nextPoints };
   });
-  return { frames: nextFrames, spriteDirection, pivotMode };
+  return { frames: nextFrames, spriteDirection, pivotMode, exportSize };
 };
 
 export const buildGroupsFromJson = (parsed: unknown, baseFrames: FrameData[]) => {

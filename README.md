@@ -47,7 +47,8 @@ Open the app, import PNG frames, place points, then export PNG + JSON.
 - Atlas PNG: `<project>_atlas.png`
 - Data JSON: `<project>_data.json`
 
-On desktop builds (Neutralino), export uses a Save dialog so you can choose the location. In the browser, files download to the default downloads folder.
+On desktop builds (Neutralino), export uses a Save dialog so you can choose the location. In the browser, modern Chromium-based browsers will also show a Save dialog; otherwise files download to the default downloads folder.
+Metadata includes a `scale` number (default 1) for game-side sizing.
 
 ## Modes
 **Character**

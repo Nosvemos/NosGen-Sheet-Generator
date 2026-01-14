@@ -27,6 +27,7 @@ type NewAtlasResult = {
   pointGroups: PointGroup[];
   spriteDirection?: SpriteDirection;
   pivotMode?: PivotMode;
+  exportSize?: number;
 };
 
 type AtlasImportResult = {
@@ -45,6 +46,7 @@ type AtlasImportResult = {
     frameSelection?: Record<string, boolean>;
   };
   projectName?: string;
+  exportSize?: number;
 };
 
 type AtlasEntry = {
@@ -58,11 +60,68 @@ type AtlasEntry = {
 const isNeutralinoRuntime = () =>
   typeof window !== "undefined" && "NL_OS" in window;
 
+type SaveFilePicker = (options?: {
+  suggestedName?: string;
+  types?: Array<{ description?: string; accept: Record<string, string[]> }>;
+  excludeAcceptAllOption?: boolean;
+}) => Promise<{
+  createWritable: () => Promise<{
+    write: (data: Blob) => Promise<void>;
+    close: () => Promise<void>;
+  }>;
+}>;
+
+const getSaveFilePicker = () =>
+  (window as Window & { showSaveFilePicker?: SaveFilePicker })
+    .showSaveFilePicker;
+
+const isAbortError = (error: unknown) => {
+  if (!error) {
+    return false;
+  }
+  if (typeof error === "string") {
+    return error.toLowerCase().includes("abort");
+  }
+  if (error instanceof DOMException) {
+    return error.name === "AbortError";
+  }
+  if (typeof error === "object" && "name" in error) {
+    return (error as { name?: string }).name === "AbortError";
+  }
+  return false;
+};
+
 const saveBlobWithDialog = async (
   blob: Blob,
   filename: string,
   filters: Array<{ name: string; extensions: string[] }>
 ) => {
+  const picker = getSaveFilePicker();
+  if (!isNeutralinoRuntime() && picker) {
+    try {
+      const types = filters.map((filter) => ({
+        description: filter.name,
+        accept: {
+          [blob.type || "application/octet-stream"]: filter.extensions.map(
+            (ext) => `.${ext}`
+          ),
+        },
+      }));
+      const handle = await picker({
+        suggestedName: filename,
+        types,
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    } catch (error) {
+      if (isAbortError(error)) {
+        return;
+      }
+      console.warn(error);
+    }
+  }
   if (!isNeutralinoRuntime()) {
     downloadBlob(blob, filename);
     return;
@@ -94,7 +153,6 @@ const saveBlobWithDialog = async (
     }
   } catch (error) {
     console.error(error);
-    downloadBlob(blob, filename);
   }
 };
 
@@ -201,6 +259,7 @@ export const createNewAtlasFromFiles = async ({
   let nextFrames = loaded;
   let spriteDirection: SpriteDirection | undefined;
   let pivotMode: PivotMode | undefined;
+  let exportSize: number | undefined;
   let pointGroups: PointGroup[] = [];
   if (pointsFile) {
     const raw = await pointsFile.text();
@@ -209,6 +268,7 @@ export const createNewAtlasFromFiles = async ({
     nextFrames = imported.frames;
     spriteDirection = imported.spriteDirection;
     pivotMode = imported.pivotMode;
+    exportSize = imported.exportSize;
     pointGroups = buildGroupsFromJson(parsed, nextFrames);
   }
   return {
@@ -216,6 +276,7 @@ export const createNewAtlasFromFiles = async ({
     pointGroups,
     spriteDirection,
     pivotMode,
+    exportSize,
   };
 };
 
@@ -237,6 +298,7 @@ export const importPointsIntoFrames = async ({
     pointGroups: groups,
     spriteDirection: imported.spriteDirection,
     pivotMode: imported.pivotMode,
+    exportSize: imported.exportSize,
   };
 };
 
@@ -267,11 +329,13 @@ export const importAtlasFromFiles = async ({
   const meta = parsed?.meta ?? {};
   const rowsRaw = Number(meta.rows);
   const paddingRaw = Number(meta.padding);
+  const exportSizeRaw = Number(meta.scale ?? meta.exportSize);
   const modeRaw = meta.mode;
   const rows = Number.isFinite(rowsRaw) ? Math.max(1, Math.round(rowsRaw)) : undefined;
   const padding = Number.isFinite(paddingRaw)
     ? Math.max(0, Math.round(paddingRaw))
     : undefined;
+  const exportSize = Number.isFinite(exportSizeRaw) ? exportSizeRaw : undefined;
   const appMode =
     modeRaw === "animation" || modeRaw === "character" ? modeRaw : undefined;
 
@@ -318,6 +382,7 @@ export const importAtlasFromFiles = async ({
     pivotMode: imported.pivotMode,
     rows,
     padding,
+    exportSize,
     appMode,
     animation: Object.keys(animation).length > 0 ? animation : undefined,
     projectName,
@@ -400,6 +465,7 @@ export const exportAtlasJson = ({
   fps,
   speed,
   loop,
+  exportSize,
   selectedAnimationFrames,
   exportAtlasName,
   exportDataName,
@@ -415,6 +481,7 @@ export const exportAtlasJson = ({
   fps: number;
   speed: number;
   loop: boolean;
+  exportSize: number;
   selectedAnimationFrames: FrameData[];
   exportAtlasName: string;
   exportDataName: string;
@@ -485,6 +552,7 @@ export const exportAtlasJson = ({
       rows: layout.rows,
       columns: layout.columns,
       padding: layout.padding,
+      scale: exportSize,
       pivot: pivotMode,
       spriteDirection,
       mode: appMode,
