@@ -11,7 +11,8 @@
     "neu": "neu",
     "neu:run": "neu run",
     "neu:dev": "npm run build && neu run",
-    "neu:build": "npm run build && neu build",
+    "neu:build": "npm run build && neu build && node scripts/package-release.mjs",
+    "neu:package": "node scripts/package-release.mjs",
     "neu:update": "neu update"
   },
   "dependencies": {
