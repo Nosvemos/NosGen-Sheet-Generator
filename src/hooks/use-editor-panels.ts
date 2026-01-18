@@ -22,7 +22,7 @@ import { useStageInteractions } from "@/hooks/use-stage-interactions";
 import { useStageSizing } from "@/hooks/use-stage-sizing";
 import { useValidationAlerts } from "@/hooks/use-validation-alerts";
 import { useHotkeys } from "@/hooks/use-hotkeys";
-import { exportAtlasJson, exportAtlasPng } from "@/lib/editor-io";
+import { exportAtlasJson, exportAtlasPng, exportFramesZip } from "@/lib/editor-io";
 import { DEFAULT_HOTKEYS } from "@/lib/hotkeys";
 import {
   EXPORT_SCALE_STEP,
@@ -492,6 +492,7 @@ export function useEditorPanels() {
       frames,
       rows,
       padding,
+      exportScale,
       pivotMode,
       spriteDirection,
       appMode,
@@ -501,10 +502,16 @@ export function useEditorPanels() {
       speed,
       loop,
       exportSize,
+      minScale: MIN_EXPORT_SCALE,
+      maxScale: MAX_EXPORT_SCALE,
       selectedAnimationFrames,
       exportAtlasName,
       exportDataName,
     });
+  };
+
+  const handleExportFramesZip = () => {
+    void exportFramesZip({ frames, exportAtlasName });
   };
 
   const {
@@ -817,6 +824,7 @@ export function useEditorPanels() {
     setExportSize,
     handleExportPng,
     handleExportJson,
+    handleExportFramesZip,
     pivotMode,
     pivotLabels,
     minExportScale: MIN_EXPORT_SCALE,

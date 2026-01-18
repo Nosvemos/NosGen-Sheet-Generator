@@ -51,6 +51,7 @@ export type RightSidebarProps = {
   setExportSize: Dispatch<SetStateAction<number>>;
   handleExportPng: () => void;
   handleExportJson: () => void;
+  handleExportFramesZip: () => void;
   pivotMode: PivotMode;
   pivotLabels: Record<PivotMode, string>;
   minExportScale: number;
@@ -95,6 +96,7 @@ export function RightSidebar({
   setExportSize,
   handleExportPng,
   handleExportJson,
+  handleExportFramesZip,
   pivotMode,
   pivotLabels,
   minExportScale,
@@ -120,7 +122,7 @@ export function RightSidebar({
         isEditImporting={isEditImporting}
       />
 
-      {appMode !== "normal" && (
+      {appMode === "character" && (
         <SpriteSettingsCard
           t={t}
           isSpriteSettingsOpen={isSpriteSettingsOpen}
@@ -166,6 +168,7 @@ export function RightSidebar({
         framesLength={framesLength}
         handleExportPng={handleExportPng}
         handleExportJson={handleExportJson}
+        handleExportFramesZip={handleExportFramesZip}
         pivotMode={pivotMode}
         pivotLabels={pivotLabels}
       />

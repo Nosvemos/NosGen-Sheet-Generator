@@ -1,3 +1,4 @@
+import JSZip from "jszip";
 import type { TranslationKey } from "@/lib/i18n";
 import type {
   AppMode,
@@ -154,6 +155,52 @@ const saveBlobWithDialog = async (
   } catch (error) {
     console.error(error);
   }
+};
+
+const slugifyFrameName = (name: string) => {
+  const trimmed = name.trim().replace(/\.[^/.]+$/, "");
+  const sanitized = trimmed.replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/_+/g, "_");
+  const cleaned = sanitized.replace(/^_+|_+$/g, "");
+  return cleaned || "frame";
+};
+
+const buildUniqueFrameName = (
+  rawName: string,
+  index: number,
+  usedNames: Map<string, number>
+) => {
+  const base = slugifyFrameName(rawName || `frame-${index + 1}`);
+  const count = usedNames.get(base) ?? 0;
+  usedNames.set(base, count + 1);
+  const suffix = count > 0 ? `_${count + 1}` : "";
+  const prefix = String(index + 1).padStart(3, "0");
+  return `${prefix}_${base}${suffix}.png`;
+};
+
+const frameToPngBlob = async (frame: FrameData) => {
+  const canvas = document.createElement("canvas");
+  canvas.width = frame.width;
+  canvas.height = frame.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Canvas context not available");
+  }
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(frame.image, 0, 0, frame.width, frame.height);
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, "image/png")
+  );
+  if (blob) {
+    return blob;
+  }
+  const dataUrl = canvas.toDataURL("image/png");
+  const base64 = dataUrl.split(",")[1] ?? "";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: "image/png" });
 };
 
 const parseAtlasEntries = (parsed: unknown): AtlasEntry[] => {
@@ -455,10 +502,40 @@ export const exportAtlasPng = ({
   });
 };
 
+export const exportFramesZip = async ({
+  frames,
+  exportAtlasName,
+}: {
+  frames: FrameData[];
+  exportAtlasName: string;
+}) => {
+  if (frames.length === 0) {
+    return;
+  }
+  const zip = new JSZip();
+  const usedNames = new Map<string, number>();
+  await Promise.all(
+    frames.map(async (frame, index) => {
+      const filename = buildUniqueFrameName(frame.name, index, usedNames);
+      const blob = await frameToPngBlob(frame);
+      zip.file(filename, blob);
+    })
+  );
+  const zipBlob = await zip.generateAsync({
+    type: "blob",
+    compression: "DEFLATE",
+    compressionOptions: { level: 6 },
+  });
+  await saveBlobWithDialog(zipBlob, `${exportAtlasName}_frames.zip`, [
+    { name: "ZIP Archive", extensions: ["zip"] },
+  ]);
+};
+
 export const exportAtlasJson = ({
   frames,
   rows,
   padding,
+  exportScale,
   pivotMode,
   spriteDirection,
   appMode,
@@ -468,6 +545,8 @@ export const exportAtlasJson = ({
   speed,
   loop,
   exportSize,
+  minScale,
+  maxScale,
   selectedAnimationFrames,
   exportAtlasName,
   exportDataName,
@@ -475,6 +554,7 @@ export const exportAtlasJson = ({
   frames: FrameData[];
   rows: number;
   padding: number;
+  exportScale: number;
   pivotMode: PivotMode;
   spriteDirection: SpriteDirection;
   appMode: AppMode;
@@ -484,6 +564,8 @@ export const exportAtlasJson = ({
   speed: number;
   loop: boolean;
   exportSize: number;
+  minScale: number;
+  maxScale: number;
   selectedAnimationFrames: FrameData[];
   exportAtlasName: string;
   exportDataName: string;
@@ -492,6 +574,11 @@ export const exportAtlasJson = ({
     return;
   }
   const layout = computeAtlasLayout(frames, rows, padding);
+  const scale = clamp(exportScale, minScale, maxScale);
+  const targetWidth = Math.max(1, Math.round(layout.width * scale));
+  const targetHeight = Math.max(1, Math.round(layout.height * scale));
+  const scaleX = targetWidth / layout.width;
+  const scaleY = targetHeight / layout.height;
   const includePoints = appMode === "character";
   const exportedFrames = frames.map((frame, index) => {
     const cell = layout.positions[index];
@@ -499,10 +586,10 @@ export const exportAtlasJson = ({
     const offsetY = Math.floor((layout.cellHeight - frame.height) / 2);
     const base = {
       name: frame.name,
-      x: cell.x + offsetX,
-      y: cell.y + offsetY,
-      w: frame.width,
-      h: frame.height,
+      x: Math.round((cell.x + offsetX) * scaleX),
+      y: Math.round((cell.y + offsetY) * scaleY),
+      w: Math.round(frame.width * scaleX),
+      h: Math.round(frame.height * scaleY),
     };
     if (!includePoints) {
       return base;
@@ -513,8 +600,8 @@ export const exportAtlasJson = ({
         const pivotPoint = toPivotCoords(point, frame, pivotMode);
         return {
           name: point.name,
-          x: Math.round(pivotPoint.x),
-          y: Math.round(pivotPoint.y),
+          x: Math.round(pivotPoint.x * scaleX),
+          y: Math.round(pivotPoint.y * scaleY),
         };
       }),
     };
@@ -550,13 +637,13 @@ export const exportAtlasJson = ({
     meta: {
       app: "NosGen",
       image: `${exportAtlasName}.png`,
-      size: { w: layout.width, h: layout.height },
+      size: { w: targetWidth, h: targetHeight },
       rows: layout.rows,
       columns: layout.columns,
-      padding: layout.padding,
+      padding: Math.round(layout.padding * scaleX),
       scale: exportSize,
       pivot: pivotMode,
-      ...(appMode !== "normal" ? { spriteDirection } : {}),
+      ...(appMode === "character" ? { spriteDirection } : {}),
       mode: appMode,
     },
     ...(groups ? { groups } : {}),
