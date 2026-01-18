@@ -78,9 +78,10 @@ export function ProjectSettingsCard({
                 <SelectValue placeholder={t("label.appMode")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="character">{t("mode.character")}</SelectItem>
-                <SelectItem value="animation">{t("mode.animation")}</SelectItem>
-              </SelectContent>
+              <SelectItem value="character">{t("mode.character")}</SelectItem>
+              <SelectItem value="animation">{t("mode.animation")}</SelectItem>
+              <SelectItem value="normal">{t("mode.normal")}</SelectItem>
+            </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">{t("hint.appMode")}</p>
           </div>

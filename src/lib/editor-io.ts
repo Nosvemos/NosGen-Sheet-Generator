@@ -337,7 +337,9 @@ export const importAtlasFromFiles = async ({
     : undefined;
   const exportSize = Number.isFinite(exportSizeRaw) ? exportSizeRaw : undefined;
   const appMode =
-    modeRaw === "animation" || modeRaw === "character" ? modeRaw : undefined;
+    modeRaw === "animation" || modeRaw === "character" || modeRaw === "normal"
+      ? modeRaw
+      : undefined;
 
   let projectName: string | undefined;
   if (typeof pngFile.name === "string") {
@@ -554,7 +556,7 @@ export const exportAtlasJson = ({
       padding: layout.padding,
       scale: exportSize,
       pivot: pivotMode,
-      spriteDirection,
+      ...(appMode !== "normal" ? { spriteDirection } : {}),
       mode: appMode,
     },
     ...(groups ? { groups } : {}),

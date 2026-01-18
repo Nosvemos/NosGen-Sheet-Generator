@@ -13,6 +13,7 @@ import type {
 import { AnimationBuilderCard } from "@/components/editor/left-sidebar/AnimationBuilderCard";
 import { GroupEditorCard } from "@/components/editor/left-sidebar/GroupEditorCard";
 import { LeftSidebarHeader } from "@/components/editor/left-sidebar/LeftSidebarHeader";
+import { NormalFramesCard } from "@/components/editor/left-sidebar/NormalFramesCard";
 import { PointGroupsCard } from "@/components/editor/left-sidebar/PointGroupsCard";
 import { PointModeCard } from "@/components/editor/left-sidebar/PointModeCard";
 import { PointsCard } from "@/components/editor/left-sidebar/PointsCard";
@@ -190,6 +191,7 @@ export function LeftSidebar({
   createId,
 }: LeftSidebarProps) {
   const isCharacterMode = appMode === "character";
+  const isNormalMode = appMode === "normal";
 
   return (
     <>
@@ -215,16 +217,20 @@ export function LeftSidebar({
           pivotOptions={pivotOptions}
         />
 
-        {appMode === "animation" && (
-          <AnimationBuilderCard
-            t={t}
-            frames={frames}
-            animationName={animationName}
-            setAnimationName={setAnimationName}
-            animationFrameSelection={animationFrameSelection}
-            setAnimationFrameSelection={setAnimationFrameSelection}
-          />
-        )}
+      {appMode === "animation" && (
+        <AnimationBuilderCard
+          t={t}
+          frames={frames}
+          animationName={animationName}
+          setAnimationName={setAnimationName}
+          animationFrameSelection={animationFrameSelection}
+          setAnimationFrameSelection={setAnimationFrameSelection}
+        />
+      )}
+
+      {isNormalMode && (
+        <NormalFramesCard t={t} frames={frames} setFrames={setFrames} />
+      )}
 
         {isCharacterMode && (
           <PointModeCard

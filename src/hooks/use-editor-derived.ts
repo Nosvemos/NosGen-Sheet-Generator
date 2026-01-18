@@ -9,7 +9,7 @@ type UseEditorDerivedParams = {
   selectedPointKeyframes: Array<{ frameIndex: number; x: number; y: number }>;
   selectedAutoFillPositions: Array<{ x: number; y: number }> | null;
   selectedGroup: PointGroup | null;
-  appMode: "character" | "animation";
+  appMode: "character" | "animation" | "normal";
   fps: number;
   projectName: string;
   pivotMode: PivotMode;

@@ -371,6 +371,9 @@ export function useEditorPanels() {
   );
 
   const sizeMismatch = useMemo(() => {
+    if (appMode === "normal") {
+      return false;
+    }
     if (frames.length < 2) {
       return false;
     }
@@ -378,7 +381,7 @@ export function useEditorPanels() {
     return frames.some(
       (frame) => frame.width !== base.width || frame.height !== base.height
     );
-  }, [frames]);
+  }, [appMode, frames]);
 
   const unassignedPointsCount = useMemo(() => {
     if (frames.length === 0) {
@@ -790,6 +793,7 @@ export function useEditorPanels() {
     setEditAtlasPngFile,
     setEditAtlasJsonFile,
     isEditImporting,
+    appMode,
     isSpriteSettingsOpen,
     setIsSpriteSettingsOpen,
     spriteDirection,

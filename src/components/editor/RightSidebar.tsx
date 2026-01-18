@@ -1,7 +1,7 @@
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { Separator } from "@/components/ui/separator";
 import type { TranslationKey } from "@/lib/i18n";
-import type { AtlasLayout, PivotMode, SpriteDirection } from "@/lib/editor-types";
+import type { AppMode, AtlasLayout, PivotMode, SpriteDirection } from "@/lib/editor-types";
 import { AtlasSettingsCard } from "@/components/editor/right-sidebar/AtlasSettingsCard";
 import { AtlasImportCard } from "@/components/editor/right-sidebar/AtlasImportCard";
 import { ExportActions } from "@/components/editor/right-sidebar/ExportActions";
@@ -27,6 +27,7 @@ export type RightSidebarProps = {
   setEditAtlasPngFile: Dispatch<SetStateAction<File | null>>;
   setEditAtlasJsonFile: Dispatch<SetStateAction<File | null>>;
   isEditImporting: boolean;
+  appMode: AppMode;
   isSpriteSettingsOpen: boolean;
   setIsSpriteSettingsOpen: Dispatch<SetStateAction<boolean>>;
   spriteDirection: SpriteDirection;
@@ -70,6 +71,7 @@ export function RightSidebar({
   setEditAtlasPngFile,
   setEditAtlasJsonFile,
   isEditImporting,
+  appMode,
   isSpriteSettingsOpen,
   setIsSpriteSettingsOpen,
   spriteDirection,
@@ -118,13 +120,15 @@ export function RightSidebar({
         isEditImporting={isEditImporting}
       />
 
-      <SpriteSettingsCard
-        t={t}
-        isSpriteSettingsOpen={isSpriteSettingsOpen}
-        setIsSpriteSettingsOpen={setIsSpriteSettingsOpen}
-        spriteDirection={spriteDirection}
-        setSpriteDirection={setSpriteDirection}
-      />
+      {appMode !== "normal" && (
+        <SpriteSettingsCard
+          t={t}
+          isSpriteSettingsOpen={isSpriteSettingsOpen}
+          setIsSpriteSettingsOpen={setIsSpriteSettingsOpen}
+          spriteDirection={spriteDirection}
+          setSpriteDirection={setSpriteDirection}
+        />
+      )}
 
       <AtlasSettingsCard
         t={t}

@@ -2,7 +2,7 @@ export type PivotMode = "top-left" | "bottom-left" | "center";
 export type EditorMode = "select" | "add";
 export type ViewMode = "frame" | "atlas";
 export type ThemeMode = "dark" | "light";
-export type AppMode = "character" | "animation";
+export type AppMode = "character" | "animation" | "normal";
 
 export type FramePoint = {
   id: string;
