@@ -96,14 +96,16 @@ export const useAutoFill = ({
     const directionSign = spriteDirection === "clockwise" ? 1 : -1;
     const positions = Array.from({ length: totalFrames }, (_, index) => {
       if (selectedAutoFillModel.shape === "ellipse") {
+        const cosRot = Math.cos(selectedAutoFillModel.rotation);
+        const sinRot = Math.sin(selectedAutoFillModel.rotation);
         const angle =
           directionSign * (index / totalFrames) * Math.PI * 2 +
           selectedAutoFillModel.phase;
+        const localX = selectedAutoFillModel.rx * Math.cos(angle);
+        const localY = selectedAutoFillModel.ry * Math.sin(angle);
         return {
-          x: selectedAutoFillModel.cx +
-            selectedAutoFillModel.rx * Math.cos(angle),
-          y: selectedAutoFillModel.cy +
-            selectedAutoFillModel.ry * Math.sin(angle),
+          x: selectedAutoFillModel.cx + localX * cosRot - localY * sinRot,
+          y: selectedAutoFillModel.cy + localX * sinRot + localY * cosRot,
         };
       }
       if (selectedAutoFillModel.shape === "circle") {

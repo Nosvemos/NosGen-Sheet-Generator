@@ -89,6 +89,8 @@ export type LeftSidebarProps = {
   selectedPointKeyframes: KeyframePoint[];
   autoFillShape: AutoFillShape;
   setAutoFillShape: Dispatch<SetStateAction<AutoFillShape>>;
+  autoFillSmoothing: boolean;
+  setAutoFillSmoothing: Dispatch<SetStateAction<boolean>>;
   handleAutoFill: () => void;
   canAutoFill: boolean;
   availablePoints: Array<{ id: string; name: string; color: string }>;
@@ -167,6 +169,8 @@ export function LeftSidebar({
   selectedPointKeyframes,
   autoFillShape,
   setAutoFillShape,
+  autoFillSmoothing,
+  setAutoFillSmoothing,
   handleAutoFill,
   canAutoFill,
   availablePoints,
@@ -278,6 +282,8 @@ export function LeftSidebar({
             selectedPointKeyframes={selectedPointKeyframes}
             autoFillShape={autoFillShape}
             setAutoFillShape={setAutoFillShape}
+            autoFillSmoothing={autoFillSmoothing}
+            setAutoFillSmoothing={setAutoFillSmoothing}
             handleAutoFill={handleAutoFill}
             canAutoFill={canAutoFill}
           />

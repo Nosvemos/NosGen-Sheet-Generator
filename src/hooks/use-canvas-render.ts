@@ -5,6 +5,7 @@ import type {
   AutoFillModel,
   FrameData,
   FramePoint,
+  KeyframePoint,
   PivotMode,
   StageTransform,
   ThemeMode,
@@ -30,6 +31,8 @@ type UseCanvasRenderParams = {
   selectedPoint: FramePoint | null;
   selectedAutoFillModel: AutoFillModel | null;
   selectedAutoFillPositions: Array<{ x: number; y: number }> | null;
+  selectedPointKeyframes: KeyframePoint[];
+  autoFillSmoothing: boolean;
   isCharacterMode: boolean;
   getFrameTransform: (
     viewWidth: number,
@@ -58,6 +61,8 @@ export const useCanvasRender = ({
   selectedPoint,
   selectedAutoFillModel,
   selectedAutoFillPositions,
+  selectedPointKeyframes,
+  autoFillSmoothing,
   isCharacterMode,
   getFrameTransform,
   transformRef,
@@ -82,6 +87,8 @@ export const useCanvasRender = ({
       selectedPoint,
       selectedAutoFillModel,
       selectedAutoFillPositions,
+      selectedPointKeyframes,
+      autoFillSmoothing,
       isCharacterMode,
       getFrameTransform,
       transformRef,
@@ -98,6 +105,8 @@ export const useCanvasRender = ({
     groupPreviewIds,
     selectedAutoFillModel,
     selectedAutoFillPositions,
+    selectedPointKeyframes,
+    autoFillSmoothing,
     selectedPoint,
     selectedPointId,
     showGrid,

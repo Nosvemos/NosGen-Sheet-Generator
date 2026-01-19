@@ -3,6 +3,7 @@ import type {
   AutoFillModel,
   FrameData,
   FramePoint,
+  KeyframePoint,
   PivotMode,
   StageTransform,
   ViewMode,
@@ -26,6 +27,8 @@ type RenderCanvasParams = {
   selectedPoint: FramePoint | null;
   selectedAutoFillModel: AutoFillModel | null;
   selectedAutoFillPositions: Array<{ x: number; y: number }> | null;
+  selectedPointKeyframes: KeyframePoint[];
+  autoFillSmoothing: boolean;
   isCharacterMode: boolean;
   getFrameTransform: (
     viewWidth: number,
@@ -51,6 +54,8 @@ export const renderCanvas = ({
   selectedPoint,
   selectedAutoFillModel,
   selectedAutoFillPositions,
+  selectedPointKeyframes,
+  autoFillSmoothing,
   isCharacterMode,
   getFrameTransform,
   transformRef,
@@ -175,29 +180,96 @@ export const renderCanvas = ({
     ctx.stroke();
     ctx.restore();
 
+    if (showPoints && selectedPoint && selectedPointKeyframes.length > 0) {
+      const centerX = offsetX + (currentFrame.width * 0.5) * scale;
+      const centerY = offsetY + (currentFrame.height * 0.5) * scale;
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      ctx.strokeStyle = selectedPoint.color || accentColor;
+      ctx.lineWidth = 1;
+      selectedPointKeyframes.forEach((keyframe) => {
+        const px = offsetX + keyframe.x * scale;
+        const py = offsetY + keyframe.y * scale;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(px, py);
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+
     if (showPoints && selectedPoint && selectedAutoFillPositions) {
       const shouldClose =
         selectedAutoFillModel?.shape === "ellipse" ||
         selectedAutoFillModel?.shape === "circle" ||
         selectedAutoFillModel?.shape === "square" ||
         selectedAutoFillModel?.shape === "tangent";
+      const useSmoothCurve =
+        autoFillSmoothing &&
+        (selectedAutoFillModel?.shape === "ellipse" ||
+          selectedAutoFillModel?.shape === "circle");
       ctx.save();
       ctx.globalAlpha = 0.55;
       ctx.strokeStyle = selectedPoint.color || accentColor;
       ctx.lineWidth = 2;
+      if (autoFillSmoothing) {
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+      }
       ctx.beginPath();
-      selectedAutoFillPositions.forEach((point, index) => {
-        const px = offsetX + point.x * scale;
-        const py = offsetY + point.y * scale;
-        if (index === 0) {
-          ctx.moveTo(px, py);
-        } else {
-          ctx.lineTo(px, py);
+      if (useSmoothCurve && selectedAutoFillModel) {
+        const samples = Math.max(64, selectedAutoFillPositions.length * 6);
+        if (selectedAutoFillModel.shape === "ellipse") {
+          const cosRot = Math.cos(selectedAutoFillModel.rotation);
+          const sinRot = Math.sin(selectedAutoFillModel.rotation);
+          for (let i = 0; i <= samples; i += 1) {
+            const angle =
+              (i / samples) * Math.PI * 2 + selectedAutoFillModel.phase;
+            const localX = selectedAutoFillModel.rx * Math.cos(angle);
+            const localY = selectedAutoFillModel.ry * Math.sin(angle);
+            const x =
+              selectedAutoFillModel.cx + localX * cosRot - localY * sinRot;
+            const y =
+              selectedAutoFillModel.cy + localX * sinRot + localY * cosRot;
+            const px = offsetX + x * scale;
+            const py = offsetY + y * scale;
+            if (i === 0) {
+              ctx.moveTo(px, py);
+            } else {
+              ctx.lineTo(px, py);
+            }
+          }
+        } else if (selectedAutoFillModel.shape === "circle") {
+          for (let i = 0; i <= samples; i += 1) {
+            const angle =
+              (i / samples) * Math.PI * 2 + selectedAutoFillModel.phase;
+            const x =
+              selectedAutoFillModel.cx + selectedAutoFillModel.r * Math.cos(angle);
+            const y =
+              selectedAutoFillModel.cy + selectedAutoFillModel.r * Math.sin(angle);
+            const px = offsetX + x * scale;
+            const py = offsetY + y * scale;
+            if (i === 0) {
+              ctx.moveTo(px, py);
+            } else {
+              ctx.lineTo(px, py);
+            }
+          }
         }
-      });
-      if (shouldClose && selectedAutoFillPositions.length > 0) {
-        const first = selectedAutoFillPositions[0];
-        ctx.lineTo(offsetX + first.x * scale, offsetY + first.y * scale);
+      } else {
+        selectedAutoFillPositions.forEach((point, index) => {
+          const px = offsetX + point.x * scale;
+          const py = offsetY + point.y * scale;
+          if (index === 0) {
+            ctx.moveTo(px, py);
+          } else {
+            ctx.lineTo(px, py);
+          }
+        });
+        if (shouldClose && selectedAutoFillPositions.length > 0) {
+          const first = selectedAutoFillPositions[0];
+          ctx.lineTo(offsetX + first.x * scale, offsetY + first.y * scale);
+        }
       }
       ctx.stroke();
       ctx.restore();

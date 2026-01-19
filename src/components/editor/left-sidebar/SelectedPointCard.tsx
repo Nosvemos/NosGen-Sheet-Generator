@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -50,6 +51,8 @@ type SelectedPointCardProps = {
   selectedPointKeyframes: KeyframePoint[];
   autoFillShape: AutoFillShape;
   setAutoFillShape: Dispatch<SetStateAction<AutoFillShape>>;
+  autoFillSmoothing: boolean;
+  setAutoFillSmoothing: Dispatch<SetStateAction<boolean>>;
   handleAutoFill: () => void;
   canAutoFill: boolean;
 };
@@ -74,6 +77,8 @@ export function SelectedPointCard({
   selectedPointKeyframes,
   autoFillShape,
   setAutoFillShape,
+  autoFillSmoothing,
+  setAutoFillSmoothing,
   handleAutoFill,
   canAutoFill,
 }: SelectedPointCardProps) {
@@ -309,6 +314,19 @@ export function SelectedPointCard({
                 {t("hint.autoFillSettings")}
               </p>
             </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="auto-fill-smoothing"
+                checked={autoFillSmoothing}
+                onCheckedChange={setAutoFillSmoothing}
+              />
+              <Label htmlFor="auto-fill-smoothing" className="text-xs text-muted-foreground">
+                {t("label.autoFillSmoothing")}
+              </Label>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {t("hint.autoFillSmoothing")}
+            </p>
           </div>
         )}
         <Button size="sm" className="w-full" onClick={handleAutoFill} disabled={!canAutoFill}>

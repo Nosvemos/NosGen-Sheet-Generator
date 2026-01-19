@@ -30,6 +30,7 @@ export type EditorState = {
   frameZoom: number;
   panOffset: { x: number; y: number };
   autoFillShape: AutoFillShape;
+  autoFillSmoothing: boolean;
   spriteDirection: SpriteDirection;
   fps: number;
   speed: number;
@@ -128,6 +129,7 @@ export const createInitialEditorState = (): EditorState => {
     frameZoom: 1,
     panOffset: { x: 0, y: 0 },
     autoFillShape: "ellipse",
+    autoFillSmoothing: true,
     spriteDirection: "clockwise",
     fps: DEFAULT_FPS,
     speed: 1,
@@ -182,6 +184,7 @@ const HISTORY_LABEL_OVERRIDES: Partial<Record<keyof EditorState, string>> = {
   frameZoom: "Zoom updated",
   panOffset: "Panned view",
   autoFillShape: "Auto fill shape",
+  autoFillSmoothing: "Auto fill smoothing",
   spriteDirection: "Sprite direction",
   fps: "FPS updated",
   speed: "Speed updated",

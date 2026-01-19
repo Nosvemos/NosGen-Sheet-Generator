@@ -71,6 +71,7 @@ export type AutoFillModel =
       rx: number;
       ry: number;
       phase: number;
+      rotation: number;
     }
   | {
       shape: "circle";

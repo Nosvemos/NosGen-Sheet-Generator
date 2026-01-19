@@ -15,7 +15,7 @@ type TranslationValue =
 const translations = {
   en: {
     "app.kicker": "Sprite Atlas Studio",
-    "app.title": "NosGen v0.1.1",
+    "app.title": "NosGen v0.1.2",
     "app.subtitle": "Build sprite sheets, place points, and export fast.",
     "panel.tools": "Point Studio",
     "panel.pipeline": "Atlas Pipeline",
@@ -46,6 +46,7 @@ const translations = {
     "label.generalSettings": "General Settings",
     "label.spriteSettings": "Sprite Settings",
     "label.autoFillShape": "Auto Fill Shape",
+    "label.autoFillSmoothing": "Auto Fill Smoothing",
     "label.autoFillDirection": "Auto Fill Direction",
     "label.spriteDirection": "Sprite Direction",
     "label.reverse": "Reverse",
@@ -163,6 +164,7 @@ const translations = {
     "hint.importing": "Importing atlas...",
     "hint.autoFill": "Uses keyframes to estimate missing positions.",
     "hint.autoFillSettings": "Shape and sprite direction apply to auto fill.",
+    "hint.autoFillSmoothing": "Smooths the preview curve to avoid sharp corners.",
     "hint.spriteSettings": "Sprite direction affects auto fill and export.",
     "hint.appMode": "Switch between character points, animation export, or normal.",
     "hint.animationExport": "Export uses the selected frames and FPS.",

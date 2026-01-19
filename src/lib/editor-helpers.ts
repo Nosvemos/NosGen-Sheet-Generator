@@ -7,9 +7,9 @@ import type {
 } from "@/lib/editor-types";
 
 export const SPEED_OPTIONS = [0.25, 0.5, 1, 2, 4];
-export const MIN_EXPORT_SCALE = 0.5;
+export const MIN_EXPORT_SCALE = 0.25;
 export const MAX_EXPORT_SCALE = 4;
-export const EXPORT_SCALE_STEP = 0.5;
+export const EXPORT_SCALE_STEP = 0.25;
 export const MIN_FRAME_ZOOM = 0.5;
 export const MAX_FRAME_ZOOM = 8;
 export const ZOOM_STEP = 1.1;
@@ -198,9 +198,8 @@ export const computeEllipseFit = (
     (point) =>
       directionSign * (point.frameIndex / totalFrames) * Math.PI * 2
   );
-  const xs = keyframes.map((point) => point.x);
-  const ys = keyframes.map((point) => point.y);
   const phaseSteps = 720;
+  const rotationSteps = 180;
   let best:
     | {
         error: number;
@@ -209,41 +208,54 @@ export const computeEllipseFit = (
         rx: number;
         ry: number;
         phase: number;
+        rotation: number;
       }
     | undefined;
 
-  for (let step = 0; step < phaseSteps; step += 1) {
-    const phase = (step / phaseSteps) * Math.PI * 2;
-    const cosValues = baseAngles.map((angle) => Math.cos(angle + phase));
-    const sinValues = baseAngles.map((angle) => Math.sin(angle + phase));
-    const xFit = solveLinear(cosValues, xs);
-    const yFit = solveLinear(sinValues, ys);
-    if (!xFit.valid || !yFit.valid) {
-      continue;
-    }
-    const cx = xFit.intercept;
-    const cy = yFit.intercept;
-    const rx = xFit.slope;
-    const ry = yFit.slope;
-    const error = keyframes.reduce((acc, point, index) => {
-      const x = cx + rx * cosValues[index];
-      const y = cy + ry * sinValues[index];
-      return acc + (x - point.x) ** 2 + (y - point.y) ** 2;
-    }, 0);
-    if (!best || error < best.error) {
-      best = { error, cx, cy, rx, ry, phase };
+  for (let rotStep = 0; rotStep < rotationSteps; rotStep += 1) {
+    const rotation = (rotStep / rotationSteps) * Math.PI;
+    const cosRot = Math.cos(rotation);
+    const sinRot = Math.sin(rotation);
+    const xs = keyframes.map((point) => point.x * cosRot + point.y * sinRot);
+    const ys = keyframes.map((point) => -point.x * sinRot + point.y * cosRot);
+    for (let step = 0; step < phaseSteps; step += 1) {
+      const phase = (step / phaseSteps) * Math.PI * 2;
+      const cosValues = baseAngles.map((angle) => Math.cos(angle + phase));
+      const sinValues = baseAngles.map((angle) => Math.sin(angle + phase));
+      const xFit = solveLinear(cosValues, xs);
+      const yFit = solveLinear(sinValues, ys);
+      if (!xFit.valid || !yFit.valid) {
+        continue;
+      }
+      const cx = xFit.intercept;
+      const cy = yFit.intercept;
+      const rx = xFit.slope;
+      const ry = yFit.slope;
+      const error = xs.reduce((acc, value, index) => {
+        const x = cx + rx * cosValues[index];
+        const y = cy + ry * sinValues[index];
+        return acc + (x - value) ** 2 + (y - ys[index]) ** 2;
+      }, 0);
+      if (!best || error < best.error) {
+        best = { error, cx, cy, rx, ry, phase, rotation };
+      }
     }
   }
 
   if (!best) {
     return null;
   }
+  const cosRot = Math.cos(best.rotation);
+  const sinRot = Math.sin(best.rotation);
+  const cx = best.cx * cosRot - best.cy * sinRot;
+  const cy = best.cx * sinRot + best.cy * cosRot;
   return {
-    cx: best.cx,
-    cy: best.cy,
+    cx,
+    cy,
     rx: best.rx,
     ry: best.ry,
     phase: best.phase,
+    rotation: best.rotation,
   };
 };
 

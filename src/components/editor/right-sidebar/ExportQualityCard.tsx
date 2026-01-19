@@ -67,7 +67,7 @@ export function ExportQualityCard({
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>{t("label.exportScale")}</span>
-              <span className="font-mono">{exportScale.toFixed(1)}x</span>
+              <span className="font-mono">{exportScale.toFixed(2)}x</span>
             </div>
             <Slider
               min={minExportScale}
@@ -76,7 +76,7 @@ export function ExportQualityCard({
               value={[exportScale]}
               onValueChange={(value) => {
                 const next = value[0] ?? exportScale;
-                setExportScale(Math.round(next * 2) / 2);
+                setExportScale(Number(next.toFixed(2)));
               }}
             />
           </div>
@@ -94,11 +94,11 @@ export function ExportQualityCard({
             </Label>
             <Input
               type="number"
-              step="0.1"
-              min="0.1"
+              step="0.01"
+              min="0"
               value={String(exportSize)}
               onChange={(event) => {
-                const next = Math.max(0.1, toNumber(event.target.value, exportSize));
+                const next = Math.max(0, toNumber(event.target.value, exportSize));
                 setExportSize(next);
               }}
             />
