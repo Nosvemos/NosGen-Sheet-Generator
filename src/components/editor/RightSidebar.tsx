@@ -19,7 +19,9 @@ export type RightSidebarProps = {
   framesLength: number;
   framesInputRef: RefObject<HTMLInputElement | null>;
   newPointsInputRef: RefObject<HTMLInputElement | null>;
+  appendFramesInputRef: RefObject<HTMLInputElement | null>;
   handleNewAtlasCreate: () => Promise<void> | void;
+  handleAppendFrames: () => Promise<void> | void;
   handleNewPointsImport: (file: File) => Promise<void> | void;
   onClearFrames: () => void;
   editAtlasPngInputRef: RefObject<HTMLInputElement | null>;
@@ -27,6 +29,7 @@ export type RightSidebarProps = {
   setEditAtlasPngFile: Dispatch<SetStateAction<File | null>>;
   setEditAtlasJsonFile: Dispatch<SetStateAction<File | null>>;
   isEditImporting: boolean;
+  hasEditImport: boolean;
   appMode: AppMode;
   isSpriteSettingsOpen: boolean;
   setIsSpriteSettingsOpen: Dispatch<SetStateAction<boolean>>;
@@ -64,7 +67,9 @@ export function RightSidebar({
   framesLength,
   framesInputRef,
   newPointsInputRef,
+  appendFramesInputRef,
   handleNewAtlasCreate,
+  handleAppendFrames,
   handleNewPointsImport,
   onClearFrames,
   editAtlasPngInputRef,
@@ -72,6 +77,7 @@ export function RightSidebar({
   setEditAtlasPngFile,
   setEditAtlasJsonFile,
   isEditImporting,
+  hasEditImport,
   appMode,
   isSpriteSettingsOpen,
   setIsSpriteSettingsOpen,
@@ -112,7 +118,9 @@ export function RightSidebar({
         framesLength={framesLength}
         framesInputRef={framesInputRef}
         newPointsInputRef={newPointsInputRef}
+        appendFramesInputRef={appendFramesInputRef}
         handleNewAtlasCreate={handleNewAtlasCreate}
+        handleAppendFrames={handleAppendFrames}
         handleNewPointsImport={handleNewPointsImport}
         onClearFrames={onClearFrames}
         editAtlasPngInputRef={editAtlasPngInputRef}
@@ -120,6 +128,7 @@ export function RightSidebar({
         setEditAtlasPngFile={setEditAtlasPngFile}
         setEditAtlasJsonFile={setEditAtlasJsonFile}
         isEditImporting={isEditImporting}
+        hasEditImport={hasEditImport}
       />
 
       {appMode === "character" && (

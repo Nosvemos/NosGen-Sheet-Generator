@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { TranslationKey } from "@/lib/i18n";
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 type Translate = (
   key: TranslationKey,
@@ -19,7 +19,9 @@ type AtlasImportCardProps = {
   framesLength: number;
   framesInputRef: RefObject<HTMLInputElement | null>;
   newPointsInputRef: RefObject<HTMLInputElement | null>;
+  appendFramesInputRef: RefObject<HTMLInputElement | null>;
   handleNewAtlasCreate: () => Promise<void> | void;
+  handleAppendFrames: () => Promise<void> | void;
   handleNewPointsImport: (file: File) => Promise<void> | void;
   onClearFrames: () => void;
   editAtlasPngInputRef: RefObject<HTMLInputElement | null>;
@@ -27,6 +29,7 @@ type AtlasImportCardProps = {
   setEditAtlasPngFile: Dispatch<SetStateAction<File | null>>;
   setEditAtlasJsonFile: Dispatch<SetStateAction<File | null>>;
   isEditImporting: boolean;
+  hasEditImport: boolean;
 };
 
 export function AtlasImportCard({
@@ -34,7 +37,9 @@ export function AtlasImportCard({
   framesLength,
   framesInputRef,
   newPointsInputRef,
+  appendFramesInputRef,
   handleNewAtlasCreate,
+  handleAppendFrames,
   handleNewPointsImport,
   onClearFrames,
   editAtlasPngInputRef,
@@ -42,12 +47,26 @@ export function AtlasImportCard({
   setEditAtlasPngFile,
   setEditAtlasJsonFile,
   isEditImporting,
+  hasEditImport,
 }: AtlasImportCardProps) {
   const [mode, setMode] = useState<ImportMode>("new");
 
   return (
     <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
       <Label>{t("label.atlasImport")}</Label>
+      <Input
+        ref={appendFramesInputRef}
+        type="file"
+        accept="image/png"
+        multiple
+        className="hidden"
+        hidden
+        onChange={(event) => {
+          if (event.target.files?.length) {
+            void handleAppendFrames();
+          }
+        }}
+      />
       <Tabs value={mode} onValueChange={(value) => setMode(value as ImportMode)}>
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="new">{t("label.newAtlas")}</TabsTrigger>
@@ -72,6 +91,18 @@ export function AtlasImportCard({
             <div className="text-xs text-muted-foreground">
               {t("hint.fileOrder")}
             </div>
+            {framesLength > 0 && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="w-full"
+                onClick={() => appendFramesInputRef.current?.click()}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                {t("action.addFrames")}
+              </Button>
+            )}
           </div>
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">
@@ -133,6 +164,18 @@ export function AtlasImportCard({
             />
           </div>
           <p className="text-xs text-muted-foreground">{t("hint.editCurrent")}</p>
+          {hasEditImport && framesLength > 0 && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-full"
+              onClick={() => appendFramesInputRef.current?.click()}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {t("action.addFrames")}
+            </Button>
+          )}
           {isEditImporting && (
             <p className="text-xs text-muted-foreground">
               {t("hint.importing")}

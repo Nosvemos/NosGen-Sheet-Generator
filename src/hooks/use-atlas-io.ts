@@ -13,6 +13,7 @@ import {
   importAtlasFromFiles,
   importPointsIntoFrames,
 } from "@/lib/editor-io";
+import { loadFrameFromFile } from "@/lib/editor-helpers";
 
 type Translate = (
   key: TranslationKey,
@@ -48,12 +49,15 @@ type UseAtlasIOParams = {
 type UseAtlasIOResult = {
   framesInputRef: RefObject<HTMLInputElement | null>;
   newPointsInputRef: RefObject<HTMLInputElement | null>;
+  appendFramesInputRef: RefObject<HTMLInputElement | null>;
   editAtlasPngInputRef: RefObject<HTMLInputElement | null>;
   editAtlasJsonInputRef: RefObject<HTMLInputElement | null>;
   setEditAtlasPngFile: Dispatch<SetStateAction<File | null>>;
   setEditAtlasJsonFile: Dispatch<SetStateAction<File | null>>;
   isEditImporting: boolean;
+  hasEditImport: boolean;
   handleNewAtlasCreate: () => Promise<void>;
+  handleAppendFrames: () => Promise<void>;
   handleNewPointsImport: (file: File) => Promise<void>;
   handleClearFrames: () => void;
 };
@@ -85,11 +89,13 @@ export const useAtlasIO = ({
 }: UseAtlasIOParams): UseAtlasIOResult => {
   const framesInputRef = useRef<HTMLInputElement>(null);
   const newPointsInputRef = useRef<HTMLInputElement>(null);
+  const appendFramesInputRef = useRef<HTMLInputElement>(null);
   const editAtlasPngInputRef = useRef<HTMLInputElement>(null);
   const editAtlasJsonInputRef = useRef<HTMLInputElement>(null);
   const [editAtlasPngFile, setEditAtlasPngFile] = useState<File | null>(null);
   const [editAtlasJsonFile, setEditAtlasJsonFile] = useState<File | null>(null);
   const [isEditImporting, setIsEditImporting] = useState(false);
+  const [hasEditImport, setHasEditImport] = useState(false);
 
   const resetSelection = () => {
     setCurrentFrameIndex(0);
@@ -132,6 +138,7 @@ export const useAtlasIO = ({
       setPointGroups(result.pointGroups);
       setSelectedGroupId(result.pointGroups[0]?.id ?? null);
       setFrames(result.frames);
+      setHasEditImport(false);
       resetSelection();
     } catch (error) {
       console.error(error);
@@ -141,6 +148,33 @@ export const useAtlasIO = ({
       }
       if (newPointsInputRef.current) {
         newPointsInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleAppendFrames = async () => {
+    const files = appendFramesInputRef.current?.files;
+    if (!files || files.length === 0) {
+      return;
+    }
+    const pngFiles = Array.from(files).filter(
+      (file) =>
+        file.type === "image/png" ||
+        file.name.toLowerCase().endsWith(".png")
+    );
+    if (pngFiles.length === 0) {
+      return;
+    }
+    try {
+      const loaded = await Promise.all(
+        pngFiles.map((file) => loadFrameFromFile(file))
+      );
+      setFrames((prev) => [...prev, ...loaded]);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      if (appendFramesInputRef.current) {
+        appendFramesInputRef.current.value = "";
       }
     }
   };
@@ -185,6 +219,7 @@ export const useAtlasIO = ({
     setCurrentFrameIndex(0);
     setSelectedPointId(null);
     setIsPlaying(false);
+    setHasEditImport(false);
   };
 
   const handleEditAtlasImport = async (pngFile: File, jsonFile: File) => {
@@ -231,6 +266,7 @@ export const useAtlasIO = ({
       setAnimationFrameSelection(imported.animation.frameSelection);
     }
     setFrames(imported.frames);
+    setHasEditImport(true);
     resetSelection();
   };
 
@@ -268,12 +304,15 @@ export const useAtlasIO = ({
   return {
     framesInputRef,
     newPointsInputRef,
+    appendFramesInputRef,
     editAtlasPngInputRef,
     editAtlasJsonInputRef,
     setEditAtlasPngFile,
     setEditAtlasJsonFile,
     isEditImporting,
+    hasEditImport,
     handleNewAtlasCreate,
+    handleAppendFrames,
     handleNewPointsImport,
     handleClearFrames,
   };

@@ -15,7 +15,7 @@ type TranslationValue =
 const translations = {
   en: {
     "app.kicker": "Sprite Atlas Studio",
-    "app.title": "NosGen v0.1.2",
+    "app.title": "NosGen v0.1.3",
     "app.subtitle": "Build sprite sheets, place points, and export fast.",
     "panel.tools": "Point Studio",
     "panel.pipeline": "Atlas Pipeline",
@@ -94,6 +94,7 @@ const translations = {
     "action.selectAll": "Select all",
     "action.clearAll": "Clear",
     "action.clearFrames": "Clear Frames",
+    "action.addFrames": "Add PNG Frames",
     "action.exportPng": "Export Atlas PNG",
     "action.exportJson": "Export Points JSON",
     "action.exportFramesZip": "Export Frames ZIP",
