@@ -89,6 +89,7 @@ export function useEditorPanels() {
     isPointsOpen,
     isPointGroupsOpen,
     isProjectSettingsOpen,
+    isMagnetEnabled,
     projectName,
     animationName,
     animationFrameSelection,
@@ -161,6 +162,11 @@ export function useEditorPanels() {
       setIsProjectSettingsOpen: createStateSetter(
         dispatch,
         "isProjectSettingsOpen",
+        silent
+      ),
+      setIsMagnetEnabled: createStateSetter(
+        dispatch,
+        "isMagnetEnabled",
         silent
       ),
       setProjectName: createStateSetter(dispatch, "projectName"),
@@ -468,9 +474,11 @@ export function useEditorPanels() {
     canvasRef,
     currentFrame,
     currentPoints,
+    frames,
     viewMode,
     isCharacterMode,
     editorMode,
+    isMagnetEnabled,
     frameZoom,
     setFrameZoom,
     panOffset,
@@ -757,6 +765,8 @@ export function useEditorPanels() {
     setShowGrid,
     showPoints,
     setShowPoints,
+    isMagnetEnabled,
+    setIsMagnetEnabled: setters.setIsMagnetEnabled,
     stageRef,
     canvasRef,
     editorMode,

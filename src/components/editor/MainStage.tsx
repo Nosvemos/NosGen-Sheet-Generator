@@ -41,6 +41,8 @@ export type MainStageProps = {
   setShowGrid: Dispatch<SetStateAction<boolean>>;
   showPoints: boolean;
   setShowPoints: Dispatch<SetStateAction<boolean>>;
+  isMagnetEnabled: boolean;
+  setIsMagnetEnabled: Dispatch<SetStateAction<boolean>>;
   stageRef: RefObject<HTMLDivElement | null>;
   canvasRef: RefObject<HTMLCanvasElement | null>;
   editorMode: EditorMode;
@@ -96,6 +98,8 @@ export function MainStage({
   setShowGrid,
   showPoints,
   setShowPoints,
+  isMagnetEnabled,
+  setIsMagnetEnabled,
   stageRef,
   canvasRef,
   editorMode,
@@ -154,6 +158,8 @@ export function MainStage({
           setShowGrid={setShowGrid}
           showPoints={showPoints}
           setShowPoints={setShowPoints}
+          isMagnetEnabled={isMagnetEnabled}
+          setIsMagnetEnabled={setIsMagnetEnabled}
         />
 
         <StageCanvas

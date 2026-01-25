@@ -39,6 +39,7 @@ const translations = {
     "label.y": "Y",
     "label.grid": "Grid",
     "label.pointsToggle": "Points",
+    "label.magnetSnap": "Magnet Snap",
     "label.keyframes": "Keyframes",
     "label.historyLimit": "History Limit",
     "label.hotkeys": "Hotkeys",

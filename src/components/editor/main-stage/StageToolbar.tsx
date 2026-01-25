@@ -18,6 +18,8 @@ type StageToolbarProps = {
   setShowGrid: Dispatch<SetStateAction<boolean>>;
   showPoints: boolean;
   setShowPoints: Dispatch<SetStateAction<boolean>>;
+  isMagnetEnabled: boolean;
+  setIsMagnetEnabled: Dispatch<SetStateAction<boolean>>;
 };
 
 export function StageToolbar({
@@ -28,6 +30,8 @@ export function StageToolbar({
   setShowGrid,
   showPoints,
   setShowPoints,
+  isMagnetEnabled,
+  setIsMagnetEnabled,
 }: StageToolbarProps) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 px-2">
@@ -49,6 +53,14 @@ export function StageToolbar({
             onCheckedChange={setShowPoints}
           />
           <Label htmlFor="points-toggle">{t("label.pointsToggle")}</Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch
+            id="magnet-toggle"
+            checked={isMagnetEnabled}
+            onCheckedChange={setIsMagnetEnabled}
+          />
+          <Label htmlFor="magnet-toggle">{t("label.magnetSnap")}</Label>
         </div>
       </div>
     </div>

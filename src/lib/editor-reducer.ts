@@ -57,6 +57,7 @@ export type EditorState = {
   isPointsOpen: boolean;
   isPointGroupsOpen: boolean;
   isProjectSettingsOpen: boolean;
+  isMagnetEnabled: boolean;
   projectName: string;
   animationName: string;
   animationFrameSelection: Record<string, boolean>;
@@ -156,6 +157,7 @@ export const createInitialEditorState = (): EditorState => {
     isPointsOpen: true,
     isPointGroupsOpen: true,
     isProjectSettingsOpen: true,
+    isMagnetEnabled: false,
     projectName: "project",
     animationName: "animation",
     animationFrameSelection: {},
@@ -211,6 +213,7 @@ const HISTORY_LABEL_OVERRIDES: Partial<Record<keyof EditorState, string>> = {
   isPointsOpen: "Points panel",
   isPointGroupsOpen: "Point groups panel",
   isProjectSettingsOpen: "Project settings",
+  isMagnetEnabled: "Magnet snap",
   projectName: "Project name",
   animationName: "Animation name",
   animationFrameSelection: "Animation frames",

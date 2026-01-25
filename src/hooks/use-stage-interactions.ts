@@ -32,9 +32,11 @@ type UseStageInteractionsParams = {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   currentFrame: FrameData | undefined;
   currentPoints: FramePoint[];
+  frames: FrameData[];
   viewMode: ViewMode;
   isCharacterMode: boolean;
   editorMode: EditorMode;
+  isMagnetEnabled: boolean;
   frameZoom: number;
   setFrameZoom: Dispatch<SetStateAction<number>>;
   panOffset: { x: number; y: number };
@@ -53,9 +55,11 @@ export const useStageInteractions = ({
   canvasRef,
   currentFrame,
   currentPoints,
+  frames,
   viewMode,
   isCharacterMode,
   editorMode,
+  isMagnetEnabled,
   frameZoom,
   setFrameZoom,
   panOffset,
@@ -68,6 +72,20 @@ export const useStageInteractions = ({
 }: UseStageInteractionsParams) => {
   const panRef = useRef<PanState | null>(null);
   const [draggingPointId, setDraggingPointId] = useState<string | null>(null);
+  const snapThreshold = 3;
+
+  const resolveSnap = (value: number, candidates: number[]) => {
+    let closest = value;
+    let bestDiff = snapThreshold + 1;
+    candidates.forEach((candidate) => {
+      const diff = Math.abs(candidate - value);
+      if (diff <= snapThreshold && diff < bestDiff) {
+        bestDiff = diff;
+        closest = candidate;
+      }
+    });
+    return closest;
+  };
 
   const handleCanvasWheel = (event: WheelEvent<HTMLCanvasElement>) => {
     if (!currentFrame || viewMode !== "frame") {
@@ -208,8 +226,33 @@ export const useStageInteractions = ({
     const rawY = event.clientY - rect.top;
     const frameX = (rawX - transform.offsetX) / transform.scale;
     const frameY = (rawY - transform.offsetY) / transform.scale;
-    const clampedX = clamp(Math.round(frameX), 0, currentFrame.width);
-    const clampedY = clamp(Math.round(frameY), 0, currentFrame.height);
+    let clampedX = clamp(Math.round(frameX), 0, currentFrame.width);
+    let clampedY = clamp(Math.round(frameY), 0, currentFrame.height);
+    if (isMagnetEnabled && draggingPointId) {
+      const xCandidates: number[] = [];
+      const yCandidates: number[] = [];
+      frames.forEach((frame) => {
+        if (frame.id === currentFrame.id) {
+          return;
+        }
+        const point = frame.points.find((item) => item.id === draggingPointId);
+        if (!point || !point.isKeyframe) {
+          return;
+        }
+        if (point.x >= 0 && point.x <= currentFrame.width) {
+          xCandidates.push(point.x);
+        }
+        if (point.y >= 0 && point.y <= currentFrame.height) {
+          yCandidates.push(point.y);
+        }
+      });
+      if (xCandidates.length > 0) {
+        clampedX = resolveSnap(clampedX, xCandidates);
+      }
+      if (yCandidates.length > 0) {
+        clampedY = resolveSnap(clampedY, yCandidates);
+      }
+    }
     updateCurrentFramePoints((points) =>
       points.map((point) =>
         point.id === draggingPointId
