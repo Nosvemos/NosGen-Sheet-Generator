@@ -1,0 +1,45 @@
+version: '3'
+
+info:
+  companyName: "Samet Ozturk"
+  productName: "NosGen"
+  productIdentifier: "io.github.nosvemos.nosgen"
+  description: "Sprite atlas editor for PNG frame sets"
+  copyright: "(c) 2026 Samet Ozturk"
+  comments: "NosGen desktop application"
+  version: "0.1.4"
+
+dev_mode:
+  root_path: .
+  log_level: warn
+  debounce: 1000
+  ignore:
+    dir:
+      - .git
+      - node_modules
+      - dist
+      - bindings
+      - build/bin
+    file:
+      - .DS_Store
+      - .gitignore
+      - .gitkeep
+    watched_extension:
+      - "*.go"
+      - "*.ts"
+      - "*.tsx"
+      - "*.js"
+      - "*.jsx"
+      - "*.json"
+      - "*.css"
+    git_ignore: true
+  executes:
+    - cmd: wails3 task common:build:frontend DEV=true
+      type: blocking
+    - cmd: wails3 task common:dev:frontend
+      type: background
+    - cmd: wails3 task run DEV=true
+      type: primary
+
+other:
+  - name: NosGen

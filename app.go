@@ -1,18 +1,17 @@
 package main
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 type App struct {
-	ctx context.Context
+	app *application.App
 }
 
 type FileFilter struct {
@@ -27,27 +26,23 @@ type SaveFileRequest struct {
 	Filters  []FileFilter `json:"filters"`
 }
 
-func NewApp() *App {
-	return &App{}
-}
-
-func (a *App) startup(ctx context.Context) {
-	a.ctx = ctx
+func NewApp(app *application.App) *App {
+	return &App{app: app}
 }
 
 func (a *App) SaveFile(request SaveFileRequest) (string, error) {
-	if a.ctx == nil {
-		return "", fmt.Errorf("application context is not ready")
+	if a.app == nil {
+		return "", fmt.Errorf("application is not ready")
 	}
 	if strings.TrimSpace(request.Filename) == "" {
 		return "", fmt.Errorf("filename is required")
 	}
 
-	savePath, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
-		Title:           "Save file",
-		DefaultFilename: filepath.Base(request.Filename),
-		Filters:         buildRuntimeFilters(request.Filters),
-	})
+	savePath, err := a.app.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
+		Title:    "Save file",
+		Filename: filepath.Base(request.Filename),
+		Filters:  buildFileFilters(request.Filters),
+	}).PromptForSingleSelection()
 	if err != nil {
 		return "", err
 	}
@@ -72,12 +67,12 @@ func (a *App) SaveFile(request SaveFileRequest) (string, error) {
 	return savePath, nil
 }
 
-func buildRuntimeFilters(filters []FileFilter) []runtime.FileFilter {
+func buildFileFilters(filters []FileFilter) []application.FileFilter {
 	if len(filters) == 0 {
 		return nil
 	}
 
-	result := make([]runtime.FileFilter, 0, len(filters))
+	result := make([]application.FileFilter, 0, len(filters))
 	for _, filter := range filters {
 		patterns := make([]string, 0, len(filter.Extensions))
 		for _, extension := range filter.Extensions {
@@ -90,7 +85,7 @@ func buildRuntimeFilters(filters []FileFilter) []runtime.FileFilter {
 		if len(patterns) == 0 {
 			continue
 		}
-		result = append(result, runtime.FileFilter{
+		result = append(result, application.FileFilter{
 			DisplayName: filter.Name,
 			Pattern:     strings.Join(patterns, ";"),
 		})

@@ -1,0 +1,40 @@
+version: '3'
+
+includes:
+  common: ../Taskfile.yml
+
+tasks:
+  build:
+    summary: Builds the Windows binary
+    deps:
+      - task: common:go:mod:tidy
+      - task: common:update:build-assets
+      - task: common:generate:icons
+      - task: common:build:frontend
+        vars:
+          DEV:
+            ref: .DEV
+    cmds:
+      - task: generate:syso
+      - go build {{.BUILD_FLAGS}} -o "{{.BIN_DIR}}/{{.APP_NAME}}.exe"
+      - powershell Remove-Item "wails_windows_{{.ARCH}}.syso" -ErrorAction SilentlyContinue
+    vars:
+      ARCH: '{{.ARCH | default ARCH}}'
+      BUILD_FLAGS: '{{if eq .DEV "true"}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui"{{end}}'
+    env:
+      GOOS: windows
+      GOARCH: '{{.ARCH | default ARCH}}'
+      CGO_ENABLED: 0
+
+  generate:syso:
+    summary: Generates the Windows `.syso` resource file
+    dir: build
+    cmds:
+      - wails3 generate syso -arch {{.ARCH}} -icon windows/icon.ico -manifest windows/wails.exe.manifest -info windows/info.json -out ../wails_windows_{{.ARCH}}.syso
+    vars:
+      ARCH: '{{.ARCH | default ARCH}}'
+
+  run:
+    summary: Runs the built Windows application
+    cmds:
+      - '{{.BIN_DIR}}/{{.APP_NAME}}.exe'

@@ -1,15 +1,15 @@
 {
-  "fixed": {
-    "file_version": "{{.Info.ProductVersion}}"
-  },
-  "info": {
-    "0000": {
-      "ProductVersion": "{{.Info.ProductVersion}}",
-      "CompanyName": "{{.Info.CompanyName}}",
-      "FileDescription": "{{.Info.ProductName}}",
-      "LegalCopyright": "{{.Info.Copyright}}",
-      "ProductName": "{{.Info.ProductName}}",
-      "Comments": "{{.Info.Comments}}"
-    }
-  }
+	"fixed": {
+		"file_version": "0.1.4"
+	},
+	"info": {
+		"0000": {
+			"ProductVersion": "0.1.4",
+			"CompanyName": "Samet Ozturk",
+			"FileDescription": "Sprite atlas editor for PNG frame sets",
+			"LegalCopyright": "(c) 2026 Samet Ozturk",
+			"ProductName": "NosGen",
+			"Comments": "NosGen desktop application"
+		}
+	}
 }

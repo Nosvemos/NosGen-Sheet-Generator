@@ -1,0 +1,77 @@
+version: '3'
+
+tasks:
+  go:mod:tidy:
+    summary: Runs `go mod tidy`
+    internal: true
+    cmds:
+      - go mod tidy
+
+  install:frontend:deps:
+    summary: Installs frontend dependencies
+    dir: .
+    sources:
+      - package.json
+      - package-lock.json
+    generates:
+      - node_modules
+    preconditions:
+      - sh: npm version
+        msg: "npm is required. Install Node.js from https://nodejs.org/."
+    cmds:
+      - npm ci
+
+  update:build-assets:
+    summary: Refreshes build metadata files for Wails v3 packaging
+    dir: build
+    cmds:
+      - wails3 update build-assets -name "NosGen" -binaryname "{{.APP_NAME}}" -config config.yml -dir .
+
+  generate:icons:
+    summary: Generates desktop icons from `build/appicon.png`
+    dir: build
+    sources:
+      - appicon.png
+    generates:
+      - darwin/icons.icns
+      - windows/icon.ico
+    cmds:
+      - wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico
+
+  generate:bindings:
+    summary: Generates Wails v3 TypeScript bindings
+    deps:
+      - task: go:mod:tidy
+    sources:
+      - "*.go"
+      - go.mod
+      - go.sum
+    generates:
+      - bindings/**/*
+    cmds:
+      - wails3 generate bindings -f '{{.BUILD_FLAGS}}' -ts -clean=true -d ./bindings
+    dir: .
+
+  build:frontend:
+    label: build:frontend (DEV={{.DEV}})
+    summary: Builds the frontend
+    dir: .
+    deps:
+      - task: install:frontend:deps
+      - task: generate:bindings
+        vars:
+          BUILD_FLAGS:
+            ref: .BUILD_FLAGS
+    cmds:
+      - npm run {{.BUILD_COMMAND}} -q
+    vars:
+      BUILD_COMMAND: '{{if eq .DEV "true"}}build:dev{{else}}build{{end}}'
+
+  dev:frontend:
+    summary: Runs the frontend dev server
+    dir: .
+    deps:
+      - task: install:frontend:deps
+      - task: generate:bindings
+    cmds:
+      - npm run dev -- --port {{.VITE_PORT}} --strictPort

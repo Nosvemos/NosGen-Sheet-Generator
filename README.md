@@ -66,7 +66,7 @@ Points are stored in top-left space. Export uses the selected pivot:
 - Center: `exportX = x - frameWidth / 2`, `exportY = y - frameHeight / 2`
 
 ## Desktop (Wails)
-Run as a desktop app using Wails.
+Run as a desktop app using Wails v3 (`v3.0.0-alpha.74`).
 
 ```bash
 npm run wails:dev
@@ -75,6 +75,11 @@ npm run wails:dev
 Build a release package:
 ```bash
 npm run wails:build
+```
+
+Regenerate Wails bindings after changing Go service methods:
+```bash
+npm run wails:generate
 ```
 
 Build outputs:
@@ -88,7 +93,7 @@ The repository includes a GitHub Actions workflow at `.github/workflows/build-re
 
 - Pushes to `main` run an automated desktop build.
 - Pushing a tag like `v0.1.0` builds release artifacts and uploads them to a GitHub Release.
-- Manual runs also support a `version` input. When provided, the workflow updates `package.json` and `package-lock.json`, commits the version bump, then builds and publishes the release from that commit.
+- Manual runs also support a `version` input. When provided, the workflow updates `package.json`, `package-lock.json`, and `build/config.yml`, commits the version bump, then builds and publishes the release from that commit.
 
 ## Customization
 - Hotkeys and history limit are configurable in the Settings modal.

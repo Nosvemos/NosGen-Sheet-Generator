@@ -1,0 +1,37 @@
+version: '3'
+
+includes:
+  common: ./build/Taskfile.yml
+  windows: ./build/windows/Taskfile.yml
+  darwin: ./build/darwin/Taskfile.yml
+  linux: ./build/linux/Taskfile.yml
+
+vars:
+  APP_NAME: "nosgen"
+  BIN_DIR: "build/bin"
+  VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+
+tasks:
+  build:
+    summary: Builds the desktop application for the current OS
+    cmds:
+      - task: '{{if eq OS "darwin"}}darwin:package{{else}}{{OS}}:build{{end}}'
+        vars:
+          ARCH: '{{.ARCH}}'
+          DEV: '{{.DEV}}'
+          EXTRA_TAGS: '{{.EXTRA_TAGS}}'
+
+  run:
+    summary: Runs the built desktop application for the current OS
+    cmds:
+      - task: '{{OS}}:run'
+
+  dev:
+    summary: Runs the application in Wails dev mode
+    cmds:
+      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+
+  generate:bindings:
+    summary: Regenerates Wails v3 TypeScript bindings
+    cmds:
+      - task: common:generate:bindings

@@ -5,15 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "build:dev": "vite build --minify false --mode development",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "wails:dev": "wails dev -m",
-    "wails:build": "wails build -clean -m && node scripts/package-wails-release.mjs",
-    "wails:build:debug": "wails build -debug -clean -m",
+    "wails:generate": "wails3 task generate:bindings",
+    "wails:dev": "wails3 task dev",
+    "wails:build": "wails3 task build && node scripts/package-wails-release.mjs",
+    "wails:build:debug": "wails3 task build DEV=true",
     "wails:package": "node scripts/package-wails-release.mjs"
   },
   "dependencies": {
+    "@wailsio/runtime": "3.0.0-alpha.74",
     "@babylonjs/core": "^8.55.3",
     "@babylonjs/ktx2decoder": "^8.55.3",
     "@radix-ui/react-label": "^2.1.8",

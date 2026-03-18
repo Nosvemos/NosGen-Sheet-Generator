@@ -4,15 +4,13 @@ import path from "node:path";
 
 const rootDir = process.cwd();
 const packageJsonPath = path.join(rootDir, "package.json");
-const wailsConfigPath = path.join(rootDir, "wails.json");
 const buildBinDir = path.join(rootDir, "build", "bin");
 const outputDir = path.join(rootDir, "dist", "release");
 
 const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
-const wailsConfig = JSON.parse(await readFile(wailsConfigPath, "utf8"));
 
 const version = packageJson.version || "0.0.0";
-const outputName = wailsConfig.outputfilename || packageJson.name || "app";
+const outputName = packageJson.name || "app";
 
 const addEntryToZip = async (zip, entryPath, zipPath) => {
   const entryStat = await stat(entryPath);

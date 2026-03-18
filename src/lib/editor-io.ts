@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { App } from "../../bindings/nosgen";
 import type { TranslationKey } from "@/lib/i18n";
 import type {
   AppMode,
@@ -94,10 +95,6 @@ type DesktopFileFilter = {
   extensions: string[];
 };
 
-const isWailsRuntime = () =>
-  typeof window !== "undefined" &&
-  typeof window.go?.main?.App?.SaveFile === "function";
-
 type SaveFilePicker = (options?: {
   suggestedName?: string;
   types?: Array<{ description?: string; accept: Record<string, string[]> }>;
@@ -135,7 +132,7 @@ const saveBlobWithDialog = async (
   filters: DesktopFileFilter[]
 ) => {
   const picker = getSaveFilePicker();
-  if (!isWailsRuntime() && picker) {
+  if (picker) {
     try {
       const types = filters.map((filter) => ({
         description: filter.name,
@@ -160,10 +157,6 @@ const saveBlobWithDialog = async (
       console.warn(error);
     }
   }
-  if (!isWailsRuntime()) {
-    downloadBlob(blob, filename);
-    return;
-  }
 
   const encodeBlobAsBase64 = async (source: Blob) => {
     const data = new Uint8Array(await source.arrayBuffer());
@@ -178,12 +171,7 @@ const saveBlobWithDialog = async (
 
   try {
     const isJson = blob.type === "application/json" || filename.endsWith(".json");
-    const saveFile = window.go?.main?.App?.SaveFile;
-    if (!saveFile) {
-      downloadBlob(blob, filename);
-      return;
-    }
-    const savedPath = await saveFile({
+    const savedPath = await App.SaveFile({
       filename,
       data: isJson ? await blob.text() : await encodeBlobAsBase64(blob),
       isBinary: !isJson,
@@ -194,6 +182,7 @@ const saveBlobWithDialog = async (
     }
   } catch (error) {
     console.error(error);
+    downloadBlob(blob, filename);
   }
 };
 
