@@ -170,13 +170,6 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Install Wails CLI
-        shell: bash
-        run: |
-          set -euo pipefail
-          go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-alpha.74
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
         shell: bash
@@ -194,6 +187,13 @@ jobs:
           pkg-config --variable pc_path pkg-config
           pkg-config --exists gtk+-3.0 webkit2gtk-4.1
           pkg-config --modversion gtk+-3.0 webkit2gtk-4.1
+
+      - name: Install Wails CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-alpha.74
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: Build desktop app
         shell: bash
