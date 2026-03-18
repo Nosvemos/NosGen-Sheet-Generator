@@ -3,6 +3,7 @@ export type EditorMode = "select" | "add";
 export type ViewMode = "frame" | "atlas";
 export type ThemeMode = "dark" | "light";
 export type AppMode = "character" | "animation" | "normal";
+export type AtlasImageFormat = "png" | "webp" | "ktx2";
 
 export type FramePoint = {
   id: string;

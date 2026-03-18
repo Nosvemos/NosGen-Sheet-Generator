@@ -1,7 +1,5 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -11,6 +9,7 @@ import {
 import { createPortal } from "react-dom";
 import { AlertTriangle, CheckCircle, Info, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ToastContext } from "@/components/ui/toast-context";
 import { createId } from "@/lib/editor-helpers";
 
 export type ToastVariant = "info" | "warning" | "success";
@@ -24,13 +23,6 @@ export type ToastPayload = {
 type ToastEntry = ToastPayload & {
   id: string;
 };
-
-type ToastContextValue = {
-  pushToast: (toast: ToastPayload) => void;
-  dismissToast: (id: string) => void;
-};
-
-const ToastContext = createContext<ToastContextValue | null>(null);
 
 const VARIANT_STYLES: Record<ToastVariant, string> = {
   info: "border-sky-400/40 bg-sky-500/10 text-sky-50",
@@ -68,9 +60,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    const timeouts = timeoutsRef.current;
     return () => {
-      timeoutsRef.current.forEach((timeout) => window.clearTimeout(timeout));
-      timeoutsRef.current.clear();
+      timeouts.forEach((timeout) => window.clearTimeout(timeout));
+      timeouts.clear();
     };
   }, []);
 
@@ -124,11 +117,3 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     </ToastContext.Provider>
   );
 }
-
-export const useToast = () => {
-  const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error("useToast must be used within ToastProvider");
-  }
-  return context;
-};

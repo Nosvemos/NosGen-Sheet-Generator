@@ -1,10 +1,9 @@
 import {
-  createContext,
-  useContext,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
+import { I18nContext } from "@/lib/i18n-context";
 
 export type Locale = "en";
 
@@ -61,18 +60,19 @@ const translations = {
     "label.theme": "Theme",
     "label.frames": "Frames",
     "label.normalFrames": "Frame Names",
-    "label.pngFrames": "PNG Frames",
+    "label.pngFrames": "Image Frames",
     "label.importJson": "Import Points JSON",
     "label.atlasImport": "Atlas Import",
     "label.newAtlas": "New Atlas",
     "label.pointsJson": "Points JSON",
     "label.editCurrent": "Edit Current",
-    "label.atlasPng": "Sprite Sheet PNG",
+    "label.atlasPng": "Sprite Sheet Image",
     "label.atlasJson": "Atlas JSON",
     "label.frame": "Frame",
     "label.exportQuality": "Export Quality",
     "label.exportScale": "Export Scale",
     "label.exportMetaSize": "Metadata Size",
+    "label.exportFormat": "Atlas Format",
     "label.smoothing": "Smoothing",
     "label.pointGroups": "Point Groups",
     "label.groupEditor": "Group Editor",
@@ -95,9 +95,10 @@ const translations = {
     "action.selectAll": "Select all",
     "action.clearAll": "Clear",
     "action.clearFrames": "Clear Frames",
-    "action.addFrames": "Add PNG Frames",
-    "action.exportPng": "Export Atlas PNG",
+    "action.addFrames": "Add Image Frames",
+    "action.exportPng": "Export Atlas Image",
     "action.exportJson": "Export Points JSON",
+    "action.exportBundle": "Export Bundle ZIP",
     "action.exportFramesZip": "Export Frames ZIP",
     "action.autoFill": "Auto Fill",
     "action.toggleKeyframes": "Toggle keyframes panel",
@@ -155,8 +156,8 @@ const translations = {
     "placeholder.pointName": "point-name",
     "hint.pivotExport": "Exports use this origin.",
     "hint.noPoints": "Click on the frame to add points.",
-    "hint.noFramesTitle": "Import PNG frames",
-    "hint.noFramesBody": "Use the right panel to pick multiple PNGs.",
+    "hint.noFramesTitle": "Import image frames",
+    "hint.noFramesBody": "Use the right panel to pick multiple atlas images.",
     "hint.noFrames": "Import frames to build an animation.",
     "hint.normalFrames": "Rename frames for UI panels or custom exports.",
     "hint.fileOrder": "Order follows file selection.",
@@ -183,8 +184,11 @@ const translations = {
     "hint.noGroups": "Create a group to organize points.",
     "hint.noGroupPoints": "Load points to assign them to this index.",
     "hint.noPointsInIndex": "No points added to this index.",
+    "format.png": "PNG",
+    "format.webp": "WebP",
+    "format.ktx2": "KTX2",
     "warn.missingFramesTitle": "Missing frames",
-    "warn.missingFramesBody": "No frames are loaded. Import PNG frames first.",
+    "warn.missingFramesBody": "No frames are loaded. Import image frames first.",
     "warn.sizeMismatchTitle": "Frame size mismatch",
     "warn.sizeMismatchBody": "Frames have different dimensions.",
     "warn.unassignedPointsTitle": "Unassigned points",
@@ -225,14 +229,6 @@ const translations = {
 
 type TranslationKey = keyof typeof translations.en;
 
-type I18nContextValue = {
-  locale: Locale;
-  setLocale: (locale: Locale) => void;
-  t: (key: TranslationKey, params?: Record<string, string | number>) => string;
-};
-
-const I18nContext = createContext<I18nContextValue | undefined>(undefined);
-
 const translate = (
   locale: Locale,
   key: TranslationKey,
@@ -265,14 +261,6 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   );
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
-}
-
-export function useI18n() {
-  const context = useContext(I18nContext);
-  if (!context) {
-    throw new Error("useI18n must be used within an I18nProvider");
-  }
-  return context;
 }
 
 export type { TranslationKey };

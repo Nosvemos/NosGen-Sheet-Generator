@@ -5,6 +5,7 @@ import type {
   PivotMode,
   SpriteDirection,
 } from "@/lib/editor-types";
+import { loadAtlasImageFromFile } from "@/lib/texture-codecs";
 
 export const SPEED_OPTIONS = [0.25, 0.5, 1, 2, 4];
 export const MIN_EXPORT_SCALE = 0.25;
@@ -496,43 +497,19 @@ export const interpolateTangent = (
   };
 };
 
-export const loadFrameFromFile = (file: File): Promise<FrameData> =>
-  new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      const frame: FrameData = {
-        id: createId(),
-        name: file.name,
-        image: img,
-        width: img.naturalWidth || img.width,
-        height: img.naturalHeight || img.height,
-        points: [],
-      };
-      URL.revokeObjectURL(url);
-      resolve(frame);
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error(`Failed to load ${file.name}`));
-    };
-    img.src = url;
-  });
+export const loadFrameFromFile = async (file: File): Promise<FrameData> => {
+  const img = await loadAtlasImageFromFile(file);
+  return {
+    id: createId(),
+    name: file.name,
+    image: img,
+    width: img.naturalWidth || img.width,
+    height: img.naturalHeight || img.height,
+    points: [],
+  };
+};
 
-export const loadImageFromFile = (file: File): Promise<HTMLImageElement> =>
-  new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(img);
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error(`Failed to load ${file.name}`));
-    };
-    img.src = url;
-  });
+export const loadImageFromFile = (file: File) => loadAtlasImageFromFile(file);
 
 export const downloadBlob = (blob: Blob, filename: string) => {
   const url = URL.createObjectURL(blob);

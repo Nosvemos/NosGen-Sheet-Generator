@@ -1,5 +1,5 @@
 import { MainStage } from "@/components/editor/MainStage";
-import { useEditorContext } from "@/context/editor-context";
+import { useEditorContext } from "@/context/use-editor-context";
 
 export function MainStageContainer() {
   const { mainStage } = useEditorContext();

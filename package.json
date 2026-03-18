@@ -16,6 +16,8 @@
     "neu:update": "neu update"
   },
   "dependencies": {
+    "@babylonjs/core": "^8.55.3",
+    "@babylonjs/ktx2decoder": "^8.55.3",
     "@neutralinojs/lib": "^6.4.0",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-scroll-area": "^1.2.10",
@@ -29,6 +31,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "jszip": "^3.10.1",
+    "ktx-parse": "^0.7.1",
+    "ktx2-encoder": "^0.5.1",
     "lucide-react": "^0.562.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

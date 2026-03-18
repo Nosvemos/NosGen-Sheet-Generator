@@ -1,5 +1,5 @@
 import { RightSidebar } from "@/components/editor/RightSidebar";
-import { useEditorContext } from "@/context/editor-context";
+import { useEditorContext } from "@/context/use-editor-context";
 
 export function RightSidebarContainer() {
   const { rightSidebar } = useEditorContext();

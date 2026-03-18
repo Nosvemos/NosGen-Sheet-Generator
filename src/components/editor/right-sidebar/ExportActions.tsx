@@ -14,6 +14,7 @@ type ExportActionsProps = {
   framesLength: number;
   handleExportPng: () => void;
   handleExportJson: () => void;
+  handleExportBundle: () => void;
   handleExportFramesZip: () => void;
   pivotMode: PivotMode;
   pivotLabels: Record<PivotMode, string>;
@@ -24,6 +25,7 @@ export function ExportActions({
   framesLength,
   handleExportPng,
   handleExportJson,
+  handleExportBundle,
   handleExportFramesZip,
   pivotMode,
   pivotLabels,
@@ -43,6 +45,14 @@ export function ExportActions({
         >
           <Download className="mr-2 h-4 w-4" />
           {t("action.exportJson")}
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={handleExportBundle}
+          disabled={framesLength === 0}
+        >
+          <Download className="mr-2 h-4 w-4" />
+          {t("action.exportBundle")}
         </Button>
         <Button
           variant="outline"

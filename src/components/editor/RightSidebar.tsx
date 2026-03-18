@@ -1,7 +1,13 @@
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { Separator } from "@/components/ui/separator";
 import type { TranslationKey } from "@/lib/i18n";
-import type { AppMode, AtlasLayout, PivotMode, SpriteDirection } from "@/lib/editor-types";
+import type {
+  AppMode,
+  AtlasImageFormat,
+  AtlasLayout,
+  PivotMode,
+  SpriteDirection,
+} from "@/lib/editor-types";
 import { AtlasSettingsCard } from "@/components/editor/right-sidebar/AtlasSettingsCard";
 import { AtlasImportCard } from "@/components/editor/right-sidebar/AtlasImportCard";
 import { ExportActions } from "@/components/editor/right-sidebar/ExportActions";
@@ -52,8 +58,11 @@ export type RightSidebarProps = {
   setExportSmoothing: Dispatch<SetStateAction<boolean>>;
   exportSize: number;
   setExportSize: Dispatch<SetStateAction<number>>;
+  exportFormat: AtlasImageFormat;
+  setExportFormat: Dispatch<SetStateAction<AtlasImageFormat>>;
   handleExportPng: () => void;
   handleExportJson: () => void;
+  handleExportBundle: () => void;
   handleExportFramesZip: () => void;
   pivotMode: PivotMode;
   pivotLabels: Record<PivotMode, string>;
@@ -100,8 +109,11 @@ export function RightSidebar({
   setExportSmoothing,
   exportSize,
   setExportSize,
+  exportFormat,
+  setExportFormat,
   handleExportPng,
   handleExportJson,
+  handleExportBundle,
   handleExportFramesZip,
   pivotMode,
   pivotLabels,
@@ -164,6 +176,8 @@ export function RightSidebar({
         setExportSmoothing={setExportSmoothing}
         exportSize={exportSize}
         setExportSize={setExportSize}
+        exportFormat={exportFormat}
+        setExportFormat={setExportFormat}
         toNumber={toNumber}
         minExportScale={minExportScale}
         maxExportScale={maxExportScale}
@@ -177,6 +191,7 @@ export function RightSidebar({
         framesLength={framesLength}
         handleExportPng={handleExportPng}
         handleExportJson={handleExportJson}
+        handleExportBundle={handleExportBundle}
         handleExportFramesZip={handleExportFramesZip}
         pivotMode={pivotMode}
         pivotLabels={pivotLabels}

@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import type {
   AppMode,
+  AtlasImageFormat,
   AutoFillShape,
   EditorMode,
   FrameData,
@@ -41,6 +42,7 @@ export type EditorState = {
   exportScale: number;
   exportSmoothing: boolean;
   exportSize: number;
+  exportFormat: AtlasImageFormat;
   isSpriteSettingsOpen: boolean;
   isAtlasSettingsOpen: boolean;
   isExportQualityOpen: boolean;
@@ -141,6 +143,7 @@ export const createInitialEditorState = (): EditorState => {
     exportScale: 1,
     exportSmoothing: false,
     exportSize: 1,
+    exportFormat: "png",
     isSpriteSettingsOpen: true,
     isAtlasSettingsOpen: true,
     isExportQualityOpen: true,
@@ -197,6 +200,7 @@ const HISTORY_LABEL_OVERRIDES: Partial<Record<keyof EditorState, string>> = {
   exportScale: "Export scale",
   exportSmoothing: "Export smoothing",
   exportSize: "Export size",
+  exportFormat: "Export format",
   isSpriteSettingsOpen: "Sprite settings",
   isAtlasSettingsOpen: "Atlas settings",
   isExportQualityOpen: "Export quality",

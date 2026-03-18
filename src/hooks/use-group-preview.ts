@@ -50,8 +50,7 @@ export const useGroupPreview = ({
     return () => window.clearInterval(timer);
   }, [
     isGroupPreviewPlaying,
-    selectedGroup?.id,
-    selectedGroup?.entries.length,
+    selectedGroup,
     fps,
     speed,
     setGroupPreviewIndex,

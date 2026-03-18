@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { TranslationKey } from "@/lib/i18n";
+import { ATLAS_IMAGE_ACCEPT } from "@/lib/texture-codecs";
 import { Plus, Trash2 } from "lucide-react";
 
 type Translate = (
@@ -57,7 +58,7 @@ export function AtlasImportCard({
       <Input
         ref={appendFramesInputRef}
         type="file"
-        accept="image/png"
+        accept={ATLAS_IMAGE_ACCEPT}
         multiple
         className="hidden"
         hidden
@@ -80,7 +81,7 @@ export function AtlasImportCard({
             <Input
               ref={framesInputRef}
               type="file"
-              accept="image/png"
+              accept={ATLAS_IMAGE_ACCEPT}
               multiple
               onChange={(event) => {
                 if (event.target.files?.length) {
@@ -142,7 +143,7 @@ export function AtlasImportCard({
             <Input
               ref={editAtlasPngInputRef}
               type="file"
-              accept="image/png"
+              accept={ATLAS_IMAGE_ACCEPT}
               onChange={(event) =>
                 setEditAtlasPngFile(event.target.files?.[0] ?? null)
               }

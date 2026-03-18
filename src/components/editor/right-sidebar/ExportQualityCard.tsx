@@ -1,10 +1,18 @@
 import type { Dispatch, SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import type { TranslationKey } from "@/lib/i18n";
+import type { AtlasImageFormat } from "@/lib/editor-types";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 type Translate = (
@@ -22,6 +30,8 @@ type ExportQualityCardProps = {
   setExportSmoothing: Dispatch<SetStateAction<boolean>>;
   exportSize: number;
   setExportSize: Dispatch<SetStateAction<number>>;
+  exportFormat: AtlasImageFormat;
+  setExportFormat: Dispatch<SetStateAction<AtlasImageFormat>>;
   toNumber: (value: string, fallback: number) => number;
   minExportScale: number;
   maxExportScale: number;
@@ -38,6 +48,8 @@ export function ExportQualityCard({
   setExportSmoothing,
   exportSize,
   setExportSize,
+  exportFormat,
+  setExportFormat,
   toNumber,
   minExportScale,
   maxExportScale,
@@ -87,6 +99,26 @@ export function ExportQualityCard({
               onCheckedChange={setExportSmoothing}
             />
             <Label htmlFor="export-smoothing">{t("label.smoothing")}</Label>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">
+              {t("label.exportFormat")}
+            </Label>
+            <Select
+              value={exportFormat}
+              onValueChange={(value) =>
+                setExportFormat(value as AtlasImageFormat)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={t("label.exportFormat")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="png">{t("format.png")}</SelectItem>
+                <SelectItem value="webp">{t("format.webp")}</SelectItem>
+                <SelectItem value="ktx2">{t("format.ktx2")}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">

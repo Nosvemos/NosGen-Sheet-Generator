@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { TranslationKey } from "@/lib/i18n";
 import type {
   AppMode,
+  AtlasImageFormat,
   FrameData,
   PivotMode,
   PointGroup,
@@ -14,6 +15,7 @@ import {
   importPointsIntoFrames,
 } from "@/lib/editor-io";
 import { loadFrameFromFile } from "@/lib/editor-helpers";
+import { isSupportedAtlasImageFile } from "@/lib/texture-codecs";
 
 type Translate = (
   key: TranslationKey,
@@ -43,6 +45,7 @@ type UseAtlasIOParams = {
   setLoop: Dispatch<SetStateAction<boolean>>;
   setProjectName: Dispatch<SetStateAction<string>>;
   setExportSize: Dispatch<SetStateAction<number>>;
+  setExportFormat: Dispatch<SetStateAction<AtlasImageFormat>>;
   setAnimationFrameSelection: Dispatch<SetStateAction<Record<string, boolean>>>;
 };
 
@@ -85,6 +88,7 @@ export const useAtlasIO = ({
   setLoop,
   setProjectName,
   setExportSize,
+  setExportFormat,
   setAnimationFrameSelection,
 }: UseAtlasIOParams): UseAtlasIOResult => {
   const framesInputRef = useRef<HTMLInputElement>(null);
@@ -97,32 +101,35 @@ export const useAtlasIO = ({
   const [isEditImporting, setIsEditImporting] = useState(false);
   const [hasEditImport, setHasEditImport] = useState(false);
 
-  const resetSelection = () => {
+  const resetSelection = useCallback(() => {
     setCurrentFrameIndex(0);
     setSelectedPointId(null);
     setIsPlaying(false);
     setIsGroupPreviewActive(false);
     setIsGroupPreviewPlaying(false);
     setGroupPreviewIndex(0);
-  };
+  }, [
+    setCurrentFrameIndex,
+    setGroupPreviewIndex,
+    setIsGroupPreviewActive,
+    setIsGroupPreviewPlaying,
+    setIsPlaying,
+    setSelectedPointId,
+  ]);
 
   const handleNewAtlasCreate = async () => {
     const files = framesInputRef.current?.files;
     if (!files || files.length === 0) {
       return;
     }
-    const pngFiles = Array.from(files).filter(
-      (file) =>
-        file.type === "image/png" ||
-        file.name.toLowerCase().endsWith(".png")
-    );
-    if (pngFiles.length === 0) {
+    const imageFiles = Array.from(files).filter(isSupportedAtlasImageFile);
+    if (imageFiles.length === 0) {
       return;
     }
     const pointsFile = newPointsInputRef.current?.files?.[0] ?? null;
     try {
       const result = await createNewAtlasFromFiles({
-        pngFiles,
+        imageFiles,
         pointsFile,
         t,
       });
@@ -157,17 +164,13 @@ export const useAtlasIO = ({
     if (!files || files.length === 0) {
       return;
     }
-    const pngFiles = Array.from(files).filter(
-      (file) =>
-        file.type === "image/png" ||
-        file.name.toLowerCase().endsWith(".png")
-    );
-    if (pngFiles.length === 0) {
+    const imageFiles = Array.from(files).filter(isSupportedAtlasImageFile);
+    if (imageFiles.length === 0) {
       return;
     }
     try {
       const loaded = await Promise.all(
-        pngFiles.map((file) => loadFrameFromFile(file))
+        imageFiles.map((file) => loadFrameFromFile(file))
       );
       setFrames((prev) => [...prev, ...loaded]);
     } catch (error) {
@@ -222,53 +225,78 @@ export const useAtlasIO = ({
     setHasEditImport(false);
   };
 
-  const handleEditAtlasImport = async (pngFile: File, jsonFile: File) => {
-    const imported = await importAtlasFromFiles({ pngFile, jsonFile, t });
-    if (!imported) {
-      return;
-    }
-    if (imported.spriteDirection) {
-      setSpriteDirection(imported.spriteDirection);
-    }
-    if (imported.pivotMode) {
-      setPivotMode(imported.pivotMode);
-    }
-    if (typeof imported.rows === "number") {
-      setRows(imported.rows);
-    }
-    if (typeof imported.padding === "number") {
-      setPadding(imported.padding);
-    }
-    if (imported.appMode) {
-      setAppMode(imported.appMode);
-    }
-    if (imported.animation?.name) {
-      setAnimationName(imported.animation.name);
-    }
-    if (typeof imported.animation?.fps === "number") {
-      setFps(imported.animation.fps);
-    }
-    if (typeof imported.animation?.speed === "number") {
-      setSpeed(imported.animation.speed);
-    }
-    if (typeof imported.animation?.loop === "boolean") {
-      setLoop(imported.animation.loop);
-    }
-    if (imported.projectName) {
-      setProjectName(imported.projectName);
-    }
-    if (typeof imported.exportSize === "number") {
-      setExportSize(imported.exportSize);
-    }
-    setPointGroups(imported.pointGroups);
-    setSelectedGroupId(imported.pointGroups[0]?.id ?? null);
-    if (imported.animation?.frameSelection) {
-      setAnimationFrameSelection(imported.animation.frameSelection);
-    }
-    setFrames(imported.frames);
-    setHasEditImport(true);
-    resetSelection();
-  };
+  const handleEditAtlasImport = useCallback(
+    async (pngFile: File, jsonFile: File) => {
+      const imported = await importAtlasFromFiles({ pngFile, jsonFile, t });
+      if (!imported) {
+        return;
+      }
+      if (imported.spriteDirection) {
+        setSpriteDirection(imported.spriteDirection);
+      }
+      if (imported.pivotMode) {
+        setPivotMode(imported.pivotMode);
+      }
+      if (typeof imported.rows === "number") {
+        setRows(imported.rows);
+      }
+      if (typeof imported.padding === "number") {
+        setPadding(imported.padding);
+      }
+      if (imported.appMode) {
+        setAppMode(imported.appMode);
+      }
+      if (imported.animation?.name) {
+        setAnimationName(imported.animation.name);
+      }
+      if (typeof imported.animation?.fps === "number") {
+        setFps(imported.animation.fps);
+      }
+      if (typeof imported.animation?.speed === "number") {
+        setSpeed(imported.animation.speed);
+      }
+      if (typeof imported.animation?.loop === "boolean") {
+        setLoop(imported.animation.loop);
+      }
+      if (imported.projectName) {
+        setProjectName(imported.projectName);
+      }
+      if (typeof imported.exportSize === "number") {
+        setExportSize(imported.exportSize);
+      }
+      if (imported.exportFormat) {
+        setExportFormat(imported.exportFormat);
+      }
+      setPointGroups(imported.pointGroups);
+      setSelectedGroupId(imported.pointGroups[0]?.id ?? null);
+      if (imported.animation?.frameSelection) {
+        setAnimationFrameSelection(imported.animation.frameSelection);
+      }
+      setFrames(imported.frames);
+      setHasEditImport(true);
+      resetSelection();
+    },
+    [
+      setAnimationFrameSelection,
+      setAnimationName,
+      setAppMode,
+      setExportFormat,
+      setExportSize,
+      setFps,
+      setFrames,
+      setLoop,
+      setPadding,
+      setPivotMode,
+      setPointGroups,
+      setProjectName,
+      setRows,
+      setSelectedGroupId,
+      setSpeed,
+      setSpriteDirection,
+      resetSelection,
+      t,
+    ]
+  );
 
   useEffect(() => {
     if (!editAtlasPngFile || !editAtlasJsonFile) {
@@ -299,7 +327,7 @@ export const useAtlasIO = ({
     return () => {
       cancelled = true;
     };
-  }, [editAtlasPngFile, editAtlasJsonFile]);
+  }, [editAtlasPngFile, editAtlasJsonFile, handleEditAtlasImport]);
 
   return {
     framesInputRef,

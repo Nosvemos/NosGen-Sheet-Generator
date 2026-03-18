@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { TranslationKey } from "@/lib/i18n";
 import type { AppMode } from "@/lib/editor-types";
-import { useToast } from "@/components/ui/toast";
+import { useToast } from "@/components/ui/use-toast";
 
 type Translate = (
   key: TranslationKey,

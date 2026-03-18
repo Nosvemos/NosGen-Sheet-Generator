@@ -1,5 +1,5 @@
 import { useMemo, useReducer, useRef } from "react";
-import { useI18n } from "@/lib/i18n";
+import { useI18n } from "@/lib/use-i18n";
 import type { LeftSidebarProps } from "@/components/editor/LeftSidebar";
 import type { MainStageProps } from "@/components/editor/MainStage";
 import type { RightSidebarProps } from "@/components/editor/RightSidebar";
@@ -22,7 +22,12 @@ import { useStageInteractions } from "@/hooks/use-stage-interactions";
 import { useStageSizing } from "@/hooks/use-stage-sizing";
 import { useValidationAlerts } from "@/hooks/use-validation-alerts";
 import { useHotkeys } from "@/hooks/use-hotkeys";
-import { exportAtlasJson, exportAtlasPng, exportFramesZip } from "@/lib/editor-io";
+import {
+  exportAtlasBundle,
+  exportAtlasJson,
+  exportAtlasPng,
+  exportFramesZip,
+} from "@/lib/editor-io";
 import { DEFAULT_HOTKEYS } from "@/lib/hotkeys";
 import {
   EXPORT_SCALE_STEP,
@@ -73,6 +78,7 @@ export function useEditorPanels() {
     exportScale,
     exportSmoothing,
     exportSize,
+    exportFormat,
     isSpriteSettingsOpen,
     isAtlasSettingsOpen,
     isExportQualityOpen,
@@ -128,6 +134,7 @@ export function useEditorPanels() {
       setExportScale: createStateSetter(dispatch, "exportScale"),
       setExportSmoothing: createStateSetter(dispatch, "exportSmoothing"),
       setExportSize: createStateSetter(dispatch, "exportSize"),
+      setExportFormat: createStateSetter(dispatch, "exportFormat"),
       setIsSpriteSettingsOpen: createStateSetter(dispatch, "isSpriteSettingsOpen"),
       setIsAtlasSettingsOpen: createStateSetter(dispatch, "isAtlasSettingsOpen"),
       setIsExportQualityOpen: createStateSetter(dispatch, "isExportQualityOpen"),
@@ -209,6 +216,7 @@ export function useEditorPanels() {
     setExportScale,
     setExportSmoothing,
     setExportSize,
+    setExportFormat,
     setIsSpriteSettingsOpen,
     setIsAtlasSettingsOpen,
     setIsExportQualityOpen,
@@ -342,6 +350,7 @@ export function useEditorPanels() {
     setLoop,
     setProjectName,
     setExportSize,
+    setExportFormat,
     setAnimationFrameSelection,
   });
 
@@ -497,6 +506,7 @@ export function useEditorPanels() {
       padding,
       exportScale,
       exportSmoothing,
+      exportFormat,
       exportAtlasName,
       minScale: MIN_EXPORT_SCALE,
       maxScale: MAX_EXPORT_SCALE,
@@ -518,6 +528,7 @@ export function useEditorPanels() {
       speed,
       loop,
       exportSize,
+      exportFormat,
       minScale: MIN_EXPORT_SCALE,
       maxScale: MAX_EXPORT_SCALE,
       selectedAnimationFrames,
@@ -528,6 +539,30 @@ export function useEditorPanels() {
 
   const handleExportFramesZip = () => {
     void exportFramesZip({ frames, exportAtlasName });
+  };
+
+  const handleExportBundle = () => {
+    void exportAtlasBundle({
+      frames,
+      rows,
+      padding,
+      exportScale,
+      exportSmoothing,
+      pivotMode,
+      spriteDirection,
+      appMode,
+      pointGroups,
+      animationName,
+      fps,
+      speed,
+      loop,
+      exportSize,
+      minScale: MIN_EXPORT_SCALE,
+      maxScale: MAX_EXPORT_SCALE,
+      selectedAnimationFrames,
+      exportAtlasName,
+      exportDataName,
+    });
   };
 
   const {
@@ -845,8 +880,11 @@ export function useEditorPanels() {
     setExportSmoothing,
     exportSize,
     setExportSize,
+    exportFormat,
+    setExportFormat,
     handleExportPng,
     handleExportJson,
+    handleExportBundle,
     handleExportFramesZip,
     pivotMode,
     pivotLabels,

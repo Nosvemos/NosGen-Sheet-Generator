@@ -2,6 +2,7 @@ import JSZip from "jszip";
 import type { TranslationKey } from "@/lib/i18n";
 import type {
   AppMode,
+  AtlasImageFormat,
   FrameData,
   PivotMode,
   PointGroup,
@@ -17,6 +18,11 @@ import {
   loadImageFromFile,
   toPivotCoords,
 } from "@/lib/editor-helpers";
+import {
+  encodeCanvasToAtlasBlob,
+  getAtlasImageFilename,
+  getAtlasImageFormat,
+} from "@/lib/texture-codecs";
 
 type Translate = (
   key: TranslationKey,
@@ -48,6 +54,7 @@ type AtlasImportResult = {
   };
   projectName?: string;
   exportSize?: number;
+  exportFormat?: AtlasImageFormat;
 };
 
 type AtlasEntry = {
@@ -56,6 +63,30 @@ type AtlasEntry = {
   y: number;
   w: number;
   h: number;
+};
+
+type AtlasExportCommonParams = {
+  frames: FrameData[];
+  rows: number;
+  padding: number;
+  exportScale: number;
+  minScale: number;
+  maxScale: number;
+};
+
+type AtlasJsonExportParams = AtlasExportCommonParams & {
+  pivotMode: PivotMode;
+  spriteDirection: SpriteDirection;
+  appMode: AppMode;
+  pointGroups: PointGroup[];
+  animationName: string;
+  fps: number;
+  speed: number;
+  loop: boolean;
+  exportSize: number;
+  exportFormat: AtlasImageFormat;
+  selectedAnimationFrames: FrameData[];
+  exportAtlasName: string;
 };
 
 const isNeutralinoRuntime = () =>
@@ -203,6 +234,163 @@ const frameToPngBlob = async (frame: FrameData) => {
   return new Blob([bytes], { type: "image/png" });
 };
 
+const createAtlasCanvas = ({
+  frames,
+  rows,
+  padding,
+  exportScale,
+  exportSmoothing,
+  minScale,
+  maxScale,
+}: AtlasExportCommonParams & { exportSmoothing: boolean }) => {
+  if (frames.length === 0) {
+    return null;
+  }
+  const layout = computeAtlasLayout(frames, rows, padding);
+  const scale = clamp(exportScale, minScale, maxScale);
+  const targetWidth = Math.max(1, Math.round(layout.width * scale));
+  const targetHeight = Math.max(1, Math.round(layout.height * scale));
+  const scaleX = targetWidth / layout.width;
+  const scaleY = targetHeight / layout.height;
+  const canvas = document.createElement("canvas");
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return null;
+  }
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.imageSmoothingEnabled = exportSmoothing;
+  if (exportSmoothing) {
+    ctx.imageSmoothingQuality = "high";
+  }
+  layout.positions.forEach((cell, index) => {
+    const frame = frames[index];
+    if (!frame) {
+      return;
+    }
+    const offsetX = Math.floor((layout.cellWidth - frame.width) / 2);
+    const offsetY = Math.floor((layout.cellHeight - frame.height) / 2);
+    ctx.drawImage(
+      frame.image,
+      (cell.x + offsetX) * scaleX,
+      (cell.y + offsetY) * scaleY,
+      frame.width * scaleX,
+      frame.height * scaleY
+    );
+  });
+  return {
+    canvas,
+    layout,
+    targetWidth,
+    targetHeight,
+    scaleX,
+    scaleY,
+  };
+};
+
+const buildAtlasJsonPayload = ({
+  frames,
+  rows,
+  padding,
+  exportScale,
+  pivotMode,
+  spriteDirection,
+  appMode,
+  pointGroups,
+  animationName,
+  fps,
+  speed,
+  loop,
+  exportSize,
+  exportFormat,
+  minScale,
+  maxScale,
+  selectedAnimationFrames,
+  exportAtlasName,
+}: AtlasJsonExportParams) => {
+  if (frames.length === 0) {
+    return null;
+  }
+  const layout = computeAtlasLayout(frames, rows, padding);
+  const scale = clamp(exportScale, minScale, maxScale);
+  const targetWidth = Math.max(1, Math.round(layout.width * scale));
+  const targetHeight = Math.max(1, Math.round(layout.height * scale));
+  const scaleX = targetWidth / layout.width;
+  const scaleY = targetHeight / layout.height;
+  const includePoints = appMode === "character";
+  const exportedFrames = frames.map((frame, index) => {
+    const cell = layout.positions[index];
+    const offsetX = Math.floor((layout.cellWidth - frame.width) / 2);
+    const offsetY = Math.floor((layout.cellHeight - frame.height) / 2);
+    const base = {
+      name: frame.name,
+      x: Math.round((cell.x + offsetX) * scaleX),
+      y: Math.round((cell.y + offsetY) * scaleY),
+      w: Math.round(frame.width * scaleX),
+      h: Math.round(frame.height * scaleY),
+    };
+    if (!includePoints) {
+      return base;
+    }
+    return {
+      ...base,
+      points: frame.points.map((point) => {
+        const pivotPoint = toPivotCoords(point, frame, pivotMode);
+        return {
+          name: point.name,
+          x: Math.round(pivotPoint.x * scaleX),
+          y: Math.round(pivotPoint.y * scaleY),
+        };
+      }),
+    };
+  });
+
+  let groups: Record<string, string[][]> | undefined;
+  if (includePoints && pointGroups.length > 0) {
+    const idToName = new Map<string, string>();
+    frames[0]?.points.forEach((point) => {
+      idToName.set(point.id, point.name);
+    });
+    groups = pointGroups.reduce<Record<string, string[][]>>((acc, group) => {
+      const safeName = group.name || `group-${group.id.slice(0, 6)}`;
+      acc[safeName] = group.entries.map((entry) =>
+        entry.map((id) => idToName.get(id) ?? id)
+      );
+      return acc;
+    }, {});
+  }
+
+  const animation =
+    appMode === "animation"
+      ? {
+          name: animationName.trim() || "animation",
+          fps,
+          speed,
+          loop,
+          frames: selectedAnimationFrames.map((frame) => frame.name),
+        }
+      : undefined;
+
+  return {
+    meta: {
+      app: "NosGen",
+      image: getAtlasImageFilename(exportAtlasName, exportFormat),
+      size: { w: targetWidth, h: targetHeight },
+      rows: layout.rows,
+      columns: layout.columns,
+      padding: Math.round(layout.padding * scaleX),
+      scale: exportSize,
+      pivot: pivotMode,
+      ...(appMode === "character" ? { spriteDirection } : {}),
+      mode: appMode,
+    },
+    ...(groups ? { groups } : {}),
+    ...(animation ? { animation } : {}),
+    frames: exportedFrames,
+  };
+};
+
 const parseAtlasEntries = (parsed: unknown): AtlasEntry[] => {
   if (!parsed || typeof parsed !== "object") {
     return [];
@@ -292,16 +480,16 @@ const sliceAtlasFrames = async (
 };
 
 export const createNewAtlasFromFiles = async ({
-  pngFiles,
+  imageFiles,
   pointsFile,
   t,
 }: {
-  pngFiles: File[];
+  imageFiles: File[];
   pointsFile?: File | null;
   t: Translate;
 }): Promise<NewAtlasResult> => {
   const loaded = await Promise.all(
-    pngFiles.map((file) => loadFrameFromFile(file))
+    imageFiles.map((file) => loadFrameFromFile(file))
   );
   let nextFrames = loaded;
   let spriteDirection: SpriteDirection | undefined;
@@ -383,6 +571,7 @@ export const importAtlasFromFiles = async ({
     ? Math.max(0, Math.round(paddingRaw))
     : undefined;
   const exportSize = Number.isFinite(exportSizeRaw) ? exportSizeRaw : undefined;
+  const exportFormat = getAtlasImageFormat(pngFile) ?? undefined;
   const appMode =
     modeRaw === "animation" || modeRaw === "character" || modeRaw === "normal"
       ? modeRaw
@@ -435,6 +624,7 @@ export const importAtlasFromFiles = async ({
     appMode,
     animation: Object.keys(animation).length > 0 ? animation : undefined,
     projectName,
+    exportFormat,
   };
 };
 
@@ -444,6 +634,7 @@ export const exportAtlasPng = ({
   padding,
   exportScale,
   exportSmoothing,
+  exportFormat,
   exportAtlasName,
   minScale,
   maxScale,
@@ -453,53 +644,39 @@ export const exportAtlasPng = ({
   padding: number;
   exportScale: number;
   exportSmoothing: boolean;
+  exportFormat: AtlasImageFormat;
   exportAtlasName: string;
   minScale: number;
   maxScale: number;
 }) => {
-  if (frames.length === 0) {
+  const atlas = createAtlasCanvas({
+    frames,
+    rows,
+    padding,
+    exportScale,
+    exportSmoothing,
+    minScale,
+    maxScale,
+  });
+  if (!atlas) {
     return;
   }
-  const layout = computeAtlasLayout(frames, rows, padding);
-  const scale = clamp(exportScale, minScale, maxScale);
-  const targetWidth = Math.max(1, Math.round(layout.width * scale));
-  const targetHeight = Math.max(1, Math.round(layout.height * scale));
-  const scaleX = targetWidth / layout.width;
-  const scaleY = targetHeight / layout.height;
-  const canvas = document.createElement("canvas");
-  canvas.width = targetWidth;
-  canvas.height = targetHeight;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    return;
-  }
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.imageSmoothingEnabled = exportSmoothing;
-  if (exportSmoothing) {
-    ctx.imageSmoothingQuality = "high";
-  }
-  layout.positions.forEach((cell, index) => {
-    const frame = frames[index];
-    if (!frame) {
-      return;
-    }
-    const offsetX = Math.floor((layout.cellWidth - frame.width) / 2);
-    const offsetY = Math.floor((layout.cellHeight - frame.height) / 2);
-    ctx.drawImage(
-      frame.image,
-      (cell.x + offsetX) * scaleX,
-      (cell.y + offsetY) * scaleY,
-      frame.width * scaleX,
-      frame.height * scaleY
-    );
-  });
-  canvas.toBlob((blob) => {
-    if (blob) {
-      void saveBlobWithDialog(blob, `${exportAtlasName}.png`, [
-        { name: "PNG Image", extensions: ["png"] },
-      ]);
-    }
-  });
+  const filters: Record<AtlasImageFormat, { name: string; extensions: string[] }> = {
+    png: { name: "PNG Image", extensions: ["png"] },
+    webp: { name: "WebP Image", extensions: ["webp"] },
+    ktx2: { name: "KTX2 Texture", extensions: ["ktx2"] },
+  };
+  void encodeCanvasToAtlasBlob(atlas.canvas, exportFormat)
+    .then((blob) =>
+      saveBlobWithDialog(
+        blob,
+        getAtlasImageFilename(exportAtlasName, exportFormat),
+        [filters[exportFormat]]
+      )
+    )
+    .catch((error) => {
+      console.error(error);
+    });
 };
 
 export const exportFramesZip = async ({
@@ -545,6 +722,7 @@ export const exportAtlasJson = ({
   speed,
   loop,
   exportSize,
+  exportFormat,
   minScale,
   maxScale,
   selectedAnimationFrames,
@@ -564,97 +742,128 @@ export const exportAtlasJson = ({
   speed: number;
   loop: boolean;
   exportSize: number;
+  exportFormat: AtlasImageFormat;
   minScale: number;
   maxScale: number;
   selectedAnimationFrames: FrameData[];
   exportAtlasName: string;
   exportDataName: string;
 }) => {
-  if (frames.length === 0) {
+  const payload = buildAtlasJsonPayload({
+    frames,
+    rows,
+    padding,
+    exportScale,
+    pivotMode,
+    spriteDirection,
+    appMode,
+    pointGroups,
+    animationName,
+    fps,
+    speed,
+    loop,
+    exportSize,
+    exportFormat,
+    minScale,
+    maxScale,
+    selectedAnimationFrames,
+    exportAtlasName,
+  });
+  if (!payload) {
     return;
   }
-  const layout = computeAtlasLayout(frames, rows, padding);
-  const scale = clamp(exportScale, minScale, maxScale);
-  const targetWidth = Math.max(1, Math.round(layout.width * scale));
-  const targetHeight = Math.max(1, Math.round(layout.height * scale));
-  const scaleX = targetWidth / layout.width;
-  const scaleY = targetHeight / layout.height;
-  const includePoints = appMode === "character";
-  const exportedFrames = frames.map((frame, index) => {
-    const cell = layout.positions[index];
-    const offsetX = Math.floor((layout.cellWidth - frame.width) / 2);
-    const offsetY = Math.floor((layout.cellHeight - frame.height) / 2);
-    const base = {
-      name: frame.name,
-      x: Math.round((cell.x + offsetX) * scaleX),
-      y: Math.round((cell.y + offsetY) * scaleY),
-      w: Math.round(frame.width * scaleX),
-      h: Math.round(frame.height * scaleY),
-    };
-    if (!includePoints) {
-      return base;
-    }
-    return {
-      ...base,
-      points: frame.points.map((point) => {
-        const pivotPoint = toPivotCoords(point, frame, pivotMode);
-        return {
-          name: point.name,
-          x: Math.round(pivotPoint.x * scaleX),
-          y: Math.round(pivotPoint.y * scaleY),
-        };
-      }),
-    };
-  });
-
-  let groups: Record<string, string[][]> | undefined;
-  if (includePoints && pointGroups.length > 0) {
-    const idToName = new Map<string, string>();
-    frames[0]?.points.forEach((point) => {
-      idToName.set(point.id, point.name);
-    });
-    groups = pointGroups.reduce<Record<string, string[][]>>((acc, group) => {
-      const safeName = group.name || `group-${group.id.slice(0, 6)}`;
-      acc[safeName] = group.entries.map((entry) =>
-        entry.map((id) => idToName.get(id) ?? id)
-      );
-      return acc;
-    }, {});
-  }
-
-  const animation =
-    appMode === "animation"
-      ? {
-          name: animationName.trim() || "animation",
-          fps,
-          speed,
-          loop,
-          frames: selectedAnimationFrames.map((frame) => frame.name),
-        }
-      : undefined;
-
-  const payload = {
-    meta: {
-      app: "NosGen",
-      image: `${exportAtlasName}.png`,
-      size: { w: targetWidth, h: targetHeight },
-      rows: layout.rows,
-      columns: layout.columns,
-      padding: Math.round(layout.padding * scaleX),
-      scale: exportSize,
-      pivot: pivotMode,
-      ...(appMode === "character" ? { spriteDirection } : {}),
-      mode: appMode,
-    },
-    ...(groups ? { groups } : {}),
-    ...(animation ? { animation } : {}),
-    frames: exportedFrames,
-  };
 
   const jsonBlob = new Blob([JSON.stringify(payload, null, 2)], {
     type: "application/json",
   });
   void saveBlobWithDialog(jsonBlob, `${exportDataName}.json`, [
     { name: "JSON", extensions: ["json"] },
+  ]);
+};
+
+export const exportAtlasBundle = async ({
+  frames,
+  rows,
+  padding,
+  exportScale,
+  exportSmoothing,
+  pivotMode,
+  spriteDirection,
+  appMode,
+  pointGroups,
+  animationName,
+  fps,
+  speed,
+  loop,
+  exportSize,
+  minScale,
+  maxScale,
+  selectedAnimationFrames,
+  exportAtlasName,
+  exportDataName,
+}: Omit<AtlasJsonExportParams, "exportFormat"> & {
+  exportSmoothing: boolean;
+  exportDataName: string;
+}) => {
+  const atlas = createAtlasCanvas({
+    frames,
+    rows,
+    padding,
+    exportScale,
+    exportSmoothing,
+    minScale,
+    maxScale,
+  });
+  if (!atlas) {
+    return;
+  }
+
+  const jsonPayload = buildAtlasJsonPayload({
+    frames,
+    rows,
+    padding,
+    exportScale,
+    pivotMode,
+    spriteDirection,
+    appMode,
+    pointGroups,
+    animationName,
+    fps,
+    speed,
+    loop,
+    exportSize,
+    exportFormat: "png",
+    minScale,
+    maxScale,
+    selectedAnimationFrames,
+    exportAtlasName,
+  });
+  if (!jsonPayload) {
+    return;
+  }
+
+  const zip = new JSZip();
+  const formats: AtlasImageFormat[] = ["png", "webp", "ktx2"];
+  const blobs = await Promise.all(
+    formats.map(async (format) => ({
+      format,
+      blob: await encodeCanvasToAtlasBlob(atlas.canvas, format),
+    }))
+  );
+  blobs.forEach(({ format, blob }) => {
+    zip.file(getAtlasImageFilename(exportAtlasName, format), blob);
+  });
+  zip.file(
+    `${exportDataName}.json`,
+    JSON.stringify(jsonPayload, null, 2)
+  );
+
+  const zipBlob = await zip.generateAsync({
+    type: "blob",
+    compression: "DEFLATE",
+    compressionOptions: { level: 6 },
+  });
+  await saveBlobWithDialog(zipBlob, `${exportAtlasName}_bundle.zip`, [
+    { name: "ZIP Archive", extensions: ["zip"] },
   ]);
 };
