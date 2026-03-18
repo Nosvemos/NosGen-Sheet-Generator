@@ -186,11 +186,14 @@ const saveBlobWithDialog = async (
   }
 };
 
-const slugifyFrameName = (name: string) => {
-  const trimmed = name.trim().replace(/\.[^/.]+$/, "");
-  const sanitized = trimmed.replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/_+/g, "_");
-  const cleaned = sanitized.replace(/^_+|_+$/g, "");
-  return cleaned || "frame";
+const normalizeFrameZipName = (name: string, fallback: string) => {
+  const trimmed = (name || fallback).trim().replace(/\.[^/.]+$/, "");
+  const sanitized = trimmed
+    .replace(/[<>:"/\\|?*\u0000-\u001F]+/g, "_")
+    .replace(/\s+/g, " ")
+    .replace(/\.+$/g, "")
+    .trim();
+  return sanitized || fallback;
 };
 
 const buildUniqueFrameName = (
@@ -198,12 +201,28 @@ const buildUniqueFrameName = (
   index: number,
   usedNames: Map<string, number>
 ) => {
-  const base = slugifyFrameName(rawName || `frame-${index + 1}`);
+  const base = normalizeFrameZipName(rawName, `frame-${index + 1}`);
   const count = usedNames.get(base) ?? 0;
   usedNames.set(base, count + 1);
   const suffix = count > 0 ? `_${count + 1}` : "";
-  const prefix = String(index + 1).padStart(3, "0");
-  return `${prefix}_${base}${suffix}.png`;
+  return `${base}${suffix}.png`;
+};
+
+const resolveExportDataName = (
+  exportAtlasName: string,
+  exportDataName?: string
+) => {
+  const value = (exportDataName || exportAtlasName).trim();
+  if (!value) {
+    return "sprite-atlas_data";
+  }
+  if (value.endsWith("_data")) {
+    return value;
+  }
+  if (value.endsWith("_atlas")) {
+    return `${value.slice(0, -6)}_data`;
+  }
+  return `${value}_data`;
 };
 
 const frameToPngBlob = async (frame: FrameData) => {
@@ -747,6 +766,10 @@ export const exportAtlasJson = ({
   exportAtlasName: string;
   exportDataName: string;
 }) => {
+  const resolvedExportDataName = resolveExportDataName(
+    exportAtlasName,
+    exportDataName
+  );
   const payload = buildAtlasJsonPayload({
     frames,
     rows,
@@ -774,7 +797,7 @@ export const exportAtlasJson = ({
   const jsonBlob = new Blob([JSON.stringify(payload, null, 2)], {
     type: "application/json",
   });
-  void saveBlobWithDialog(jsonBlob, `${exportDataName}.json`, [
+  void saveBlobWithDialog(jsonBlob, `${resolvedExportDataName}.json`, [
     { name: "JSON", extensions: ["json"] },
   ]);
 };
@@ -803,6 +826,10 @@ export const exportAtlasBundle = async ({
   exportSmoothing: boolean;
   exportDataName: string;
 }) => {
+  const resolvedExportDataName = resolveExportDataName(
+    exportAtlasName,
+    exportDataName
+  );
   const atlas = createAtlasCanvas({
     frames,
     rows,
@@ -852,7 +879,7 @@ export const exportAtlasBundle = async ({
     zip.file(getAtlasImageFilename(exportAtlasName, format), blob);
   });
   zip.file(
-    `${exportDataName}.json`,
+    `${resolvedExportDataName}.json`,
     JSON.stringify(jsonPayload, null, 2)
   );
 
