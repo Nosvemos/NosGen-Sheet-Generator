@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { TranslationKey } from "@/lib/i18n";
+import type { Locale, TranslationKey } from "@/lib/i18n";
 import type { AtlasLayout, FrameData, ThemeMode } from "@/lib/editor-types";
 import { Moon, Sparkles, Sun } from "lucide-react";
 
@@ -18,6 +18,8 @@ type Translate = (
 
 type MainStageHeaderProps = {
   t: Translate;
+  locale: Locale;
+  setLocale: Dispatch<SetStateAction<Locale>>;
   theme: ThemeMode;
   setTheme: Dispatch<SetStateAction<ThemeMode>>;
   currentFrame?: FrameData;
@@ -26,6 +28,8 @@ type MainStageHeaderProps = {
 
 export function MainStageHeader({
   t,
+  locale,
+  setLocale,
   theme,
   setTheme,
   currentFrame,
@@ -63,6 +67,26 @@ export function MainStageHeader({
           <Badge variant="secondary">
             {t("status.columns", { columns: atlasLayout.columns })}
           </Badge>
+          <div className="flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-1">
+            <Select
+              value={locale}
+              onValueChange={(value) => setLocale(value as Locale)}
+            >
+              <SelectTrigger
+                className="h-8 w-[86px] border-0 bg-transparent px-0 text-xs shadow-none ring-0 ring-offset-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                aria-label={t("label.language")}
+              >
+                <SelectValue placeholder={t("label.language")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="en">{t("lang.en")}</SelectItem>
+                <SelectItem value="tr">{t("lang.tr")}</SelectItem>
+                <SelectItem value="de">{t("lang.de")}</SelectItem>
+                <SelectItem value="pl">{t("lang.pl")}</SelectItem>
+                <SelectItem value="ru">{t("lang.ru")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-1">
             {theme === "dark" ? (
               <Moon className="h-4 w-4 text-muted-foreground" />

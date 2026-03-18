@@ -16,6 +16,7 @@ import type {
   ThemeMode,
   ViewMode,
 } from "@/lib/editor-types";
+import type { Locale } from "@/lib/i18n";
 import { MainStageHeader } from "@/components/editor/main-stage/MainStageHeader";
 import { PlaybackPanel } from "@/components/editor/main-stage/PlaybackPanel";
 import { StageCanvas } from "@/components/editor/main-stage/StageCanvas";
@@ -28,6 +29,8 @@ type Translate = (
 
 export type MainStageProps = {
   t: Translate;
+  locale: Locale;
+  setLocale: Dispatch<SetStateAction<Locale>>;
   theme: ThemeMode;
   setTheme: Dispatch<SetStateAction<ThemeMode>>;
   currentFrame?: FrameData;
@@ -85,6 +88,8 @@ export type MainStageProps = {
 
 export function MainStage({
   t,
+  locale,
+  setLocale,
   theme,
   setTheme,
   currentFrame,
@@ -143,6 +148,8 @@ export function MainStage({
     <main className="flex h-full min-h-0 flex-col gap-4 overflow-hidden bg-card/70 p-4">
       <MainStageHeader
         t={t}
+        locale={locale}
+        setLocale={setLocale}
         theme={theme}
         setTheme={setTheme}
         currentFrame={currentFrame}

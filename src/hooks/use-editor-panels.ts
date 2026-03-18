@@ -44,7 +44,7 @@ import {
 } from "@/lib/editor-helpers";
 
 export function useEditorPanels() {
-  const { t } = useI18n();
+  const { t, locale, setLocale } = useI18n();
   const [history, dispatch] = useReducer(
     editorHistoryReducer,
     undefined,
@@ -787,6 +787,8 @@ export function useEditorPanels() {
 
   const mainStage: MainStageProps = {
     t,
+    locale,
+    setLocale,
     theme,
     setTheme,
     currentFrame,
