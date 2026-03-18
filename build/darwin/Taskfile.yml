@@ -4,9 +4,10 @@ includes:
   common: ../Taskfile.yml
 
 tasks:
-  build:
-    summary: Builds the macOS binary
-    deps:
+  prepare:
+    summary: Prepares shared macOS build assets
+    internal: true
+    cmds:
       - task: common:go:mod:tidy
       - task: common:update:build-assets
       - task: common:generate:icons
@@ -16,6 +17,9 @@ tasks:
             ref: .BUILD_FLAGS
           DEV:
             ref: .DEV
+
+  build:
+    summary: Builds the macOS binary
     cmds:
       - go build {{.BUILD_FLAGS}} -o "{{.OUTPUT}}"
     vars:
@@ -33,7 +37,8 @@ tasks:
 
   build:universal:
     summary: Builds a universal macOS binary
-    deps:
+    cmds:
+      - task: prepare
       - task: build
         vars:
           ARCH: amd64
@@ -42,22 +47,20 @@ tasks:
         vars:
           ARCH: arm64
           OUTPUT: "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
-    cmds:
       - lipo -create -output "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
       - rm -f "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
 
   package:
     summary: Packages the macOS app bundle
-    deps:
-      - task: build
     cmds:
+      - task: prepare
+      - task: build
       - task: create:app:bundle
 
   package:universal:
     summary: Packages a universal macOS app bundle
-    deps:
-      - task: build:universal
     cmds:
+      - task: build:universal
       - task: create:app:bundle
 
   create:app:bundle:
