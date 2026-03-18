@@ -89,8 +89,14 @@ type AtlasJsonExportParams = AtlasExportCommonParams & {
   exportAtlasName: string;
 };
 
-const isNeutralinoRuntime = () =>
-  typeof window !== "undefined" && "NL_OS" in window;
+type DesktopFileFilter = {
+  name: string;
+  extensions: string[];
+};
+
+const isWailsRuntime = () =>
+  typeof window !== "undefined" &&
+  typeof window.go?.main?.App?.SaveFile === "function";
 
 type SaveFilePicker = (options?: {
   suggestedName?: string;
@@ -126,10 +132,10 @@ const isAbortError = (error: unknown) => {
 const saveBlobWithDialog = async (
   blob: Blob,
   filename: string,
-  filters: Array<{ name: string; extensions: string[] }>
+  filters: DesktopFileFilter[]
 ) => {
   const picker = getSaveFilePicker();
-  if (!isNeutralinoRuntime() && picker) {
+  if (!isWailsRuntime() && picker) {
     try {
       const types = filters.map((filter) => ({
         description: filter.name,
@@ -154,34 +160,37 @@ const saveBlobWithDialog = async (
       console.warn(error);
     }
   }
-  if (!isNeutralinoRuntime()) {
+  if (!isWailsRuntime()) {
     downloadBlob(blob, filename);
     return;
   }
-  try {
-    const { os, filesystem } = await import("@neutralinojs/lib");
-    let defaultPath = filename;
-    try {
-      const downloads = await os.getPath("downloads");
-      if (downloads) {
-        defaultPath = await filesystem.getJoinedPath(downloads, filename);
-      }
-    } catch {
-      // Ignore path lookup errors and keep default filename.
+
+  const encodeBlobAsBase64 = async (source: Blob) => {
+    const data = new Uint8Array(await source.arrayBuffer());
+    let binary = "";
+    const chunkSize = 0x8000;
+    for (let index = 0; index < data.length; index += chunkSize) {
+      const chunk = data.subarray(index, index + chunkSize);
+      binary += String.fromCharCode(...chunk);
     }
-    const path = await os.showSaveDialog("Save file", {
-      defaultPath,
-      filters,
-    });
-    if (!path) {
+    return btoa(binary);
+  };
+
+  try {
+    const isJson = blob.type === "application/json" || filename.endsWith(".json");
+    const saveFile = window.go?.main?.App?.SaveFile;
+    if (!saveFile) {
+      downloadBlob(blob, filename);
       return;
     }
-    if (blob.type === "application/json" || filename.endsWith(".json")) {
-      const text = await blob.text();
-      await filesystem.writeFile(path, text);
-    } else {
-      const data = await blob.arrayBuffer();
-      await filesystem.writeBinaryFile(path, data);
+    const savedPath = await saveFile({
+      filename,
+      data: isJson ? await blob.text() : await encodeBlobAsBase64(blob),
+      isBinary: !isJson,
+      filters,
+    });
+    if (!savedPath) {
+      return;
     }
   } catch (error) {
     console.error(error);

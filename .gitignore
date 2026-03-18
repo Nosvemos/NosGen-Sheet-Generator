@@ -13,6 +13,7 @@ icons
 dist
 dist-ssr
 *.local
+wailsjs
 
 # Editor directories and files
 .vscode/*

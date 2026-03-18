@@ -8,17 +8,14 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "neu": "neu",
-    "neu:run": "neu run",
-    "neu:dev": "npm run build && neu run",
-    "neu:build": "npm run build && neu build && node scripts/package-release.mjs",
-    "neu:package": "node scripts/package-release.mjs",
-    "neu:update": "neu update"
+    "wails:dev": "wails dev -m",
+    "wails:build": "wails build -clean -m && node scripts/package-wails-release.mjs",
+    "wails:build:debug": "wails build -debug -clean -m",
+    "wails:package": "node scripts/package-wails-release.mjs"
   },
   "dependencies": {
     "@babylonjs/core": "^8.55.3",
     "@babylonjs/ktx2decoder": "^8.55.3",
-    "@neutralinojs/lib": "^6.4.0",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-scroll-area": "^1.2.10",
     "@radix-ui/react-select": "^2.2.6",
@@ -40,7 +37,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
-    "@neutralinojs/neu": "^11.6.0",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",

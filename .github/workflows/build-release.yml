@@ -1,0 +1,263 @@
+name: Build Desktop
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version to publish. Must match package.json.
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  meta:
+    name: Resolve Build Metadata
+    if: github.event_name != 'push' || github.event.head_commit == null || !contains(github.event.head_commit.message, '[skip ci]')
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+      output_name: ${{ steps.meta.outputs.output_name }}
+      should_release: ${{ steps.meta.outputs.should_release }}
+      build_ref: ${{ steps.meta.outputs.build_ref }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          pkg_version="$(node -p "require('./package.json').version")"
+          output_name="$(node -p "require('./wails.json').outputfilename || require('./package.json').name")"
+          event_name="${{ github.event_name }}"
+          ref_type="${{ github.ref_type }}"
+          ref_name="${{ github.ref_name }}"
+          input_version="${{ github.event.inputs.version || '' }}"
+
+          should_release="false"
+          version="$pkg_version"
+          tag="v$pkg_version"
+          build_ref="${{ github.sha }}"
+
+          if [[ "$ref_type" == "tag" ]]; then
+            tag="$ref_name"
+            version="${tag#v}"
+            should_release="true"
+          elif [[ -n "$input_version" ]]; then
+            version="$input_version"
+            tag="v$version"
+            should_release="true"
+          fi
+
+          if [[ "$ref_type" == "tag" && "$version" != "$pkg_version" ]]; then
+            echo "Requested version '$version' does not match package.json version '$pkg_version'." >&2
+            exit 1
+          fi
+
+          {
+            echo "version=$version"
+            echo "tag=$tag"
+            echo "output_name=$output_name"
+            echo "should_release=$should_release"
+            echo "build_ref=$build_ref"
+          } >> "$GITHUB_OUTPUT"
+
+  prepare-release:
+    name: Sync Version Files
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.version != ''
+    needs: meta
+    runs-on: ubuntu-latest
+    outputs:
+      build_ref: ${{ steps.bump.outputs.build_ref }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - id: bump
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          current_version="$(node -p "require('./package.json').version")"
+          if [[ "$current_version" != "$VERSION" ]]; then
+            npm version "$VERSION" --no-git-tag-version
+          fi
+
+          if git diff --quiet -- package.json package-lock.json; then
+            echo "build_ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "chore: bump version to $VERSION [skip ci]"
+          git push origin "HEAD:${{ github.ref_name }}"
+
+          echo "build_ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.label }}
+    if: github.event_name != 'push' || github.event.head_commit == null || !contains(github.event.head_commit.message, '[skip ci]')
+    needs:
+      - meta
+      - prepare-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Windows x64
+            os: windows-latest
+            platform: windows/amd64
+            artifact_name: nosgen-windows-amd64
+            build_output: build/bin/nosgen.exe
+            archive_suffix: windows-amd64.zip
+          - label: Linux x64
+            os: ubuntu-24.04
+            platform: linux/amd64
+            build_output: build/bin/nosgen
+            artifact_name: nosgen-linux-amd64
+            archive_suffix: linux-amd64.tar.gz
+            extra_tags: webkit2_41
+          - label: macOS Universal
+            os: macos-latest
+            platform: darwin/universal
+            build_output: build/bin/nosgen.app
+            artifact_name: nosgen-macos-universal
+            archive_suffix: macos-universal.zip
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare-release.outputs.build_ref || needs.meta.outputs.build_ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install Wails CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.11.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Build desktop app
+        shell: bash
+        run: |
+          set -euo pipefail
+          extra_args=()
+          if [[ -n "${{ matrix.extra_tags || '' }}" ]]; then
+            extra_args+=("-tags" "${{ matrix.extra_tags }}")
+          fi
+
+          wails build \
+            -clean \
+            -m \
+            -trimpath \
+            -platform "${{ matrix.platform }}" \
+            -o "${{ needs.meta.outputs.output_name }}" \
+            "${extra_args[@]}"
+
+      - name: Package Windows artifact
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release-assets | Out-Null
+          $archiveName = "nosgen-v${{ needs.meta.outputs.version }}-${{ matrix.archive_suffix }}"
+          Compress-Archive -Path "${{ matrix.build_output }}" -DestinationPath "release-assets/$archiveName" -Force
+
+      - name: Package Linux artifact
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          archive_name="nosgen-v${{ needs.meta.outputs.version }}-${{ matrix.archive_suffix }}"
+          tar -C build/bin -czf "release-assets/$archive_name" "$(basename '${{ matrix.build_output }}')"
+
+      - name: Package macOS artifact
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          archive_name="nosgen-v${{ needs.meta.outputs.version }}-${{ matrix.archive_suffix }}"
+          ditto -c -k --sequesterRsrc --keepParent "${{ matrix.build_output }}" "release-assets/$archive_name"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: release-assets/*
+          if-no-files-found: error
+
+  release:
+    name: Publish Release
+    needs:
+      - meta
+      - prepare-release
+      - build
+    if: needs.meta.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare-release.outputs.build_ref || needs.meta.outputs.build_ref }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ needs.meta.outputs.tag }}"
+          title="NosGen ${{ needs.meta.outputs.version }}"
+          target_ref="${{ needs.prepare-release.outputs.build_ref || needs.meta.outputs.build_ref }}"
+
+          mapfile -t files < <(find release-assets -type f)
+          if [[ "${#files[@]}" -eq 0 ]]; then
+            echo "No release artifacts were downloaded." >&2
+            exit 1
+          fi
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "${files[@]}" --clobber
+          else
+            gh release create "$tag" "${files[@]}" --target "$target_ref" --title "$title" --notes "Automated desktop build for NosGen ${{ needs.meta.outputs.version }}."
+          fi

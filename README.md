@@ -47,7 +47,7 @@ Open the app, import PNG frames, place points, then export PNG + JSON.
 - Atlas PNG: `<project>_atlas.png`
 - Data JSON: `<project>_data.json`
 
-On desktop builds (Neutralino), export uses a Save dialog so you can choose the location. In the browser, modern Chromium-based browsers will also show a Save dialog; otherwise files download to the default downloads folder.
+On desktop builds (Wails), export uses a native Save dialog so you can choose the location. In the browser, modern Chromium-based browsers will also show a Save dialog; otherwise files download to the default downloads folder.
 Metadata includes a `scale` number (default 1) for game-side sizing.
 
 ## Modes
@@ -65,22 +65,30 @@ Points are stored in top-left space. Export uses the selected pivot:
 - Bottom-left: `exportX = x`, `exportY = frameHeight - y`
 - Center: `exportX = x - frameWidth / 2`, `exportY = y - frameHeight / 2`
 
-## Desktop (Neutralino)
-Run as a desktop app using Neutralinojs.
+## Desktop (Wails)
+Run as a desktop app using Wails.
 
 ```bash
-npm run neu:update
-npm run neu:dev
+npm run wails:dev
 ```
 
 Build a release package:
 ```bash
-npm run neu:build
+npm run wails:build
 ```
 
-Windows output:
-- `dist/nosgen/nosgen-win_x64.exe`
-- `dist/nosgen/resources.neu` (must be next to the exe)
+Build outputs:
+- `build/bin/nosgen.exe` (Windows)
+- `build/bin/nosgen` (Linux)
+- `build/bin/nosgen.app` (macOS)
+- `dist/release/*` zipped release artifacts created by `npm run wails:build`
+
+## GitHub Actions
+The repository includes a GitHub Actions workflow at `.github/workflows/build-release.yml`.
+
+- Pushes to `main` run an automated desktop build.
+- Pushing a tag like `v0.1.0` builds release artifacts and uploads them to a GitHub Release.
+- Manual runs also support a `version` input. When provided, the workflow updates `package.json` and `package-lock.json`, commits the version bump, then builds and publishes the release from that commit.
 
 ## Customization
 - Hotkeys and history limit are configurable in the Settings modal.
