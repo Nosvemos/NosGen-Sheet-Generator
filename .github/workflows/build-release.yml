@@ -1,5 +1,8 @@
 name: Build Desktop
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 on:
   push:
     branches:
@@ -40,7 +43,7 @@ jobs:
           set -euo pipefail
 
           pkg_version="$(node -p "require('./package.json').version")"
-          config_version="$(sed -nE 's/^  version: \"([^\"]+)\"/\1/p' build/config.yml | head -n 1)"
+          config_version="$(node -e "const fs=require('fs'); const match=fs.readFileSync('build/config.yml','utf8').match(/^  version: \"([^\"]+)\"/m); if (match) process.stdout.write(match[1]);")"
           output_name="$(node -p "require('./package.json').name")"
           ref_type="${{ github.ref_type }}"
           ref_name="${{ github.ref_name }}"
@@ -108,7 +111,7 @@ jobs:
             npm version "$VERSION" --no-git-tag-version
           fi
 
-          perl -0pi -e 's/(^  version: \").*?(\")/$1'"$VERSION"'$2/m' build/config.yml
+          node -e "const fs=require('fs'); const path='build/config.yml'; const current=fs.readFileSync(path,'utf8'); if (!/^  version: \".*\"/m.test(current)) { console.error('Failed to find build/config.yml info.version'); process.exit(1); } const next=current.replace(/^  version: \".*\"/m, '  version: \"' + process.env.VERSION + '\"'); fs.writeFileSync(path, next);"
 
           if git diff --quiet -- package.json package-lock.json build/config.yml; then
             echo "build_ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"

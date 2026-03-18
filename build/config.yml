@@ -7,7 +7,7 @@ info:
   description: "Sprite atlas editor for PNG frame sets"
   copyright: "(c) 2026 Samet Ozturk"
   comments: "NosGen desktop application"
-.1.4"
+  version: "0.1.4"
 
 dev_mode:
   root_path: .
