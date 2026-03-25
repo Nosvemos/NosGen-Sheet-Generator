@@ -1,13 +1,13 @@
 {
 	"fixed": {
-		"file_version": "0.1.4"
+		"file_version": "0.1.5"
 	},
 	"info": {
 		"0000": {
-			"ProductVersion": "0.1.4",
-			"CompanyName": "Samet Ozturk",
+			"ProductVersion": "0.1.5",
+			"CompanyName": "Nosvemos",
 			"FileDescription": "Sprite atlas editor for PNG frame sets",
-			"LegalCopyright": "(c) 2026 Samet Ozturk",
+			"LegalCopyright": "(c) 2026 Nosvemos",
 			"ProductName": "NosGen",
 			"Comments": "NosGen desktop application"
 		}

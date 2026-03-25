@@ -28,6 +28,12 @@ type PanState = {
   originY: number;
 };
 
+type FramePointerPosition = {
+  frameX: number;
+  frameY: number;
+  scale: number;
+};
+
 type UseStageInteractionsParams = {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   currentFrame: FrameData | undefined;
@@ -73,6 +79,50 @@ export const useStageInteractions = ({
   const panRef = useRef<PanState | null>(null);
   const [draggingPointId, setDraggingPointId] = useState<string | null>(null);
   const snapThreshold = 3;
+
+  const getFramePointerPosition = (
+    event: PointerEvent<HTMLCanvasElement>
+  ): FramePointerPosition | null => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return null;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const transform = getFrameTransform(rect.width, rect.height);
+    if (!transform) {
+      return null;
+    }
+    return {
+      frameX: (event.clientX - rect.left - transform.offsetX) / transform.scale,
+      frameY: (event.clientY - rect.top - transform.offsetY) / transform.scale,
+      scale: transform.scale,
+    };
+  };
+
+  const findPointHit = (
+    frameX: number,
+    frameY: number,
+    hitRadius: number
+  ) =>
+    currentPoints.find(
+      (point) => Math.hypot(point.x - frameX, point.y - frameY) <= hitRadius
+    );
+
+  const beginPan = (event: PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+    event.preventDefault();
+    panRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: panOffset.x,
+      originY: panOffset.y,
+    };
+    canvas.setPointerCapture(event.pointerId);
+  };
 
   const resolveSnap = (value: number, candidates: number[]) => {
     let closest = value;
@@ -143,56 +193,48 @@ export const useStageInteractions = ({
     if (!currentFrame || viewMode !== "frame") {
       return;
     }
+    if (event.button === 1) {
+      beginPan(event);
+      return;
+    }
+    if (!isCharacterMode) {
+      if (event.button === 2) {
+        beginPan(event);
+      }
+      return;
+    }
+    const pointer = getFramePointerPosition(event);
+    if (!pointer) {
+      return;
+    }
+    const { frameX, frameY, scale } = pointer;
     const canvas = canvasRef.current;
     if (!canvas) {
       return;
     }
-    if (event.button === 1) {
-      event.preventDefault();
-      panRef.current = {
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
-        originX: panOffset.x,
-        originY: panOffset.y,
-      };
-      canvas.setPointerCapture(event.pointerId);
+    const hitRadius = Math.max(4, 10 / scale);
+    const hit = findPointHit(frameX, frameY, hitRadius);
+
+    if (event.button === 2) {
+      if (!hit) {
+        beginPan(event);
+      }
       return;
     }
-    if (!isCharacterMode) {
-      return;
-    }
-    const rect = canvas.getBoundingClientRect();
-    const transform = getFrameTransform(rect.width, rect.height);
-    if (!transform) {
-      return;
-    }
-    const rawX = event.clientX - rect.left;
-    const rawY = event.clientY - rect.top;
-    const frameX = (rawX - transform.offsetX) / transform.scale;
-    const frameY = (rawY - transform.offsetY) / transform.scale;
+
     if (
-      frameX < 0 ||
-      frameY < 0 ||
-      frameX > currentFrame.width ||
-      frameY > currentFrame.height
+      editorMode === "add" &&
+      frameX >= 0 &&
+      frameY >= 0 &&
+      frameX <= currentFrame.width &&
+      frameY <= currentFrame.height
     ) {
-      return;
-    }
-
-    const clampedX = clamp(Math.round(frameX), 0, currentFrame.width);
-    const clampedY = clamp(Math.round(frameY), 0, currentFrame.height);
-
-    if (editorMode === "add") {
+      const clampedX = clamp(Math.round(frameX), 0, currentFrame.width);
+      const clampedY = clamp(Math.round(frameY), 0, currentFrame.height);
       addPointAt(clampedX, clampedY);
       return;
     }
 
-    const hitRadius = Math.max(4, 10 / transform.scale);
-    const hit = currentPoints.find(
-      (point) =>
-        Math.hypot(point.x - frameX, point.y - frameY) <= hitRadius
-    );
     if (hit) {
       setSelectedPointId(hit.id);
       setDraggingPointId(hit.id);
@@ -217,15 +259,11 @@ export const useStageInteractions = ({
     if (!canvas) {
       return;
     }
-    const rect = canvas.getBoundingClientRect();
-    const transform = getFrameTransform(rect.width, rect.height);
-    if (!transform) {
+    const pointer = getFramePointerPosition(event);
+    if (!pointer) {
       return;
     }
-    const rawX = event.clientX - rect.left;
-    const rawY = event.clientY - rect.top;
-    const frameX = (rawX - transform.offsetX) / transform.scale;
-    const frameY = (rawY - transform.offsetY) / transform.scale;
+    const { frameX, frameY } = pointer;
     let clampedX = clamp(Math.round(frameX), 0, currentFrame.width);
     let clampedY = clamp(Math.round(frameY), 0, currentFrame.height);
     if (isMagnetEnabled && draggingPointId) {

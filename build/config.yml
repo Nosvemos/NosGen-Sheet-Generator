@@ -1,13 +1,13 @@
 version: '3'
 
 info:
-  companyName: "Samet Ozturk"
+  companyName: "Nosvemos"
   productName: "NosGen"
   productIdentifier: "io.github.nosvemos.nosgen"
   description: "Sprite atlas editor for PNG frame sets"
-  copyright: "(c) 2026 Samet Ozturk"
+  copyright: "(c) 2026 Nosvemos"
   comments: "NosGen desktop application"
-  version: "0.1.4"
+  version: "0.1.5"
 
 dev_mode:
   root_path: .

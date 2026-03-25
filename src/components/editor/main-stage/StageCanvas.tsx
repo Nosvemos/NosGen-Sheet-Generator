@@ -51,7 +51,9 @@ export function StageCanvas({
         onPointerMove={handleCanvasPointerMove}
         onPointerUp={handleCanvasPointerUp}
         onPointerLeave={handleCanvasPointerUp}
+        onPointerCancel={handleCanvasPointerUp}
         onWheel={handleCanvasWheel}
+        onContextMenu={(event) => event.preventDefault()}
       />
 
       {framesLength === 0 && (
