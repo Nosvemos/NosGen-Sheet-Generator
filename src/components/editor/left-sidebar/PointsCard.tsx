@@ -82,26 +82,28 @@ export function PointsCard({
                     key={point.id}
                     type="button"
                     className={cn(
-                      "flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left transition",
+                      "flex w-full min-w-0 items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left transition",
                       point.id === selectedPointId
                         ? "border-accent/40 bg-accent/10"
                         : "border-border/60 bg-muted/30 hover:bg-muted/60"
                     )}
                     onClick={() => setSelectedPointId(point.id)}
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <span
                         className="h-2.5 w-2.5 rounded-full"
                         style={{ backgroundColor: point.color || "#999" }}
                       />
-                      <div>
-                        <div className="text-sm font-medium">{point.name}</div>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium" title={point.name}>
+                          {point.name}
+                        </div>
                         <div className="text-[11px] text-muted-foreground">
                           {pivotLabels[pivotMode]}
                         </div>
                       </div>
                     </div>
-                    <div className="text-xs font-mono text-muted-foreground">
+                    <div className="shrink-0 text-xs font-mono text-muted-foreground">
                       {displayX},{displayY}
                     </div>
                   </button>

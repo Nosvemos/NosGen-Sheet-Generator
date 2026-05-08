@@ -63,11 +63,12 @@ export function PointGroupsCard({
       </div>
       {isPointGroupsOpen && (
         <>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <Input
               value={newGroupName}
               onChange={(event) => setNewGroupName(event.target.value)}
               placeholder={t("placeholder.groupName")}
+              className="min-w-0"
             />
             <Button
               type="button"
@@ -98,15 +99,17 @@ export function PointGroupsCard({
                     key={group.id}
                     type="button"
                     className={cn(
-                      "flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left transition",
+                      "flex w-full min-w-0 items-center justify-between rounded-xl border px-3 py-2 text-left transition",
                       group.id === selectedGroupId
                         ? "border-accent/40 bg-accent/10"
                         : "border-border/60 bg-muted/30 hover:bg-muted/60"
                     )}
                     onClick={() => setSelectedGroupId(group.id)}
                   >
-                    <div>
-                      <div className="text-sm font-medium">{group.name}</div>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium" title={group.name}>
+                        {group.name}
+                      </div>
                       <div className="text-[11px] text-muted-foreground">
                         {t("label.groupEntries", { count: group.entries.length })}
                       </div>

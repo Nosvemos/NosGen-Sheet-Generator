@@ -235,7 +235,7 @@ export function GroupEditorCard({
                     {t("hint.noGroupPoints")}
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
                     <Select
                       value={
                         groupEntrySelection[`${selectedGroup.id}-${entryIndex}`] ??
@@ -249,7 +249,7 @@ export function GroupEditorCard({
                         }));
                       }}
                     >
-                      <SelectTrigger className="h-8 flex-1">
+                      <SelectTrigger className="h-8 min-w-0 flex-1">
                         <SelectValue placeholder={t("placeholder.addPoint")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -318,13 +318,15 @@ export function GroupEditorCard({
                       return (
                         <div
                           key={pointId}
-                          className="flex items-center gap-2 rounded-full border border-border/60 bg-muted/50 px-2 py-1 text-[11px]"
+                          className="flex max-w-full items-center gap-2 rounded-full border border-border/60 bg-muted/50 px-2 py-1 text-[11px]"
                         >
                           <span
                             className="h-2 w-2 rounded-full"
                             style={{ backgroundColor: point?.color || "#999" }}
                           />
-                          <span>{point?.name ?? pointId}</span>
+                          <span className="truncate" title={point?.name ?? pointId}>
+                            {point?.name ?? pointId}
+                          </span>
                           <Button
                             type="button"
                             variant="ghost"

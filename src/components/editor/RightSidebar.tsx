@@ -122,7 +122,7 @@ export function RightSidebar({
   exportScaleStep,
 }: RightSidebarProps) {
   return (
-    <aside className="h-full min-h-0 space-y-4 overflow-y-auto rounded-none border-0 bg-card/80 p-4 shadow-none backdrop-blur">
+    <aside className="h-full min-h-0 space-y-4 overflow-x-hidden overflow-y-auto rounded-none border-0 bg-card/80 p-4 shadow-none backdrop-blur">
       <RightSidebarHeader t={t} />
 
       <AtlasImportCard

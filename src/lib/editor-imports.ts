@@ -27,6 +27,7 @@ export const importPointsJsonToFrames = (
   }
   const payload = parsed as {
     meta?: Record<string, unknown>;
+    scale?: number;
     frames?: unknown;
   };
   const pivotRaw = payload.meta?.pivot ?? payload.meta?.pivotMode;
@@ -41,7 +42,9 @@ export const importPointsJsonToFrames = (
     payload.meta?.spriteDirection === "counterclockwise"
       ? payload.meta?.spriteDirection
       : undefined;
-  const exportSizeRaw = Number(payload.meta?.scale ?? payload.meta?.exportSize);
+  const exportSizeRaw = Number(
+    payload.meta?.scale ?? payload.meta?.exportSize ?? payload.scale
+  );
   const exportSize = Number.isFinite(exportSizeRaw) ? exportSizeRaw : undefined;
   const nameToId = new Map<string, string>();
   const nameToColor = new Map<string, string>();
@@ -89,21 +92,47 @@ export const importPointsJsonToFrames = (
           entry?.filename === frame.name ||
           entry?.id === frame.id
       );
-      if (!match || !Array.isArray(match.points)) {
+      if (!match) {
         return frame;
       }
-      const nextPoints = match.points.map(
-        (
-          point: { name?: string; x?: number; y?: number },
-          index: number
-        ) => {
+      let nextPoints: ReturnType<typeof buildPoint>[] = [];
+      if (Array.isArray(match.points)) {
+        nextPoints = match.points.map(
+          (
+            point: { name?: string; x?: number; y?: number },
+            index: number
+          ) => {
+            const name =
+              typeof point.name === "string" && point.name.length > 0
+                ? point.name
+                : t("point.defaultName", { index: index + 1 });
+            return buildPoint(name, point, frame);
+          }
+        );
+      } else if (match.points && typeof match.points === "object") {
+        nextPoints = Object.entries(
+          match.points as Record<string, unknown>
+        ).flatMap(([rawName, rawPoints], index) => {
+          const pointList = Array.isArray(rawPoints) ? rawPoints : [];
+          const firstValid = pointList.find(
+            (entry) =>
+              entry &&
+              typeof entry === "object" &&
+              Number.isFinite(Number((entry as { x?: number }).x)) &&
+              Number.isFinite(Number((entry as { y?: number }).y))
+          ) as { x?: number; y?: number } | undefined;
+          if (!firstValid) {
+            return [];
+          }
           const name =
-            typeof point.name === "string" && point.name.length > 0
-              ? point.name
+            typeof rawName === "string" && rawName.length > 0
+              ? rawName
               : t("point.defaultName", { index: index + 1 });
-          return buildPoint(name, point, frame);
-        }
-      );
+          return [buildPoint(name, firstValid, frame)];
+        });
+      } else {
+        return frame;
+      }
       return { ...frame, points: nextPoints };
     });
     return { frames: nextFrames, spriteDirection, pivotMode, exportSize };

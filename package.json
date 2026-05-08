@@ -3,12 +3,16 @@
   "private": true,
   "version": "0.1.5",
   "type": "module",
+  "bin": {
+    "nosgen-sheet": "./src/cli.ts"
+  },
   "scripts": {
     "dev": "vite",
     "build:dev": "vite build --minify false --mode development",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "cli": "tsx src/cli.ts",
     "wails:generate": "wails3 task generate:bindings",
     "wails:dev": "wails3 task dev",
     "wails:build": "wails3 task build && node scripts/package-wails-release.mjs",
@@ -36,6 +40,7 @@
     "lucide-react": "^0.562.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "sharp": "^0.33.5",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
@@ -52,6 +57,7 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "tailwindcss-animate": "^1.0.7",
+    "tsx": "^4.19.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4"

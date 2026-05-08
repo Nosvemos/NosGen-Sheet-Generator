@@ -47,6 +47,7 @@ export type EditorState = {
   isAtlasSettingsOpen: boolean;
   isExportQualityOpen: boolean;
   isSettingsOpen: boolean;
+  supportLegacyAtlas: boolean;
   historyLimit: number;
   hotkeys: HotkeyMap;
   pointGroups: PointGroup[];
@@ -148,6 +149,7 @@ export const createInitialEditorState = (): EditorState => {
     isAtlasSettingsOpen: true,
     isExportQualityOpen: true,
     isSettingsOpen: false,
+    supportLegacyAtlas: false,
     historyLimit: DEFAULT_HISTORY_LIMIT,
     hotkeys: DEFAULT_HOTKEYS,
     pointGroups: [],
@@ -205,6 +207,7 @@ const HISTORY_LABEL_OVERRIDES: Partial<Record<keyof EditorState, string>> = {
   isAtlasSettingsOpen: "Atlas settings",
   isExportQualityOpen: "Export quality",
   isSettingsOpen: "Settings",
+  supportLegacyAtlas: "Legacy atlas support",
   historyLimit: "History limit",
   hotkeys: "Hotkeys updated",
   pointGroups: "Point groups updated",

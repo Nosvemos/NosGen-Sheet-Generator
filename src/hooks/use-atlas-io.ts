@@ -47,6 +47,7 @@ type UseAtlasIOParams = {
   setExportSize: Dispatch<SetStateAction<number>>;
   setExportFormat: Dispatch<SetStateAction<AtlasImageFormat>>;
   setAnimationFrameSelection: Dispatch<SetStateAction<Record<string, boolean>>>;
+  supportLegacyAtlas: boolean;
 };
 
 type UseAtlasIOResult = {
@@ -90,6 +91,7 @@ export const useAtlasIO = ({
   setExportSize,
   setExportFormat,
   setAnimationFrameSelection,
+  supportLegacyAtlas,
 }: UseAtlasIOParams): UseAtlasIOResult => {
   const framesInputRef = useRef<HTMLInputElement>(null);
   const newPointsInputRef = useRef<HTMLInputElement>(null);
@@ -227,7 +229,12 @@ export const useAtlasIO = ({
 
   const handleEditAtlasImport = useCallback(
     async (pngFile: File, jsonFile: File) => {
-      const imported = await importAtlasFromFiles({ pngFile, jsonFile, t });
+      const imported = await importAtlasFromFiles({
+        pngFile,
+        jsonFile,
+        t,
+        supportLegacyAtlas,
+      });
       if (!imported) {
         return;
       }
@@ -294,6 +301,7 @@ export const useAtlasIO = ({
       setSpeed,
       setSpriteDirection,
       resetSelection,
+      supportLegacyAtlas,
       t,
     ]
   );

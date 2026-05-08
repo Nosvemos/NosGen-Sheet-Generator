@@ -12,6 +12,7 @@ import uastcRg8WasmUrl from "@babylonjs/ktx2decoder/wasm/uastc_rg8_unorm.wasm?ur
 import uastcRgbaSrgbWasmUrl from "@babylonjs/ktx2decoder/wasm/uastc_rgba8_srgb_v2.wasm?url";
 import uastcRgbaUnormWasmUrl from "@babylonjs/ktx2decoder/wasm/uastc_rgba8_unorm_v2.wasm?url";
 import type { AtlasImageFormat } from "@/lib/editor-types";
+import { clamp } from "@/lib/editor-helpers";
 
 export const ATLAS_IMAGE_FORMATS = ["png", "webp", "ktx2"] as const;
 
@@ -80,15 +81,23 @@ const blobToImage = async (blob: Blob, filename: string) => {
   }
 };
 
-const canvasToBlob = (canvas: HTMLCanvasElement, type: string) =>
+const canvasToBlob = (
+  canvas: HTMLCanvasElement,
+  type: string,
+  quality?: number
+) =>
   new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob) {
-        resolve(blob);
-        return;
-      }
-      reject(new Error(`Failed to encode canvas as ${type}`));
-    }, type);
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve(blob);
+          return;
+        }
+        reject(new Error(`Failed to encode canvas as ${type}`));
+      },
+      type,
+      quality
+    );
   });
 
 const getKtx2Decoder = async (): Promise<DecoderInstance> => {
@@ -172,7 +181,8 @@ export const decodeKtx2ToImage = async (file: File) => {
 
 export const encodeCanvasToAtlasBlob = async (
   canvas: HTMLCanvasElement,
-  format: AtlasImageFormat
+  format: AtlasImageFormat,
+  quality?: number
 ) => {
   if (format === "ktx2") {
     const { encodeToKTX2 } = await import("ktx2-encoder");
@@ -186,7 +196,7 @@ export const encodeCanvasToAtlasBlob = async (
       isUASTC: true,
       needSupercompression: true,
       enableRDO: true,
-      uastcLDRQualityLevel: 2,
+      uastcLDRQualityLevel: typeof quality === "number" ? Math.round(clamp(quality, 0, 3)) : 2,
       isPerceptual: true,
       isSetKTX2SRGBTransferFunc: true,
       jsUrl: BASIS_ENCODER_JS_URL,
@@ -201,7 +211,13 @@ export const encodeCanvasToAtlasBlob = async (
       type: "application/octet-stream",
     });
   }
-  return canvasToBlob(canvas, ATLAS_IMAGE_MIME_TYPES[format]);
+  return canvasToBlob(
+    canvas,
+    ATLAS_IMAGE_MIME_TYPES[format],
+    format === "webp" && typeof quality === "number"
+      ? clamp(quality, 0, 1)
+      : undefined
+  );
 };
 
 export const loadAtlasImageFromFile = async (file: File) => {

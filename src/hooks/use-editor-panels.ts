@@ -83,6 +83,7 @@ export function useEditorPanels() {
     isAtlasSettingsOpen,
     isExportQualityOpen,
     isSettingsOpen,
+    supportLegacyAtlas,
     historyLimit,
     hotkeys,
     pointGroups,
@@ -139,6 +140,11 @@ export function useEditorPanels() {
       setIsAtlasSettingsOpen: createStateSetter(dispatch, "isAtlasSettingsOpen"),
       setIsExportQualityOpen: createStateSetter(dispatch, "isExportQualityOpen"),
       setIsSettingsOpen: createStateSetter(dispatch, "isSettingsOpen", silent),
+      setSupportLegacyAtlas: createStateSetter(
+        dispatch,
+        "supportLegacyAtlas",
+        silent
+      ),
       setHistoryLimit: createStateSetter(
         dispatch,
         "historyLimit",
@@ -221,6 +227,7 @@ export function useEditorPanels() {
     setIsAtlasSettingsOpen,
     setIsExportQualityOpen,
     setIsSettingsOpen,
+    setSupportLegacyAtlas,
     setHistoryLimit,
     setHotkeys,
     setPointGroups,
@@ -352,6 +359,7 @@ export function useEditorPanels() {
     setExportSize,
     setExportFormat,
     setAnimationFrameSelection,
+    supportLegacyAtlas,
   });
 
   const groupPreviewIds = useMemo(() => {
@@ -725,6 +733,8 @@ export function useEditorPanels() {
     setAnimationFrameSelection,
     isSettingsOpen,
     setIsSettingsOpen,
+    supportLegacyAtlas,
+    setSupportLegacyAtlas,
     historyLimit,
     setHistoryLimit,
     hotkeys,
