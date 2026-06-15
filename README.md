@@ -10,7 +10,9 @@ NosGen is a sprite atlas editor for PNG frame sets. Import frames, place per-fra
 - Point groups with indexed entries and group preview playback.
 - Two modes: Character (points + groups) and Animation (timeline export).
 - Export PNG + JSON with pivot space (top-left, bottom-left, center).
-- Export quality scaling + optional smoothing.
+- JSON output modes: `pretty`, `minified`, or `compact` (smallest); import auto-detects all three.
+- Atlas packing modes in the editor and CLI: `shelf` (compact), `tight`, `uniform`.
+- Export quality scaling + optional smoothing, plus WebP and KTX2 quality controls.
 - Undo/redo history with configurable limit.
 - Hotkey editor and settings modal.
 - Dark theme default with theme selector.
@@ -49,6 +51,30 @@ Open the app, import PNG frames, place points, then export PNG + JSON.
 
 On desktop builds (Wails), export uses a native Save dialog so you can choose the location. In the browser, modern Chromium-based browsers will also show a Save dialog; otherwise files download to the default downloads folder.
 Metadata includes a `scale` number (default 1) for game-side sizing.
+
+### JSON Output Modes
+The export quality panel (and the CLI `--json` flag) offers three shapes:
+- **pretty** — verbose schema, 2-space indented. Human friendly, largest.
+- **minified** — same schema, no whitespace. ~40–60% smaller.
+- **compact** — compact schema, no whitespace. Smallest.
+
+Import (both "Edit Current" in the UI and the CLI `import` command) auto-detects the format, so compact and verbose files are interchangeable.
+
+The compact schema keeps `meta` readable but collapses the bulky per-frame data. Point names are stored once in a `points` table and referenced by index; groups reference the same indices:
+
+```jsonc
+{
+  "meta": { "app": "NosGen", "format": "compact", "mode": "character", "pivot": "center", ... },
+  "points": ["head", "hand"],          // name table
+  "groups": { "body": [[0, 1], [0, 1]] }, // indices into points
+  "frames": [
+    ["frame_01", 52, 10, 64, 64, [[0, -12, -24], [1, -2, -2]]]
+    // [name, x, y, w, h] or [name, x, y, w, h, [[nameIdx, px, py], ...]]
+  ]
+}
+```
+
+`meta.format === "compact"` marks the schema; importers expand it back to the verbose shape losslessly.
 
 ## Modes
 **Character**
@@ -104,6 +130,17 @@ The repository includes a GitHub Actions workflow at `.github/workflows/build-re
 - **Checkerboard Pattern Caching**: The stage background checkerboard is now rendered with cached canvas patterns instead of per-frame loops, improving render performance.
 - **Export Quality Control**: WebP export now supports a configurable quality parameter. KTX2 encoding supports a tunable UASTC quality level.
 - **Lanczos Resampling**: The CLI uses `sharp` with Lanczos3 kernel for high-quality downscaling/upscaling.
+- **Editor/CLI Packing Parity**: The editor export now honors `shelf`/`tight`/`uniform` packing (previously the UI only emitted uniform grids), and the atlas preview matches the exported layout.
+- **Compact JSON**: Optional compact/minified data export with auto-detecting import keeps data files small for large sprite sets.
+- **Shared Math Core**: Auto-fill, interpolation, and pivot math live in a single `sprite-math` module shared by the editor and CLI, so the two cannot drift.
+
+## Testing
+Unit tests (Vitest) cover the shared math, atlas packing/placement, and the compact JSON round-trip.
+
+```bash
+npm test        # run once
+npm run test:watch
+```
 
 ## CLI Usage
 NosGen can be run headless from the command line, making it ideal for AI agents and automated build pipelines. The CLI supports **all** UI features: points, auto-fill, point groups, animation metadata, pivot modes, sprite direction, import/re-export, and multiple packing algorithms.
@@ -136,6 +173,7 @@ npm run cli -- <command> [options]
 | `--smoothing` | Enable Lanczos3 smoothing when scaling | false |
 | `--pivot <top-left\|bottom-left\|center>` | Pivot space | `top-left` |
 | `--mode <uniform\|tight\|shelf>` | Packing algorithm | `shelf` |
+| `--json <pretty\|minified\|compact>` | JSON output shape | `pretty` |
 | `-h, --help` | Show help | — |
 
 ### Packing Modes
@@ -190,10 +228,13 @@ The config file mirrors the full editor state. All UI features are configurable 
     "format": "png",
     "webpQuality": 90,
     "smoothing": true,
-    "pivot": "top-left"
+    "pivot": "top-left",
+    "jsonMode": "compact"
   }
 }
 ```
+
+`export.jsonMode` accepts `pretty` (default), `minified`, or `compact`; the `--json` flag overrides it.
 
 #### Character Mode Config (Points + Groups + Auto-fill)
 ```json

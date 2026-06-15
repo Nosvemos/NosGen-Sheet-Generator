@@ -8,6 +8,11 @@ import {
   computeShelfAtlasLayout,
   type SizedItem,
 } from "../lib/atlas-layout.ts";
+import {
+  normalizeAtlasPayload,
+  serializeAtlasPayload,
+  type AtlasPayload,
+} from "../lib/atlas-format.ts";
 import type {
   CliConfig,
   CliPoint,
@@ -78,7 +83,9 @@ async function importAtlas(
     readFile(resolve(atlasPath)),
     readFile(resolve(dataPath), "utf-8"),
   ]);
-  const parsed = JSON.parse(jsonRaw);
+  // Accept both verbose and compact JSON: expand to the verbose schema first.
+  const parsedRaw = JSON.parse(jsonRaw);
+  const parsed = normalizeAtlasPayload(parsedRaw) as typeof parsedRaw;
 
   const meta = parsed.meta || {};
   const pivotRaw: string = meta.pivot || "top-left";
@@ -609,8 +616,13 @@ export async function run(config: CliConfig) {
   console.log(`Atlas saved: ${imagePath}`);
 
   const jsonPath = join(outputDir, `${baseName}_data.json`);
-  await writeFile(jsonPath, JSON.stringify(payload, null, 2), "utf-8");
-  console.log(`Data saved: ${jsonPath}`);
+  const jsonMode = exportConfig.jsonMode ?? "pretty";
+  await writeFile(
+    jsonPath,
+    serializeAtlasPayload(payload as unknown as AtlasPayload, jsonMode),
+    "utf-8"
+  );
+  console.log(`Data saved: ${jsonPath} (${jsonMode})`);
 }
 
 export function generateSampleConfig(mode: "normal" | "character" | "animation"): CliConfig {

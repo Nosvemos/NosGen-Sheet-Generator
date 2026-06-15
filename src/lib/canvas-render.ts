@@ -8,7 +8,7 @@ import type {
   StageTransform,
   ViewMode,
 } from "@/lib/editor-types";
-import { drawCheckerboard, toHslColor } from "@/lib/editor-helpers";
+import { drawCheckerboard, resolveFramePlacements, toHslColor } from "@/lib/editor-helpers";
 
 type RenderCanvasParams = {
   canvas: HTMLCanvasElement | null;
@@ -307,25 +307,19 @@ export const renderCanvas = ({
     const offsetX = (viewWidth - drawWidth) / 2;
     const offsetY = (viewHeight - drawHeight) / 2;
 
+    const placements = resolveFramePlacements(atlasLayout, frames);
+
     ctx.save();
     ctx.translate(offsetX, offsetY);
     ctx.scale(scale, scale);
     ctx.imageSmoothingEnabled = false;
 
-    atlasLayout.positions.forEach((cell, index) => {
+    placements.forEach((rect, index) => {
       const frame = frames[index];
       if (!frame) {
         return;
       }
-      const offsetCellX = Math.floor((atlasLayout.cellWidth - frame.width) / 2);
-      const offsetCellY = Math.floor((atlasLayout.cellHeight - frame.height) / 2);
-      ctx.drawImage(
-        frame.image,
-        cell.x + offsetCellX,
-        cell.y + offsetCellY,
-        frame.width,
-        frame.height
-      );
+      ctx.drawImage(frame.image, rect.x, rect.y, rect.w, rect.h);
     });
 
     ctx.restore();
@@ -335,13 +329,13 @@ export const renderCanvas = ({
     ctx.scale(scale, scale);
     ctx.strokeStyle = borderColor;
     ctx.lineWidth = 1 / scale;
-    atlasLayout.positions.forEach((cell, index) => {
-      ctx.strokeRect(cell.x, cell.y, cell.w, cell.h);
+    placements.forEach((rect, index) => {
+      ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
       if (index === currentFrameIndex) {
         ctx.save();
         ctx.strokeStyle = accentColor;
         ctx.lineWidth = 2 / scale;
-        ctx.strokeRect(cell.x, cell.y, cell.w, cell.h);
+        ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
         ctx.restore();
       }
     });

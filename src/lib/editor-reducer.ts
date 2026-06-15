@@ -2,8 +2,10 @@ import type { Dispatch, SetStateAction } from "react";
 import type {
   AppMode,
   AtlasImageFormat,
+  AtlasPackingMode,
   AutoFillShape,
   EditorMode,
+  ExportJsonMode,
   FrameData,
   PivotMode,
   PointGroup,
@@ -43,6 +45,10 @@ export type EditorState = {
   exportSmoothing: boolean;
   exportSize: number;
   exportFormat: AtlasImageFormat;
+  exportJsonMode: ExportJsonMode;
+  atlasPackingMode: AtlasPackingMode;
+  webpQuality: number;
+  ktx2Quality: number;
   isSpriteSettingsOpen: boolean;
   isAtlasSettingsOpen: boolean;
   isExportQualityOpen: boolean;
@@ -145,6 +151,10 @@ export const createInitialEditorState = (): EditorState => {
     exportSmoothing: false,
     exportSize: 1,
     exportFormat: "png",
+    exportJsonMode: "pretty",
+    atlasPackingMode: "uniform",
+    webpQuality: 90,
+    ktx2Quality: 2,
     isSpriteSettingsOpen: true,
     isAtlasSettingsOpen: true,
     isExportQualityOpen: true,
@@ -203,6 +213,10 @@ const HISTORY_LABEL_OVERRIDES: Partial<Record<keyof EditorState, string>> = {
   exportSmoothing: "Export smoothing",
   exportSize: "Export size",
   exportFormat: "Export format",
+  exportJsonMode: "JSON export mode",
+  atlasPackingMode: "Atlas packing mode",
+  webpQuality: "WebP quality",
+  ktx2Quality: "KTX2 quality",
   isSpriteSettingsOpen: "Sprite settings",
   isAtlasSettingsOpen: "Atlas settings",
   isExportQualityOpen: "Export quality",

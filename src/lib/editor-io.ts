@@ -4,6 +4,8 @@ import type { TranslationKey } from "@/lib/i18n";
 import type {
   AppMode,
   AtlasImageFormat,
+  AtlasPackingMode,
+  ExportJsonMode,
   FrameData,
   PivotMode,
   PointGroup,
@@ -12,13 +14,19 @@ import type {
 import { buildGroupsFromJson, importPointsJsonToFrames } from "@/lib/editor-imports";
 import {
   clamp,
-  computeAtlasLayout,
+  computeAtlasLayoutByMode,
   createId,
   downloadBlob,
   loadFrameFromFile,
   loadImageFromFile,
+  resolveFramePlacements,
   toPivotCoords,
 } from "@/lib/editor-helpers";
+import {
+  normalizeAtlasPayload,
+  serializeAtlasPayload,
+  type AtlasPayload,
+} from "@/lib/atlas-format";
 import {
   encodeCanvasToAtlasBlob,
   getAtlasImageFilename,
@@ -70,6 +78,7 @@ type AtlasExportCommonParams = {
   frames: FrameData[];
   rows: number;
   padding: number;
+  packingMode: AtlasPackingMode;
   exportScale: number;
   minScale: number;
   maxScale: number;
@@ -189,6 +198,7 @@ const saveBlobWithDialog = async (
 const normalizeFrameZipName = (name: string, fallback: string) => {
   const trimmed = (name || fallback).trim().replace(/\.[^/.]+$/, "");
   const sanitized = trimmed
+    // eslint-disable-next-line no-control-regex -- filename sanitization needs control range
     .replace(/[<>:"/\\|?*\u0000-\u001F]+/g, "_")
     .replace(/\s+/g, " ")
     .replace(/\.+$/g, "")
@@ -255,6 +265,7 @@ const createAtlasCanvas = ({
   frames,
   rows,
   padding,
+  packingMode,
   exportScale,
   exportSmoothing,
   minScale,
@@ -263,7 +274,11 @@ const createAtlasCanvas = ({
   if (frames.length === 0) {
     return null;
   }
-  const layout = computeAtlasLayout(frames, rows, padding);
+  const layout = computeAtlasLayoutByMode(frames, {
+    mode: packingMode,
+    rows,
+    padding,
+  });
   const scale = clamp(exportScale, minScale, maxScale);
   const targetWidth = Math.max(1, Math.round(layout.width * scale));
   const targetHeight = Math.max(1, Math.round(layout.height * scale));
@@ -281,19 +296,18 @@ const createAtlasCanvas = ({
   if (exportSmoothing) {
     ctx.imageSmoothingQuality = "high";
   }
-  layout.positions.forEach((cell, index) => {
+  const placements = resolveFramePlacements(layout, frames);
+  placements.forEach((rect, index) => {
     const frame = frames[index];
     if (!frame) {
       return;
     }
-    const offsetX = Math.floor((layout.cellWidth - frame.width) / 2);
-    const offsetY = Math.floor((layout.cellHeight - frame.height) / 2);
     ctx.drawImage(
       frame.image,
-      (cell.x + offsetX) * scaleX,
-      (cell.y + offsetY) * scaleY,
-      frame.width * scaleX,
-      frame.height * scaleY
+      rect.x * scaleX,
+      rect.y * scaleY,
+      rect.w * scaleX,
+      rect.h * scaleY
     );
   });
   return {
@@ -310,6 +324,7 @@ const buildAtlasJsonPayload = ({
   frames,
   rows,
   padding,
+  packingMode,
   exportScale,
   pivotMode,
   spriteDirection,
@@ -325,27 +340,30 @@ const buildAtlasJsonPayload = ({
   maxScale,
   selectedAnimationFrames,
   exportAtlasName,
-}: AtlasJsonExportParams) => {
+}: AtlasJsonExportParams): AtlasPayload | null => {
   if (frames.length === 0) {
     return null;
   }
-  const layout = computeAtlasLayout(frames, rows, padding);
+  const layout = computeAtlasLayoutByMode(frames, {
+    mode: packingMode,
+    rows,
+    padding,
+  });
   const scale = clamp(exportScale, minScale, maxScale);
   const targetWidth = Math.max(1, Math.round(layout.width * scale));
   const targetHeight = Math.max(1, Math.round(layout.height * scale));
   const scaleX = targetWidth / layout.width;
   const scaleY = targetHeight / layout.height;
   const includePoints = appMode === "character";
+  const placements = resolveFramePlacements(layout, frames);
   const exportedFrames = frames.map((frame, index) => {
-    const cell = layout.positions[index];
-    const offsetX = Math.floor((layout.cellWidth - frame.width) / 2);
-    const offsetY = Math.floor((layout.cellHeight - frame.height) / 2);
+    const rect = placements[index];
     const base = {
       name: frame.name,
-      x: Math.round((cell.x + offsetX) * scaleX),
-      y: Math.round((cell.y + offsetY) * scaleY),
-      w: Math.round(frame.width * scaleX),
-      h: Math.round(frame.height * scaleY),
+      x: Math.round(rect.x * scaleX),
+      y: Math.round(rect.y * scaleY),
+      w: Math.round(rect.w * scaleX),
+      h: Math.round(rect.h * scaleY),
     };
     if (!includePoints) {
       return base;
@@ -566,7 +584,8 @@ export const importAtlasFromFiles = async ({
   supportLegacyAtlas?: boolean;
 }): Promise<AtlasImportResult | null> => {
   const raw = await jsonFile.text();
-  const parsed = JSON.parse(raw);
+  const parsedRaw = JSON.parse(raw);
+  const parsed = normalizeAtlasPayload(parsedRaw) as typeof parsedRaw;
   const entries = parseAtlasEntries(parsed);
   if (entries.length === 0) {
     return null;
@@ -652,24 +671,44 @@ export const importAtlasFromFiles = async ({
   };
 };
 
+const resolveEncodeQuality = (
+  format: AtlasImageFormat,
+  webpQuality: number,
+  ktx2Quality: number
+) => {
+  if (format === "webp") {
+    return clamp(webpQuality, 0, 100) / 100;
+  }
+  if (format === "ktx2") {
+    return clamp(ktx2Quality, 0, 3);
+  }
+  return undefined;
+};
+
 export const exportAtlasPng = ({
   frames,
   rows,
   padding,
+  packingMode,
   exportScale,
   exportSmoothing,
   exportFormat,
   exportAtlasName,
+  webpQuality,
+  ktx2Quality,
   minScale,
   maxScale,
 }: {
   frames: FrameData[];
   rows: number;
   padding: number;
+  packingMode: AtlasPackingMode;
   exportScale: number;
   exportSmoothing: boolean;
   exportFormat: AtlasImageFormat;
   exportAtlasName: string;
+  webpQuality: number;
+  ktx2Quality: number;
   minScale: number;
   maxScale: number;
 }) => {
@@ -677,6 +716,7 @@ export const exportAtlasPng = ({
     frames,
     rows,
     padding,
+    packingMode,
     exportScale,
     exportSmoothing,
     minScale,
@@ -690,7 +730,11 @@ export const exportAtlasPng = ({
     webp: { name: "WebP Image", extensions: ["webp"] },
     ktx2: { name: "KTX2 Texture", extensions: ["ktx2"] },
   };
-  void encodeCanvasToAtlasBlob(atlas.canvas, exportFormat)
+  void encodeCanvasToAtlasBlob(
+    atlas.canvas,
+    exportFormat,
+    resolveEncodeQuality(exportFormat, webpQuality, ktx2Quality)
+  )
     .then((blob) =>
       saveBlobWithDialog(
         blob,
@@ -736,6 +780,7 @@ export const exportAtlasJson = ({
   frames,
   rows,
   padding,
+  packingMode,
   exportScale,
   pivotMode,
   spriteDirection,
@@ -747,6 +792,7 @@ export const exportAtlasJson = ({
   loop,
   exportSize,
   exportFormat,
+  exportJsonMode,
   minScale,
   maxScale,
   selectedAnimationFrames,
@@ -756,6 +802,7 @@ export const exportAtlasJson = ({
   frames: FrameData[];
   rows: number;
   padding: number;
+  packingMode: AtlasPackingMode;
   exportScale: number;
   pivotMode: PivotMode;
   spriteDirection: SpriteDirection;
@@ -767,6 +814,7 @@ export const exportAtlasJson = ({
   loop: boolean;
   exportSize: number;
   exportFormat: AtlasImageFormat;
+  exportJsonMode: ExportJsonMode;
   minScale: number;
   maxScale: number;
   selectedAnimationFrames: FrameData[];
@@ -781,6 +829,7 @@ export const exportAtlasJson = ({
     frames,
     rows,
     padding,
+    packingMode,
     exportScale,
     pivotMode,
     spriteDirection,
@@ -801,7 +850,7 @@ export const exportAtlasJson = ({
     return;
   }
 
-  const jsonBlob = new Blob([JSON.stringify(payload, null, 2)], {
+  const jsonBlob = new Blob([serializeAtlasPayload(payload, exportJsonMode)], {
     type: "application/json",
   });
   void saveBlobWithDialog(jsonBlob, `${resolvedExportDataName}.json`, [
@@ -813,6 +862,7 @@ export const exportAtlasBundle = async ({
   frames,
   rows,
   padding,
+  packingMode,
   exportScale,
   exportSmoothing,
   pivotMode,
@@ -824,6 +874,9 @@ export const exportAtlasBundle = async ({
   speed,
   loop,
   exportSize,
+  exportJsonMode,
+  webpQuality,
+  ktx2Quality,
   minScale,
   maxScale,
   selectedAnimationFrames,
@@ -831,6 +884,9 @@ export const exportAtlasBundle = async ({
   exportDataName,
 }: Omit<AtlasJsonExportParams, "exportFormat"> & {
   exportSmoothing: boolean;
+  exportJsonMode: ExportJsonMode;
+  webpQuality: number;
+  ktx2Quality: number;
   exportDataName: string;
 }) => {
   const resolvedExportDataName = resolveExportDataName(
@@ -841,6 +897,7 @@ export const exportAtlasBundle = async ({
     frames,
     rows,
     padding,
+    packingMode,
     exportScale,
     exportSmoothing,
     minScale,
@@ -854,6 +911,7 @@ export const exportAtlasBundle = async ({
     frames,
     rows,
     padding,
+    packingMode,
     exportScale,
     pivotMode,
     spriteDirection,
@@ -879,7 +937,11 @@ export const exportAtlasBundle = async ({
   const blobs = await Promise.all(
     formats.map(async (format) => ({
       format,
-      blob: await encodeCanvasToAtlasBlob(atlas.canvas, format),
+      blob: await encodeCanvasToAtlasBlob(
+        atlas.canvas,
+        format,
+        resolveEncodeQuality(format, webpQuality, ktx2Quality)
+      ),
     }))
   );
   blobs.forEach(({ format, blob }) => {
@@ -887,7 +949,7 @@ export const exportAtlasBundle = async ({
   });
   zip.file(
     `${resolvedExportDataName}.json`,
-    JSON.stringify(jsonPayload, null, 2)
+    serializeAtlasPayload(jsonPayload, exportJsonMode)
   );
 
   const zipBlob = await zip.generateAsync({

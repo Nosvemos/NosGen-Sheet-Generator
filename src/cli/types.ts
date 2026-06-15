@@ -1,4 +1,5 @@
 export type CliPackingMode = "uniform" | "tight" | "shelf";
+export type CliJsonMode = "pretty" | "minified" | "compact";
 
 export type CliExportConfig = {
   scale?: number;
@@ -9,6 +10,7 @@ export type CliExportConfig = {
   rows?: number;
   padding?: number;
   packingMode?: CliPackingMode;
+  jsonMode?: CliJsonMode;
 };
 
 export type CliKeyframe = {

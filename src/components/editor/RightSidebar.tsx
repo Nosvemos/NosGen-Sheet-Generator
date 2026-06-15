@@ -5,6 +5,8 @@ import type {
   AppMode,
   AtlasImageFormat,
   AtlasLayout,
+  AtlasPackingMode,
+  ExportJsonMode,
   PivotMode,
   SpriteDirection,
 } from "@/lib/editor-types";
@@ -47,6 +49,8 @@ export type RightSidebarProps = {
   setRows: Dispatch<SetStateAction<number>>;
   padding: number;
   setPadding: Dispatch<SetStateAction<number>>;
+  atlasPackingMode: AtlasPackingMode;
+  setAtlasPackingMode: Dispatch<SetStateAction<AtlasPackingMode>>;
   atlasLayout: AtlasLayout;
   sizeMismatch: boolean;
   toNumber: (value: string, fallback: number) => number;
@@ -60,6 +64,12 @@ export type RightSidebarProps = {
   setExportSize: Dispatch<SetStateAction<number>>;
   exportFormat: AtlasImageFormat;
   setExportFormat: Dispatch<SetStateAction<AtlasImageFormat>>;
+  exportJsonMode: ExportJsonMode;
+  setExportJsonMode: Dispatch<SetStateAction<ExportJsonMode>>;
+  webpQuality: number;
+  setWebpQuality: Dispatch<SetStateAction<number>>;
+  ktx2Quality: number;
+  setKtx2Quality: Dispatch<SetStateAction<number>>;
   handleExportPng: () => void;
   handleExportJson: () => void;
   handleExportBundle: () => void;
@@ -98,6 +108,8 @@ export function RightSidebar({
   setRows,
   padding,
   setPadding,
+  atlasPackingMode,
+  setAtlasPackingMode,
   atlasLayout,
   sizeMismatch,
   toNumber,
@@ -111,6 +123,12 @@ export function RightSidebar({
   setExportSize,
   exportFormat,
   setExportFormat,
+  exportJsonMode,
+  setExportJsonMode,
+  webpQuality,
+  setWebpQuality,
+  ktx2Quality,
+  setKtx2Quality,
   handleExportPng,
   handleExportJson,
   handleExportBundle,
@@ -161,6 +179,8 @@ export function RightSidebar({
         setRows={setRows}
         padding={padding}
         setPadding={setPadding}
+        atlasPackingMode={atlasPackingMode}
+        setAtlasPackingMode={setAtlasPackingMode}
         atlasLayout={atlasLayout}
         sizeMismatch={sizeMismatch}
         toNumber={toNumber}
@@ -178,6 +198,12 @@ export function RightSidebar({
         setExportSize={setExportSize}
         exportFormat={exportFormat}
         setExportFormat={setExportFormat}
+        exportJsonMode={exportJsonMode}
+        setExportJsonMode={setExportJsonMode}
+        webpQuality={webpQuality}
+        setWebpQuality={setWebpQuality}
+        ktx2Quality={ktx2Quality}
+        setKtx2Quality={setKtx2Quality}
         toNumber={toNumber}
         minExportScale={minExportScale}
         maxExportScale={maxExportScale}

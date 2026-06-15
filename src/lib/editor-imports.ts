@@ -6,6 +6,7 @@ import {
   createPointColor,
   fromPivotCoords,
 } from "@/lib/editor-helpers";
+import { normalizeAtlasPayload } from "@/lib/atlas-format";
 
 type Translate = (
   key: TranslationKey,
@@ -22,6 +23,7 @@ export const importPointsJsonToFrames = (
   pivotMode?: PivotMode;
   exportSize?: number;
 } => {
+  parsed = normalizeAtlasPayload(parsed);
   if (!parsed || typeof parsed !== "object") {
     return { frames: baseFrames };
   }
@@ -188,6 +190,7 @@ export const importPointsJsonToFrames = (
 };
 
 export const buildGroupsFromJson = (parsed: unknown, baseFrames: FrameData[]) => {
+  parsed = normalizeAtlasPayload(parsed);
   if (!parsed || typeof parsed !== "object") {
     return [];
   }

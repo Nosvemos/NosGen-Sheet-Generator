@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import type { CliConfig, CliPackingMode } from "./cli/types.ts";
+import type { CliConfig, CliJsonMode, CliPackingMode } from "./cli/types.ts";
 import { run, generateSampleConfig } from "./cli/engine.ts";
 
 function showHelp(command?: string) {
@@ -19,6 +19,7 @@ Common Options:
   --smoothing                Enable smoothing (Lanczos3) during scaling
   --pivot <top-left|bottom-left|center>  Pivot mode (default: top-left)
   --mode <uniform|tight|shelf> Packing mode (default: shelf)
+  --json <pretty|minified|compact>  JSON output shape (default: pretty)
   -h, --help                 Show help
 `;
 
@@ -94,6 +95,7 @@ type ParsedArgs = {
   smoothing?: boolean;
   pivot?: "top-left" | "bottom-left" | "center";
   packingMode?: CliPackingMode;
+  jsonMode?: CliJsonMode;
   atlas?: string;
   data?: string;
   mode?: "normal" | "character" | "animation";
@@ -159,6 +161,9 @@ function parseArgs(): ParsedArgs {
       case "--mode":
         result.packingMode = args[++i] as CliPackingMode;
         break;
+      case "--json":
+        result.jsonMode = args[++i] as CliJsonMode;
+        break;
       case "-a":
       case "--atlas":
         result.atlas = args[++i];
@@ -221,6 +226,7 @@ function mergeArgsIntoConfig(
           ? args.smoothing
           : config.export?.smoothing ?? false,
       pivot: args.pivot || config.export?.pivot || "top-left",
+      jsonMode: args.jsonMode || config.export?.jsonMode || "pretty",
       rows:
         args.rows !== undefined ? args.rows : config.export?.rows,
       padding:

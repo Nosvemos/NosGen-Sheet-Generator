@@ -12,6 +12,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "cli": "tsx src/cli.ts",
     "wails:generate": "wails3 task generate:bindings",
     "wails:dev": "wails3 task dev",
@@ -20,7 +22,6 @@
     "wails:package": "node scripts/package-wails-release.mjs"
   },
   "dependencies": {
-    "@wailsio/runtime": "3.0.0-alpha.74",
     "@babylonjs/core": "^8.55.3",
     "@babylonjs/ktx2decoder": "^8.55.3",
     "@radix-ui/react-label": "^2.1.8",
@@ -32,6 +33,7 @@
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@wailsio/runtime": "3.0.0-alpha.74",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "jszip": "^3.10.1",
@@ -60,6 +62,11 @@
     "tsx": "^4.19.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
-    "vite": "^7.2.4"
+    "vite": "^7.2.4",
+    "vitest": "^4.1.9"
+  },
+  "allowScripts": {
+    "esbuild@0.27.2": true,
+    "sharp@0.33.5": true
   }
 }

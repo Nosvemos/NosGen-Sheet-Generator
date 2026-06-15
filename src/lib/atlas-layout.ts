@@ -1,9 +1,11 @@
-import type { AtlasLayout } from "@/lib/editor-types";
+import type { AtlasLayout, AtlasPackingMode } from "@/lib/editor-types";
 
 export interface SizedItem {
   width: number;
   height: number;
 }
+
+export type FramePlacement = { x: number; y: number; w: number; h: number };
 
 export type ShelfAtlasLayout = AtlasLayout & {
   mode: "shelf";
@@ -45,6 +47,7 @@ export const computeAtlasLayout = (
     width,
     height,
     positions,
+    mode: "uniform",
   };
 };
 
@@ -101,6 +104,7 @@ export const computeTightAtlasLayout = <T extends SizedItem>(
     width,
     height,
     positions,
+    mode: "tight",
   };
 };
 
@@ -200,3 +204,43 @@ export const computeShelfAtlasLayout = <T extends SizedItem>(
     mode: "shelf",
   };
 };
+
+// Single entry point: pick a packing algorithm by mode. Shared by the web
+// export pipeline and the CLI so both produce identical layouts.
+export const computeAtlasLayoutByMode = <T extends SizedItem>(
+  frames: T[],
+  options: { mode?: AtlasPackingMode; rows?: number; padding?: number }
+): AtlasLayout => {
+  const padding = options.padding ?? 0;
+  const mode = options.mode ?? "uniform";
+  if (mode === "shelf") {
+    return computeShelfAtlasLayout(frames, padding);
+  }
+  const rows =
+    options.rows ?? Math.max(1, Math.ceil(Math.sqrt(frames.length)));
+  if (mode === "tight") {
+    return computeTightAtlasLayout(frames, rows, padding);
+  }
+  return computeAtlasLayout(frames, rows, padding, "uniform");
+};
+
+// Convert a layout's cells into final frame draw rects. Uniform layouts use
+// max-size cells and need the frame centered inside; tight/shelf already store
+// frame-final positions. This keeps drawing logic identical across all modes
+// (the historical bug was that the web export only handled uniform centering).
+export const resolveFramePlacements = (
+  layout: AtlasLayout,
+  frames: SizedItem[]
+): FramePlacement[] =>
+  layout.positions.map((cell, index) => {
+    const frame = frames[index] ?? { width: cell.w, height: cell.h };
+    if (layout.mode === "tight" || layout.mode === "shelf") {
+      return { x: cell.x, y: cell.y, w: frame.width, h: frame.height };
+    }
+    return {
+      x: cell.x + Math.floor((layout.cellWidth - frame.width) / 2),
+      y: cell.y + Math.floor((layout.cellHeight - frame.height) / 2),
+      w: frame.width,
+      h: frame.height,
+    };
+  });
