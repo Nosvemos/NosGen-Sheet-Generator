@@ -5,6 +5,7 @@ import path from "node:path";
 const rootDir = process.cwd();
 const packageJsonPath = path.join(rootDir, "package.json");
 const buildBinDir = path.join(rootDir, "build", "bin");
+const cliDistDir = path.join(rootDir, "dist-cli");
 const outputDir = path.join(rootDir, "dist", "release");
 
 const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
@@ -63,4 +64,23 @@ for (const artifact of artifacts) {
   const zipPath = path.join(outputDir, zipName);
   await writeFile(zipPath, zipBuffer);
   console.log(`Created ${zipPath}`);
+}
+
+// Bundle the headless CLI executable (built by scripts/build-cli-exe.mjs) when
+// present. The executable ships with its sharp runtime in node_modules.
+const cliExists = await stat(cliDistDir)
+  .then((entry) => entry.isDirectory())
+  .catch(() => false);
+
+if (cliExists) {
+  const cliZip = new JSZip();
+  await addEntryToZip(cliZip, cliDistDir, ".");
+  const cliZipBuffer = await cliZip.generateAsync({
+    type: "nodebuffer",
+    compression: "DEFLATE",
+    compressionOptions: { level: 6 },
+  });
+  const cliZipPath = path.join(outputDir, `${outputName}-cli-v${version}.zip`);
+  await writeFile(cliZipPath, cliZipBuffer);
+  console.log(`Created ${cliZipPath}`);
 }

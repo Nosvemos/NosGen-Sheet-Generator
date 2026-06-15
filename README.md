@@ -112,13 +112,14 @@ Build outputs:
 - `build/bin/nosgen.exe` (Windows)
 - `build/bin/nosgen` (Linux)
 - `build/bin/nosgen.app` (macOS)
-- `dist/release/*` zipped release artifacts created by `npm run wails:build`
+- `dist-cli/nosgen-cli[.exe]` + `node_modules` (headless CLI, via `npm run cli:exe`)
+- `dist/release/*` zipped release artifacts created by `npm run wails:build` (includes `nosgen-cli-*` when `dist-cli` is present)
 
 ## GitHub Actions
 The repository includes a GitHub Actions workflow at `.github/workflows/build-release.yml`.
 
-- Pushes to `main` run an automated desktop build.
-- Pushing a tag like `v0.1.0` builds release artifacts and uploads them to a GitHub Release.
+- Pushes to `main` run an automated desktop build (plus the headless CLI executable).
+- Pushing a tag like `v0.1.0` builds release artifacts (desktop app + `nosgen-cli-*`) and uploads them to a GitHub Release.
 - Manual runs also support a `version` input. When provided, the workflow updates `package.json`, `package-lock.json`, and `build/config.yml`, commits the version bump, then builds and publishes the release from that commit.
 
 ## Customization
@@ -148,6 +149,29 @@ NosGen can be run headless from the command line, making it ideal for AI agents 
 ```bash
 npm run cli -- <command> [options]
 ```
+
+### Standalone CLI Executable (no Node required)
+Releases include a prebuilt headless executable so you can run NosGen without installing Node.js:
+
+- `nosgen-cli-v<version>-windows-amd64.zip`
+- `nosgen-cli-v<version>-linux-amd64.tar.gz`
+- `nosgen-cli-v<version>-macos-universal.zip`
+
+Each archive contains `nosgen-cli` (the executable) plus a `node_modules/` folder holding the `sharp` image runtime. **Keep them together** — the executable loads `sharp` from the adjacent `node_modules`. Then run it like the npm CLI:
+
+```bash
+# Windows
+nosgen-cli.exe pack -i ./frames -o ./dist -n hero --mode shelf --json compact
+
+# Linux / macOS
+./nosgen-cli pack -i ./frames -o ./dist -n hero --mode shelf --json compact
+```
+
+Build the executable locally (output in `dist-cli/`):
+```bash
+npm run cli:exe
+```
+This bundles the CLI with esbuild, wraps it as a Node Single Executable Application, and installs the platform `sharp` runtime beside it. The GitHub Actions release workflow builds one per OS automatically alongside the desktop app.
 
 ### Subcommands
 | Command | Description |

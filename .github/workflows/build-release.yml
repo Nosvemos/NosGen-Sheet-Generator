@@ -201,13 +201,21 @@ jobs:
           set -euo pipefail
           ${{ matrix.build_command }}
 
+      - name: Build headless CLI executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/build-cli-exe.mjs
+
       - name: Package Windows artifact
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force release-assets | Out-Null
-          $archiveName = "nosgen-v${{ needs.meta.outputs.version }}-${{ matrix.archive_suffix }}"
-          Compress-Archive -Path "${{ matrix.build_output }}" -DestinationPath "release-assets/$archiveName" -Force
+          $version = "${{ needs.meta.outputs.version }}"
+          $suffix = "${{ matrix.archive_suffix }}"
+          Compress-Archive -Path "${{ matrix.build_output }}" -DestinationPath "release-assets/nosgen-v$version-$suffix" -Force
+          Compress-Archive -Path "dist-cli/*" -DestinationPath "release-assets/nosgen-cli-v$version-$suffix" -Force
 
       - name: Package Linux artifact
         if: runner.os == 'Linux'
@@ -215,8 +223,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-assets
-          archive_name="nosgen-v${{ needs.meta.outputs.version }}-${{ matrix.archive_suffix }}"
-          tar -C build/bin -czf "release-assets/$archive_name" "$(basename '${{ matrix.build_output }}')"
+          version="${{ needs.meta.outputs.version }}"
+          suffix="${{ matrix.archive_suffix }}"
+          tar -C build/bin -czf "release-assets/nosgen-v$version-$suffix" "$(basename '${{ matrix.build_output }}')"
+          tar -C dist-cli -czf "release-assets/nosgen-cli-v$version-$suffix" .
 
       - name: Package macOS artifact
         if: runner.os == 'macOS'
@@ -224,8 +234,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-assets
-          archive_name="nosgen-v${{ needs.meta.outputs.version }}-${{ matrix.archive_suffix }}"
-          ditto -c -k --sequesterRsrc --keepParent "${{ matrix.build_output }}" "release-assets/$archive_name"
+          version="${{ needs.meta.outputs.version }}"
+          suffix="${{ matrix.archive_suffix }}"
+          ditto -c -k --sequesterRsrc --keepParent "${{ matrix.build_output }}" "release-assets/nosgen-v$version-$suffix"
+          ditto -c -k --sequesterRsrc "dist-cli" "release-assets/nosgen-cli-v$version-$suffix"
 
       - uses: actions/upload-artifact@v4
         with:
