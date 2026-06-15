@@ -1,7 +1,7 @@
 {
   "name": "nosgen",
   "private": true,
-  "version": "0.1.6",
+  "version": "0.1.7",
   "type": "module",
   "bin": {
     "nosgen-sheet": "./src/cli.ts"
