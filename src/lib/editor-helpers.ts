@@ -134,7 +134,8 @@ export const loadFrameFromFile = async (file: File): Promise<FrameData> => {
   const img = await loadAtlasImageFromFile(file);
   return {
     id: createId(),
-    name: file.name,
+    // Strip the file extension so exported frame names match the CLI.
+    name: file.name.replace(/\.[^/.]+$/, ""),
     image: img,
     width: img.naturalWidth || img.width,
     height: img.naturalHeight || img.height,
