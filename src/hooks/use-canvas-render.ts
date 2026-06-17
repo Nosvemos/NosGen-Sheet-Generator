@@ -73,6 +73,7 @@ export const useCanvasRender = ({
     renderCanvas({
       canvas: canvasRef.current,
       stageSize,
+      theme,
       viewMode,
       currentFrame,
       frames,

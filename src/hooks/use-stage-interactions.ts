@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import type {
   Dispatch,
   PointerEvent,
@@ -53,8 +53,13 @@ type UseStageInteractionsParams = {
     viewHeight: number
   ) => StageTransform | null;
   addPointAt: (x: number, y: number) => void;
-  updateCurrentFramePoints: (updater: (points: FramePoint[]) => FramePoint[]) => void;
+  updateCurrentFramePointsSilent: (
+    updater: (points: FramePoint[]) => FramePoint[]
+  ) => void;
   setSelectedPointId: Dispatch<SetStateAction<string | null>>;
+  draggingPointId: string | null;
+  setDraggingPointId: Dispatch<SetStateAction<string | null>>;
+  commitFramesHistory: (before: FrameData[], label: string) => void;
 };
 
 export const useStageInteractions = ({
@@ -73,11 +78,14 @@ export const useStageInteractions = ({
   stageSize,
   getFrameTransform,
   addPointAt,
-  updateCurrentFramePoints,
+  updateCurrentFramePointsSilent,
   setSelectedPointId,
+  draggingPointId,
+  setDraggingPointId,
+  commitFramesHistory,
 }: UseStageInteractionsParams) => {
   const panRef = useRef<PanState | null>(null);
-  const [draggingPointId, setDraggingPointId] = useState<string | null>(null);
+  const dragStartFramesRef = useRef<FrameData[] | null>(null);
   const snapThreshold = 3;
 
   const getFramePointerPosition = (
@@ -238,6 +246,8 @@ export const useStageInteractions = ({
     if (hit) {
       setSelectedPointId(hit.id);
       setDraggingPointId(hit.id);
+      // Snapshot frames so the whole drag commits as one undo step on release.
+      dragStartFramesRef.current = frames;
       canvas.setPointerCapture(event.pointerId);
     } else {
       setSelectedPointId(null);
@@ -291,7 +301,7 @@ export const useStageInteractions = ({
         clampedY = resolveSnap(clampedY, yCandidates);
       }
     }
-    updateCurrentFramePoints((points) =>
+    updateCurrentFramePointsSilent((points) =>
       points.map((point) =>
         point.id === draggingPointId
           ? { ...point, x: clampedX, y: clampedY, isKeyframe: true }
@@ -308,6 +318,13 @@ export const useStageInteractions = ({
     }
     if (draggingPointId) {
       canvasRef.current?.releasePointerCapture(event.pointerId);
+      // Record the entire drag as a single undo step (frames were updated
+      // silently during the move).
+      const before = dragStartFramesRef.current;
+      if (before && before !== frames) {
+        commitFramesHistory(before, "Point moved");
+      }
+      dragStartFramesRef.current = null;
     }
     setDraggingPointId(null);
   };

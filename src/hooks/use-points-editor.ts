@@ -13,6 +13,7 @@ type UsePointsEditorParams = {
   frames: FrameData[];
   currentFrame?: FrameData;
   setFrames: Dispatch<SetStateAction<FrameData[]>>;
+  setFramesSilent: Dispatch<SetStateAction<FrameData[]>>;
   setSelectedPointId: Dispatch<SetStateAction<string | null>>;
   t: Translate;
 };
@@ -21,15 +22,19 @@ export const usePointsEditor = ({
   frames,
   currentFrame,
   setFrames,
+  setFramesSilent,
   setSelectedPointId,
   t,
 }: UsePointsEditorParams) => {
-  const updateCurrentFramePoints = useCallback(
-    (updater: (points: FramePoint[]) => FramePoint[]) => {
+  const updateFramePoints = useCallback(
+    (
+      setter: Dispatch<SetStateAction<FrameData[]>>,
+      updater: (points: FramePoint[]) => FramePoint[]
+    ) => {
       if (!currentFrame) {
         return;
       }
-      setFrames((prev) =>
+      setter((prev) =>
         prev.map((frame) =>
           frame.id === currentFrame.id
             ? { ...frame, points: updater(frame.points) }
@@ -37,7 +42,21 @@ export const usePointsEditor = ({
         )
       );
     },
-    [currentFrame, setFrames]
+    [currentFrame]
+  );
+
+  const updateCurrentFramePoints = useCallback(
+    (updater: (points: FramePoint[]) => FramePoint[]) =>
+      updateFramePoints(setFrames, updater),
+    [updateFramePoints, setFrames]
+  );
+
+  // Same update but without recording history — used during a live drag, which
+  // commits a single history entry on release.
+  const updateCurrentFramePointsSilent = useCallback(
+    (updater: (points: FramePoint[]) => FramePoint[]) =>
+      updateFramePoints(setFramesSilent, updater),
+    [updateFramePoints, setFramesSilent]
   );
 
   const updateAllFramesPoints = useCallback(
@@ -89,6 +108,7 @@ export const usePointsEditor = ({
 
   return {
     updateCurrentFramePoints,
+    updateCurrentFramePointsSilent,
     updateAllFramesPoints,
     addPointAt,
   };

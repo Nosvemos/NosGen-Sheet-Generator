@@ -24,6 +24,7 @@ type UseAutoFillParams = {
   autoFillShape: AutoFillShape;
   spriteDirection: SpriteDirection;
   setFrames: Dispatch<SetStateAction<FrameData[]>>;
+  isDraggingPoint?: boolean;
 };
 
 export const useAutoFill = ({
@@ -33,6 +34,7 @@ export const useAutoFill = ({
   autoFillShape,
   spriteDirection,
   setFrames,
+  isDraggingPoint = false,
 }: UseAutoFillParams) => {
   const selectedPointKeyframes = useMemo(() => {
     if (!selectedPointId) {
@@ -57,6 +59,12 @@ export const useAutoFill = ({
   const selectedAutoFillModel = useMemo<AutoFillModel | null>(() => {
     if (selectedPointKeyframes.length < 2 || frames.length === 0) {
       return null;
+    }
+    // Ellipse/circle/square fits run a ~130k-iteration grid search. While a
+    // point is being dragged the keyframes change every pointer move, so fall
+    // back to a cheap linear preview and only run the real fit on release.
+    if (isDraggingPoint && autoFillShape !== "tangent") {
+      return { shape: "linear", points: selectedPointKeyframes };
     }
     if (autoFillShape === "linear") {
       return { shape: "linear", points: selectedPointKeyframes };
@@ -86,7 +94,13 @@ export const useAutoFill = ({
       spriteDirection
     );
     return ellipse ? { shape: "ellipse", ...ellipse } : null;
-  }, [autoFillShape, frames.length, selectedPointKeyframes, spriteDirection]);
+  }, [
+    autoFillShape,
+    frames.length,
+    selectedPointKeyframes,
+    spriteDirection,
+    isDraggingPoint,
+  ]);
 
   const selectedAutoFillPositions = useMemo(() => {
     if (!selectedAutoFillModel || frames.length === 0) {

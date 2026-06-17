@@ -110,7 +110,13 @@ export type EditorHistoryAction =
   | { type: "undo" }
   | { type: "redo" }
   | { type: "clearHistory" }
-  | { type: "reset"; state?: EditorState };
+  | { type: "reset"; state?: EditorState }
+  | {
+      type: "commit";
+      patch: Partial<EditorState>;
+      inverse: Partial<EditorState>;
+      label: string;
+    };
 
 const resolveHistoryLimit = (state: EditorState) =>
   Math.max(0, Math.round(state.historyLimit ?? DEFAULT_HISTORY_LIMIT));
@@ -347,6 +353,25 @@ export const editorHistoryReducer = (
     return {
       past: [],
       present: action.state ?? createInitialEditorState(),
+      future: [],
+    };
+  }
+  // Records a single history entry for a change already applied to `present`
+  // (e.g. a drag updated frames silently move-by-move; commit it as one undo).
+  if (action.type === "commit") {
+    if (Object.keys(action.patch).length === 0) {
+      return history;
+    }
+    const limit = resolveHistoryLimit(history.present);
+    const entry: HistoryEntry = {
+      patch: action.patch,
+      inverse: action.inverse,
+      label: action.label,
+      timestamp: Date.now(),
+    };
+    return {
+      past: [...history.past, entry].slice(-limit),
+      present: history.present,
       future: [],
     };
   }

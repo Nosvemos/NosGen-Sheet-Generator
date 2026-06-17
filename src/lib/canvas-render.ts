@@ -6,13 +6,77 @@ import type {
   KeyframePoint,
   PivotMode,
   StageTransform,
+  ThemeMode,
   ViewMode,
 } from "@/lib/editor-types";
 import { drawCheckerboard, resolveFramePlacements, toHslColor } from "@/lib/editor-helpers";
 
+type ThemeColors = {
+  accentColor: string;
+  accentStrong: string;
+  mutedColor: string;
+  borderColor: string;
+  checkerBase: string;
+  checkerAlt: string;
+  gridColor: string;
+  frameOutline: string;
+};
+
+// Resolving CSS variables via getComputedStyle forces a style recalc, so cache
+// the parsed palette and only re-read it when the theme changes.
+let cachedColors: { theme: ThemeMode; colors: ThemeColors } | null = null;
+
+const resolveThemeColors = (theme: ThemeMode): ThemeColors => {
+  if (cachedColors && cachedColors.theme === theme) {
+    return cachedColors.colors;
+  }
+  const styles = window.getComputedStyle(document.documentElement);
+  const colors: ThemeColors = {
+    accentColor: toHslColor(styles.getPropertyValue("--accent"), "hsl(197 52% 48%)"),
+    accentStrong: toHslColor(
+      styles.getPropertyValue("--accent"),
+      "rgba(44, 155, 167, 0.8)",
+      0.85
+    ),
+    mutedColor: toHslColor(
+      styles.getPropertyValue("--muted-foreground"),
+      "rgba(28, 32, 40, 0.8)",
+      0.8
+    ),
+    borderColor: toHslColor(
+      styles.getPropertyValue("--border"),
+      "rgba(20, 20, 20, 0.12)",
+      0.4
+    ),
+    checkerBase: toHslColor(
+      styles.getPropertyValue("--background"),
+      "rgba(255, 255, 255, 0.6)",
+      0.9
+    ),
+    checkerAlt: toHslColor(
+      styles.getPropertyValue("--muted"),
+      "rgba(233, 233, 233, 0.7)",
+      0.75
+    ),
+    gridColor: toHslColor(
+      styles.getPropertyValue("--border"),
+      "rgba(20, 20, 20, 0.08)",
+      0.6
+    ),
+    frameOutline: toHslColor(
+      styles.getPropertyValue("--border"),
+      "rgba(18, 24, 33, 0.2)",
+      0.5
+    ),
+  };
+  cachedColors = { theme, colors };
+  return colors;
+};
+
 type RenderCanvasParams = {
   canvas: HTMLCanvasElement | null;
   stageSize: { width: number; height: number };
+  theme: ThemeMode;
   viewMode: ViewMode;
   currentFrame?: FrameData;
   frames: FrameData[];
@@ -40,6 +104,7 @@ type RenderCanvasParams = {
 export const renderCanvas = ({
   canvas,
   stageSize,
+  theme,
   viewMode,
   currentFrame,
   frames,
@@ -71,46 +136,16 @@ export const renderCanvas = ({
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const viewWidth = canvas.width / dpr;
   const viewHeight = canvas.height / dpr;
-  const styles = window.getComputedStyle(document.documentElement);
-  const accentColor = toHslColor(
-    styles.getPropertyValue("--accent"),
-    "hsl(197 52% 48%)"
-  );
-  const accentStrong = toHslColor(
-    styles.getPropertyValue("--accent"),
-    "rgba(44, 155, 167, 0.8)",
-    0.85
-  );
-  const mutedColor = toHslColor(
-    styles.getPropertyValue("--muted-foreground"),
-    "rgba(28, 32, 40, 0.8)",
-    0.8
-  );
-  const borderColor = toHslColor(
-    styles.getPropertyValue("--border"),
-    "rgba(20, 20, 20, 0.12)",
-    0.4
-  );
-  const checkerBase = toHslColor(
-    styles.getPropertyValue("--background"),
-    "rgba(255, 255, 255, 0.6)",
-    0.9
-  );
-  const checkerAlt = toHslColor(
-    styles.getPropertyValue("--muted"),
-    "rgba(233, 233, 233, 0.7)",
-    0.75
-  );
-  const gridColor = toHslColor(
-    styles.getPropertyValue("--border"),
-    "rgba(20, 20, 20, 0.08)",
-    0.6
-  );
-  const frameOutline = toHslColor(
-    styles.getPropertyValue("--border"),
-    "rgba(18, 24, 33, 0.2)",
-    0.5
-  );
+  const {
+    accentColor,
+    accentStrong,
+    mutedColor,
+    borderColor,
+    checkerBase,
+    checkerAlt,
+    gridColor,
+    frameOutline,
+  } = resolveThemeColors(theme);
   ctx.clearRect(0, 0, viewWidth, viewHeight);
   drawCheckerboard(ctx, viewWidth, viewHeight, 18, checkerBase, checkerAlt);
 

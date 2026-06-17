@@ -305,6 +305,12 @@ export function PlaybackPanel({
                   if (!canDeleteFrame) {
                     return;
                   }
+                  if (
+                    typeof window !== "undefined" &&
+                    !window.confirm(t("confirm.deleteFrame"))
+                  ) {
+                    return;
+                  }
                   setFrames((prev) => {
                     if (prev.length === 0) {
                       return prev;

@@ -1,9 +1,9 @@
-import { useMemo, useReducer, useRef } from "react";
+import { useCallback, useMemo, useReducer, useRef, useState } from "react";
 import { useI18n } from "@/lib/use-i18n";
 import type { LeftSidebarProps } from "@/components/editor/LeftSidebar";
 import type { MainStageProps } from "@/components/editor/MainStage";
 import type { RightSidebarProps } from "@/components/editor/RightSidebar";
-import type { PivotMode, StageTransform } from "@/lib/editor-types";
+import type { FrameData, PivotMode, StageTransform } from "@/lib/editor-types";
 import {
   createInitialEditorHistory,
   createStateSetter,
@@ -110,6 +110,7 @@ export function useEditorPanels() {
     const silent = { history: "ignore" as const };
     return {
       setFrames: createStateSetter(dispatch, "frames"),
+      setFramesSilent: createStateSetter(dispatch, "frames", silent),
       setCurrentFrameIndex: createStateSetter(
         dispatch,
         "currentFrameIndex",
@@ -205,6 +206,7 @@ export function useEditorPanels() {
   }, [dispatch]);
   const {
     setFrames,
+    setFramesSilent,
     setCurrentFrameIndex,
     setSelectedPointId,
     setEditorMode,
@@ -269,6 +271,19 @@ export function useEditorPanels() {
   );
   const undoCount = history.past.length;
   const redoCount = history.future.length;
+
+  const [draggingPointId, setDraggingPointId] = useState<string | null>(null);
+  const commitFramesHistory = useCallback(
+    (before: FrameData[], label: string) => {
+      dispatch({
+        type: "commit",
+        patch: { frames },
+        inverse: { frames: before },
+        label,
+      });
+    },
+    [dispatch, frames]
+  );
 
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -404,6 +419,7 @@ export function useEditorPanels() {
     autoFillShape,
     spriteDirection,
     setFrames,
+    isDraggingPoint: draggingPointId !== null,
   });
 
   const atlasLayout = useMemo(
@@ -490,14 +506,19 @@ export function useEditorPanels() {
     appMode,
   });
 
-  const { updateCurrentFramePoints, updateAllFramesPoints, addPointAt } =
-    usePointsEditor({
-      frames,
-      currentFrame,
-      setFrames,
-      setSelectedPointId,
-      t,
-    });
+  const {
+    updateCurrentFramePoints,
+    updateCurrentFramePointsSilent,
+    updateAllFramesPoints,
+    addPointAt,
+  } = usePointsEditor({
+    frames,
+    currentFrame,
+    setFrames,
+    setFramesSilent,
+    setSelectedPointId,
+    t,
+  });
 
   const {
     handleCanvasPointerDown,
@@ -520,8 +541,11 @@ export function useEditorPanels() {
     stageSize,
     getFrameTransform,
     addPointAt,
-    updateCurrentFramePoints,
+    updateCurrentFramePointsSilent,
     setSelectedPointId,
+    draggingPointId,
+    setDraggingPointId,
+    commitFramesHistory,
   });
 
   const handleExportPng = () => {

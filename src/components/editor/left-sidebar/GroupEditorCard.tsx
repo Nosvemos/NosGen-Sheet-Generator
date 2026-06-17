@@ -62,6 +62,7 @@ export function GroupEditorCard({
           type="button"
           variant="ghost"
           size="icon"
+          aria-label={t("action.deleteGroup")}
           onClick={() => {
             setPointGroups((prev) =>
               prev.filter((group) => group.id !== selectedGroup.id)

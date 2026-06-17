@@ -16,6 +16,7 @@ import {
 } from "@/lib/editor-io";
 import { loadFrameFromFile } from "@/lib/editor-helpers";
 import { isSupportedAtlasImageFile } from "@/lib/texture-codecs";
+import { useToast } from "@/components/ui/use-toast";
 
 type Translate = (
   key: TranslationKey,
@@ -93,6 +94,20 @@ export const useAtlasIO = ({
   setAnimationFrameSelection,
   supportLegacyAtlas,
 }: UseAtlasIOParams): UseAtlasIOResult => {
+  const { pushToast } = useToast();
+  const notifyError = useCallback(
+    (error: unknown) => {
+      console.error(error);
+      pushToast({
+        variant: "warning",
+        title: t("error.importFailedTitle"),
+        description:
+          error instanceof Error ? error.message : t("error.importFailedBody"),
+      });
+    },
+    [pushToast, t]
+  );
+
   const framesInputRef = useRef<HTMLInputElement>(null);
   const newPointsInputRef = useRef<HTMLInputElement>(null);
   const appendFramesInputRef = useRef<HTMLInputElement>(null);
@@ -150,7 +165,7 @@ export const useAtlasIO = ({
       setHasEditImport(false);
       resetSelection();
     } catch (error) {
-      console.error(error);
+      notifyError(error);
     } finally {
       if (framesInputRef.current) {
         framesInputRef.current.value = "";
@@ -176,7 +191,7 @@ export const useAtlasIO = ({
       );
       setFrames((prev) => [...prev, ...loaded]);
     } catch (error) {
-      console.error(error);
+      notifyError(error);
     } finally {
       if (appendFramesInputRef.current) {
         appendFramesInputRef.current.value = "";
@@ -211,7 +226,7 @@ export const useAtlasIO = ({
       setIsGroupPreviewPlaying(false);
       setGroupPreviewIndex(0);
     } catch (error) {
-      console.error(error);
+      notifyError(error);
     } finally {
       if (newPointsInputRef.current) {
         newPointsInputRef.current.value = "";
@@ -220,6 +235,13 @@ export const useAtlasIO = ({
   };
 
   const handleClearFrames = () => {
+    if (
+      frames.length > 0 &&
+      typeof window !== "undefined" &&
+      !window.confirm(t("confirm.clearFrames", { count: frames.length }))
+    ) {
+      return;
+    }
     setFrames([]);
     setCurrentFrameIndex(0);
     setSelectedPointId(null);
@@ -316,7 +338,7 @@ export const useAtlasIO = ({
       try {
         await handleEditAtlasImport(editAtlasPngFile, editAtlasJsonFile);
       } catch (error) {
-        console.error(error);
+        notifyError(error);
       } finally {
         if (!cancelled) {
           setIsEditImporting(false);
@@ -335,7 +357,7 @@ export const useAtlasIO = ({
     return () => {
       cancelled = true;
     };
-  }, [editAtlasPngFile, editAtlasJsonFile, handleEditAtlasImport]);
+  }, [editAtlasPngFile, editAtlasJsonFile, handleEditAtlasImport, notifyError]);
 
   return {
     framesInputRef,

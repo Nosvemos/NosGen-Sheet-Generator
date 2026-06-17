@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { Dispatch, SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
@@ -47,17 +47,53 @@ export function SettingsModal({
   onClearHistory,
   toNumber,
 }: SettingsModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!isOpen) {
       return;
     }
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const dialog = dialogRef.current;
+    const focusable = () =>
+      Array.from(
+        dialog?.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        ) ?? []
+      ).filter((el) => !el.hasAttribute("disabled"));
+
+    // Move focus into the dialog on open.
+    (focusable()[0] ?? dialog)?.focus();
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onOpenChange(false);
+        return;
+      }
+      if (event.key !== "Tab") {
+        return;
+      }
+      // Trap focus within the dialog.
+      const items = focusable();
+      if (items.length === 0) {
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      previouslyFocused?.focus?.();
+    };
   }, [isOpen, onOpenChange]);
 
   if (!isOpen) {
@@ -70,7 +106,12 @@ export function SettingsModal({
       onMouseDown={() => onOpenChange(false)}
     >
       <div
-        className="w-full max-w-2xl rounded-3xl border border-border/60 bg-card/95 p-5 shadow-2xl backdrop-blur"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-modal-title"
+        tabIndex={-1}
+        className="w-full max-w-2xl rounded-3xl border border-border/60 bg-card/95 p-5 shadow-2xl backdrop-blur outline-none"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -78,7 +119,9 @@ export function SettingsModal({
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
               {t("label.settings")}
             </p>
-            <h3 className="text-lg font-semibold">{t("label.settings")}</h3>
+            <h3 id="settings-modal-title" className="text-lg font-semibold">
+              {t("label.settings")}
+            </h3>
           </div>
           <Button
             type="button"
