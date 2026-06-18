@@ -730,21 +730,17 @@ export const exportAtlasPng = ({
     webp: { name: "WebP Image", extensions: ["webp"] },
     ktx2: { name: "KTX2 Texture", extensions: ["ktx2"] },
   };
-  void encodeCanvasToAtlasBlob(
+  return encodeCanvasToAtlasBlob(
     atlas.canvas,
     exportFormat,
     resolveEncodeQuality(exportFormat, webpQuality, ktx2Quality)
-  )
-    .then((blob) =>
-      saveBlobWithDialog(
-        blob,
-        getAtlasImageFilename(exportAtlasName, exportFormat),
-        [filters[exportFormat]]
-      )
+  ).then((blob) =>
+    saveBlobWithDialog(
+      blob,
+      getAtlasImageFilename(exportAtlasName, exportFormat),
+      [filters[exportFormat]]
     )
-    .catch((error) => {
-      console.error(error);
-    });
+  );
 };
 
 export const exportFramesZip = async ({
@@ -853,7 +849,7 @@ export const exportAtlasJson = ({
   const jsonBlob = new Blob([serializeAtlasPayload(payload, exportJsonMode)], {
     type: "application/json",
   });
-  void saveBlobWithDialog(jsonBlob, `${resolvedExportDataName}.json`, [
+  return saveBlobWithDialog(jsonBlob, `${resolvedExportDataName}.json`, [
     { name: "JSON", extensions: ["json"] },
   ]);
 };

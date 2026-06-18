@@ -17,6 +17,7 @@ import type {
   ViewMode,
 } from "@/lib/editor-types";
 import type { Locale } from "@/lib/i18n";
+import type { HotkeyMap } from "@/lib/hotkeys";
 import { MainStageHeader } from "@/components/editor/main-stage/MainStageHeader";
 import { PlaybackPanel } from "@/components/editor/main-stage/PlaybackPanel";
 import { StageCanvas } from "@/components/editor/main-stage/StageCanvas";
@@ -84,6 +85,7 @@ export type MainStageProps = {
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
+  hotkeys: HotkeyMap;
 };
 
 export function MainStage({
@@ -143,6 +145,7 @@ export function MainStage({
   canRedo,
   onUndo,
   onRedo,
+  hotkeys,
 }: MainStageProps) {
   return (
     <main className="flex h-full min-h-0 flex-col gap-4 overflow-hidden bg-card/70 p-4">
@@ -167,6 +170,7 @@ export function MainStage({
           setShowPoints={setShowPoints}
           isMagnetEnabled={isMagnetEnabled}
           setIsMagnetEnabled={setIsMagnetEnabled}
+          hotkeys={hotkeys}
         />
 
         <StageCanvas
@@ -219,6 +223,7 @@ export function MainStage({
           canRedo={canRedo}
           onUndo={onUndo}
           onRedo={onRedo}
+          hotkeys={hotkeys}
         />
       </section>
     </main>

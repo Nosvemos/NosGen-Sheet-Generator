@@ -11,4 +11,33 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Split heavy vendor code out of the main chunk for faster initial load.
+        manualChunks(id) {
+          if (!id.includes("node_modules")) {
+            return undefined;
+          }
+          if (id.includes("@babylonjs") || id.includes("ktx")) {
+            return "ktx2";
+          }
+          if (id.includes("@radix-ui")) {
+            return "radix";
+          }
+          if (
+            id.includes("react-dom") ||
+            id.includes("/react/") ||
+            id.includes("scheduler")
+          ) {
+            return "react";
+          }
+          if (id.includes("jszip")) {
+            return "jszip";
+          }
+          return "vendor";
+        },
+      },
+    },
+  },
 });

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { TranslationKey } from "@/lib/i18n";
 import type { AppMode, FrameData, FramePoint, KeyframePoint } from "@/lib/editor-types";
+import type { HotkeyMap } from "@/lib/hotkeys";
 import {
   ArrowLeft,
   ArrowRight,
@@ -75,6 +76,7 @@ type PlaybackPanelProps = {
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
+  hotkeys: HotkeyMap;
 };
 
 export function PlaybackPanel({
@@ -113,7 +115,9 @@ export function PlaybackPanel({
   canRedo,
   onUndo,
   onRedo,
+  hotkeys,
 }: PlaybackPanelProps) {
+  const withKey = (label: string, key: string) => `${label} · ${key}`;
   return (
     <div className="mt-4 space-y-3 rounded-2xl border border-border/50 bg-background/70 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -129,7 +133,9 @@ export function PlaybackPanel({
                 <SkipBack className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{t("action.first")}</TooltipContent>
+            <TooltipContent>
+              {withKey(t("action.first"), hotkeys.firstFrame)}
+            </TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -144,7 +150,9 @@ export function PlaybackPanel({
                 <Rewind className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{t("action.previous")}</TooltipContent>
+            <TooltipContent>
+              {withKey(t("action.previous"), hotkeys.prevFrame)}
+            </TooltipContent>
           </Tooltip>
           <Button
             variant="default"
@@ -169,7 +177,9 @@ export function PlaybackPanel({
                 <FastForward className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{t("action.next")}</TooltipContent>
+            <TooltipContent>
+              {withKey(t("action.next"), hotkeys.nextFrame)}
+            </TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -184,7 +194,9 @@ export function PlaybackPanel({
                 <SkipForward className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{t("action.last")}</TooltipContent>
+            <TooltipContent>
+              {withKey(t("action.last"), hotkeys.lastFrame)}
+            </TooltipContent>
           </Tooltip>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -199,7 +211,9 @@ export function PlaybackPanel({
                 <RotateCcw className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{t("action.undo")}</TooltipContent>
+            <TooltipContent>
+              {withKey(t("action.undo"), hotkeys.undo)}
+            </TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -212,7 +226,9 @@ export function PlaybackPanel({
                 <RotateCw className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{t("action.redo")}</TooltipContent>
+            <TooltipContent>
+              {withKey(t("action.redo"), hotkeys.redo)}
+            </TooltipContent>
           </Tooltip>
         </div>
         <div className="flex flex-wrap items-center gap-2">

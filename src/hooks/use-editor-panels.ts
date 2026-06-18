@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useReducer, useRef, useState } from "react";
 import { useI18n } from "@/lib/use-i18n";
+import { useToast } from "@/components/ui/use-toast";
 import type { LeftSidebarProps } from "@/components/editor/LeftSidebar";
 import type { MainStageProps } from "@/components/editor/MainStage";
 import type { RightSidebarProps } from "@/components/editor/RightSidebar";
@@ -45,6 +46,8 @@ import {
 
 export function useEditorPanels() {
   const { t, locale, setLocale } = useI18n();
+  const { pushToast } = useToast();
+  const [isExporting, setIsExporting] = useState(false);
   const [history, dispatch] = useReducer(
     editorHistoryReducer,
     undefined,
@@ -548,24 +551,52 @@ export function useEditorPanels() {
     commitFramesHistory,
   });
 
+  const runExport = useCallback(
+    async (task: () => Promise<unknown> | void) => {
+      if (isExporting) {
+        return;
+      }
+      setIsExporting(true);
+      try {
+        await task();
+      } catch (error) {
+        console.error(error);
+        pushToast({
+          variant: "warning",
+          title: t("error.exportFailedTitle"),
+          description:
+            error instanceof Error
+              ? error.message
+              : t("error.exportFailedBody"),
+        });
+      } finally {
+        setIsExporting(false);
+      }
+    },
+    [isExporting, pushToast, t]
+  );
+
   const handleExportPng = () => {
-    exportAtlasPng({
-      frames,
-      rows,
-      padding,
-      packingMode: atlasPackingMode,
-      exportScale,
-      exportSmoothing,
-      exportFormat,
-      exportAtlasName,
-      webpQuality,
-      ktx2Quality,
-      minScale: MIN_EXPORT_SCALE,
-      maxScale: MAX_EXPORT_SCALE,
-    });
+    void runExport(() =>
+      exportAtlasPng({
+        frames,
+        rows,
+        padding,
+        packingMode: atlasPackingMode,
+        exportScale,
+        exportSmoothing,
+        exportFormat,
+        exportAtlasName,
+        webpQuality,
+        ktx2Quality,
+        minScale: MIN_EXPORT_SCALE,
+        maxScale: MAX_EXPORT_SCALE,
+      })
+    );
   };
 
   const handleExportJson = () => {
+    void runExport(() =>
     exportAtlasJson({
       frames,
       rows,
@@ -588,39 +619,42 @@ export function useEditorPanels() {
       selectedAnimationFrames,
       exportAtlasName,
       exportDataName,
-    });
+    })
+    );
   };
 
   const handleExportFramesZip = () => {
-    void exportFramesZip({ frames, exportAtlasName });
+    void runExport(() => exportFramesZip({ frames, exportAtlasName }));
   };
 
   const handleExportBundle = () => {
-    void exportAtlasBundle({
-      frames,
-      rows,
-      padding,
-      packingMode: atlasPackingMode,
-      exportScale,
-      exportSmoothing,
-      pivotMode,
-      spriteDirection,
-      appMode,
-      pointGroups,
-      animationName,
-      fps,
-      speed,
-      loop,
-      exportSize,
-      exportJsonMode,
-      webpQuality,
-      ktx2Quality,
-      minScale: MIN_EXPORT_SCALE,
-      maxScale: MAX_EXPORT_SCALE,
-      selectedAnimationFrames,
-      exportAtlasName,
-      exportDataName,
-    });
+    void runExport(() =>
+      exportAtlasBundle({
+        frames,
+        rows,
+        padding,
+        packingMode: atlasPackingMode,
+        exportScale,
+        exportSmoothing,
+        pivotMode,
+        spriteDirection,
+        appMode,
+        pointGroups,
+        animationName,
+        fps,
+        speed,
+        loop,
+        exportSize,
+        exportJsonMode,
+        webpQuality,
+        ktx2Quality,
+        minScale: MIN_EXPORT_SCALE,
+        maxScale: MAX_EXPORT_SCALE,
+        selectedAnimationFrames,
+        exportAtlasName,
+        exportDataName,
+      })
+    );
   };
 
   const {
@@ -902,6 +936,7 @@ export function useEditorPanels() {
     canRedo,
     onUndo: handleUndo,
     onRedo: handleRedo,
+    hotkeys,
   };
 
   const rightSidebar: RightSidebarProps = {
@@ -956,6 +991,7 @@ export function useEditorPanels() {
     handleExportJson,
     handleExportBundle,
     handleExportFramesZip,
+    isExporting,
     pivotMode,
     pivotLabels,
     minExportScale: MIN_EXPORT_SCALE,

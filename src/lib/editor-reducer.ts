@@ -258,10 +258,18 @@ const formatHistoryLabel = (key: keyof EditorState) => {
   return label ? `Update ${label}` : "Update";
 };
 
-const buildPatch = (prev: EditorState, next: EditorState) => {
+const buildPatch = (
+  prev: EditorState,
+  next: EditorState,
+  // Only these keys can have changed (derived from the action), so there is no
+  // need to diff all ~60 state keys on every dispatch.
+  candidateKeys?: Array<keyof EditorState>
+) => {
   const patch: Partial<EditorState> = {};
   const inverse: Partial<EditorState> = {};
-  (Object.keys(next) as Array<keyof EditorState>).forEach((key) => {
+  const keys =
+    candidateKeys ?? (Object.keys(next) as Array<keyof EditorState>);
+  keys.forEach((key) => {
     if (!Object.is(prev[key], next[key])) {
       (patch as Record<keyof EditorState, EditorState[keyof EditorState]>)[
         key
@@ -380,7 +388,15 @@ export const editorHistoryReducer = (
   if (Object.is(nextPresent, history.present)) {
     return history;
   }
-  const { patch, inverse } = buildPatch(history.present, nextPresent);
+  const candidateKeys =
+    action.type === "set"
+      ? [action.key]
+      : (Object.keys(action.values) as Array<keyof EditorState>);
+  const { patch, inverse } = buildPatch(
+    history.present,
+    nextPresent,
+    candidateKeys
+  );
   if (Object.keys(patch).length === 0) {
     return history;
   }

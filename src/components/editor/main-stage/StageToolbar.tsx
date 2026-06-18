@@ -4,6 +4,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { TranslationKey } from "@/lib/i18n";
 import type { ViewMode } from "@/lib/editor-types";
+import type { HotkeyMap } from "@/lib/hotkeys";
 
 type Translate = (
   key: TranslationKey,
@@ -20,6 +21,7 @@ type StageToolbarProps = {
   setShowPoints: Dispatch<SetStateAction<boolean>>;
   isMagnetEnabled: boolean;
   setIsMagnetEnabled: Dispatch<SetStateAction<boolean>>;
+  hotkeys: HotkeyMap;
 };
 
 export function StageToolbar({
@@ -32,6 +34,7 @@ export function StageToolbar({
   setShowPoints,
   isMagnetEnabled,
   setIsMagnetEnabled,
+  hotkeys,
 }: StageToolbarProps) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 px-2">
@@ -44,7 +47,12 @@ export function StageToolbar({
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <Switch id="grid-toggle" checked={showGrid} onCheckedChange={setShowGrid} />
-          <Label htmlFor="grid-toggle">{t("label.grid")}</Label>
+          <Label htmlFor="grid-toggle">
+            {t("label.grid")}
+            <span className="ml-1 text-xs text-muted-foreground">
+              {hotkeys.toggleGrid}
+            </span>
+          </Label>
         </div>
         <div className="flex items-center gap-2">
           <Switch
@@ -52,7 +60,12 @@ export function StageToolbar({
             checked={showPoints}
             onCheckedChange={setShowPoints}
           />
-          <Label htmlFor="points-toggle">{t("label.pointsToggle")}</Label>
+          <Label htmlFor="points-toggle">
+            {t("label.pointsToggle")}
+            <span className="ml-1 text-xs text-muted-foreground">
+              {hotkeys.togglePoints}
+            </span>
+          </Label>
         </div>
         <div className="flex items-center gap-2">
           <Switch

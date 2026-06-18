@@ -74,6 +74,7 @@ export type RightSidebarProps = {
   handleExportJson: () => void;
   handleExportBundle: () => void;
   handleExportFramesZip: () => void;
+  isExporting: boolean;
   pivotMode: PivotMode;
   pivotLabels: Record<PivotMode, string>;
   minExportScale: number;
@@ -133,6 +134,7 @@ export function RightSidebar({
   handleExportJson,
   handleExportBundle,
   handleExportFramesZip,
+  isExporting,
   pivotMode,
   pivotLabels,
   minExportScale,
@@ -219,6 +221,7 @@ export function RightSidebar({
         handleExportJson={handleExportJson}
         handleExportBundle={handleExportBundle}
         handleExportFramesZip={handleExportFramesZip}
+        isExporting={isExporting}
         pivotMode={pivotMode}
         pivotLabels={pivotLabels}
       />
