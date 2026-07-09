@@ -234,5 +234,17 @@
   "lang.de": "DE",
   "lang.pl": "PL",
   "locale.ru": "Russisch",
-  "lang.ru": "RU"
+  "lang.ru": "RU",
+  "label.recentProjects": "Letzte Projekte",
+  "action.saveRecentProject": "Speichern",
+  "action.openRecentProject": "Letztes Projekt öffnen",
+  "action.deleteRecentProject": "Letztes Projekt löschen",
+  "hint.noRecentProjects": "Noch keine gespeicherten Projekt-Snapshots.",
+  "hint.recentProjects": "Letzte Projekte werden lokal in dieser App gespeichert.",
+  "hint.dropFiles": "Frames oder Atlas hier ablegen",
+  "status.recentProjectMeta": "{count} Frames · {mode}",
+  "status.recentProjectSavedTitle": "Projekt gespeichert",
+  "status.recentProjectSavedBody": "Der Projekt-Snapshot wurde zu den letzten Projekten hinzugefügt.",
+  "error.recentProjectFailedTitle": "Letztes Projekt fehlgeschlagen",
+  "error.recentProjectFailedBody": "Die Aktion für letzte Projekte konnte nicht abgeschlossen werden."
 }

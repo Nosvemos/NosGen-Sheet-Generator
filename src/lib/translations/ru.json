@@ -234,5 +234,17 @@
   "lang.de": "DE",
   "lang.pl": "PL",
   "locale.ru": "Русский",
-  "lang.ru": "RU"
+  "lang.ru": "RU",
+  "label.recentProjects": "Недавние проекты",
+  "action.saveRecentProject": "Сохранить",
+  "action.openRecentProject": "Открыть недавний проект",
+  "action.deleteRecentProject": "Удалить недавний проект",
+  "hint.noRecentProjects": "Сохраненных снимков проектов пока нет.",
+  "hint.recentProjects": "Недавние проекты хранятся локально в этом приложении.",
+  "hint.dropFiles": "Перетащите сюда кадры или атлас",
+  "status.recentProjectMeta": "{count} кадров · {mode}",
+  "status.recentProjectSavedTitle": "Проект сохранен",
+  "status.recentProjectSavedBody": "Снимок проекта добавлен в недавние проекты.",
+  "error.recentProjectFailedTitle": "Ошибка недавнего проекта",
+  "error.recentProjectFailedBody": "Не удалось выполнить действие с недавним проектом."
 }

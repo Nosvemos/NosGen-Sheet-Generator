@@ -1,4 +1,5 @@
-import type { PointerEvent, RefObject, WheelEvent } from "react";
+import { useState } from "react";
+import type { DragEvent, PointerEvent, RefObject, WheelEvent } from "react";
 import { cn } from "@/lib/utils";
 import type { TranslationKey } from "@/lib/i18n";
 import type { EditorMode, ViewMode } from "@/lib/editor-types";
@@ -20,6 +21,7 @@ type StageCanvasProps = {
   handleCanvasPointerMove: (event: PointerEvent<HTMLCanvasElement>) => void;
   handleCanvasPointerUp: (event: PointerEvent<HTMLCanvasElement>) => void;
   handleCanvasWheel: (event: WheelEvent<HTMLCanvasElement>) => void;
+  handleDroppedFiles: (files: File[] | FileList) => Promise<void> | void;
   framesInputRef: RefObject<HTMLInputElement | null>;
 };
 
@@ -34,12 +36,50 @@ export function StageCanvas({
   handleCanvasPointerMove,
   handleCanvasPointerUp,
   handleCanvasWheel,
+  handleDroppedFiles,
   framesInputRef,
 }: StageCanvasProps) {
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
+  const hasFiles = (event: DragEvent<HTMLDivElement>) =>
+    Array.from(event.dataTransfer.types).includes("Files");
+
   return (
     <div
       ref={stageRef}
-      className="relative mt-4 flex-1 min-h-0 max-h-[58vh] overflow-hidden rounded-2xl border border-border/60 bg-background/70"
+      className={cn(
+        "relative mt-4 flex-1 min-h-0 max-h-[58vh] overflow-hidden rounded-2xl border border-border/60 bg-background/70 transition-colors",
+        isDraggingFiles && "border-accent/70 bg-accent/10"
+      )}
+      onDragEnter={(event) => {
+        if (!hasFiles(event)) {
+          return;
+        }
+        event.preventDefault();
+        setIsDraggingFiles(true);
+      }}
+      onDragOver={(event) => {
+        if (!hasFiles(event)) {
+          return;
+        }
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+        setIsDraggingFiles(true);
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setIsDraggingFiles(false);
+        }
+      }}
+      onDrop={(event) => {
+        if (!hasFiles(event)) {
+          return;
+        }
+        event.preventDefault();
+        setIsDraggingFiles(false);
+        if (event.dataTransfer.files.length > 0) {
+          void handleDroppedFiles(event.dataTransfer.files);
+        }
+      }}
     >
       <canvas
         ref={canvasRef}
@@ -68,6 +108,12 @@ export function StageCanvas({
           </button>
           <p className="text-sm font-medium">{t("hint.noFramesTitle")}</p>
           <p className="text-xs text-muted-foreground">{t("hint.noFramesBody")}</p>
+        </div>
+      )}
+
+      {isDraggingFiles && (
+        <div className="pointer-events-none absolute inset-3 flex items-center justify-center rounded-2xl border border-dashed border-accent/70 bg-background/80 text-sm font-medium text-foreground shadow-soft backdrop-blur">
+          {t("hint.dropFiles")}
         </div>
       )}
 

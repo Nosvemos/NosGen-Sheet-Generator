@@ -452,10 +452,15 @@ const parseAtlasEntries = (parsed: unknown): AtlasEntry[] => {
       const height = Number(entry.h ?? entry.height ?? 0);
       const x = Number(entry.x ?? 0);
       const y = Number(entry.y ?? 0);
-      if (!Number.isFinite(width) || !Number.isFinite(height)) {
+      if (
+        !Number.isFinite(width) ||
+        !Number.isFinite(height) ||
+        !Number.isFinite(x) ||
+        !Number.isFinite(y)
+      ) {
         return null;
       }
-      if (width <= 0 || height <= 0) {
+      if (width <= 0 || height <= 0 || x < 0 || y < 0) {
         return null;
       }
       return {
@@ -467,6 +472,22 @@ const parseAtlasEntries = (parsed: unknown): AtlasEntry[] => {
       };
     })
     .filter(Boolean) as AtlasEntry[];
+};
+
+const validateAtlasEntries = (
+  entries: AtlasEntry[],
+  atlasImage: HTMLImageElement
+) => {
+  const width = atlasImage.naturalWidth || atlasImage.width;
+  const height = atlasImage.naturalHeight || atlasImage.height;
+  const invalid = entries.find(
+    (entry) => entry.x + entry.w > width || entry.y + entry.h > height
+  );
+  if (invalid) {
+    throw new Error(
+      `Invalid atlas frame bounds for ${invalid.name}: ${invalid.x},${invalid.y},${invalid.w},${invalid.h}`
+    );
+  }
 };
 
 const sliceAtlasFrames = async (
@@ -591,6 +612,7 @@ export const importAtlasFromFiles = async ({
     return null;
   }
   const atlasImage = await loadImageFromFile(pngFile);
+  validateAtlasEntries(entries, atlasImage);
   const framesFromAtlas = await sliceAtlasFrames(atlasImage, entries);
   if (framesFromAtlas.length === 0) {
     return null;

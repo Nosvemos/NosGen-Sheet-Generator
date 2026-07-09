@@ -234,5 +234,17 @@
   "lang.de": "DE",
   "lang.pl": "PL",
   "locale.ru": "Rosyjski",
-  "lang.ru": "RU"
+  "lang.ru": "RU",
+  "label.recentProjects": "Ostatnie projekty",
+  "action.saveRecentProject": "Zapisz",
+  "action.openRecentProject": "Otwórz ostatni projekt",
+  "action.deleteRecentProject": "Usuń ostatni projekt",
+  "hint.noRecentProjects": "Brak zapisanych migawek projektów.",
+  "hint.recentProjects": "Ostatnie projekty są przechowywane lokalnie w tej aplikacji.",
+  "hint.dropFiles": "Upuść tutaj klatki lub atlas",
+  "status.recentProjectMeta": "{count} klatek · {mode}",
+  "status.recentProjectSavedTitle": "Projekt zapisany",
+  "status.recentProjectSavedBody": "Migawka projektu została dodana do ostatnich projektów.",
+  "error.recentProjectFailedTitle": "Operacja ostatniego projektu nie powiodła się",
+  "error.recentProjectFailedBody": "Nie można ukończyć operacji ostatniego projektu."
 }

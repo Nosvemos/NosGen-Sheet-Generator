@@ -10,6 +10,7 @@ import type {
   PivotMode,
   SpriteDirection,
 } from "@/lib/editor-types";
+import type { RecentProjectSummary } from "@/lib/recent-projects";
 import { AtlasSettingsCard } from "@/components/editor/right-sidebar/AtlasSettingsCard";
 import { AtlasImportCard } from "@/components/editor/right-sidebar/AtlasImportCard";
 import { ExportActions } from "@/components/editor/right-sidebar/ExportActions";
@@ -31,6 +32,10 @@ export type RightSidebarProps = {
   handleNewAtlasCreate: () => Promise<void> | void;
   handleAppendFrames: () => Promise<void> | void;
   handleNewPointsImport: (file: File) => Promise<void> | void;
+  recentProjects: RecentProjectSummary[];
+  onSaveRecentProject: () => Promise<void> | void;
+  onOpenRecentProject: (id: string) => Promise<void> | void;
+  onDeleteRecentProject: (id: string) => Promise<void> | void;
   onClearFrames: () => void;
   editAtlasPngInputRef: RefObject<HTMLInputElement | null>;
   editAtlasJsonInputRef: RefObject<HTMLInputElement | null>;
@@ -91,6 +96,10 @@ export function RightSidebar({
   handleNewAtlasCreate,
   handleAppendFrames,
   handleNewPointsImport,
+  recentProjects,
+  onSaveRecentProject,
+  onOpenRecentProject,
+  onDeleteRecentProject,
   onClearFrames,
   editAtlasPngInputRef,
   editAtlasJsonInputRef,
@@ -154,6 +163,10 @@ export function RightSidebar({
         handleNewAtlasCreate={handleNewAtlasCreate}
         handleAppendFrames={handleAppendFrames}
         handleNewPointsImport={handleNewPointsImport}
+        recentProjects={recentProjects}
+        onSaveRecentProject={onSaveRecentProject}
+        onOpenRecentProject={onOpenRecentProject}
+        onDeleteRecentProject={onDeleteRecentProject}
         onClearFrames={onClearFrames}
         editAtlasPngInputRef={editAtlasPngInputRef}
         editAtlasJsonInputRef={editAtlasJsonInputRef}

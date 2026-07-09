@@ -54,6 +54,7 @@ export type MainStageProps = {
   handleCanvasPointerMove: (event: PointerEvent<HTMLCanvasElement>) => void;
   handleCanvasPointerUp: (event: PointerEvent<HTMLCanvasElement>) => void;
   handleCanvasWheel: (event: WheelEvent<HTMLCanvasElement>) => void;
+  handleDroppedFiles: (files: File[] | FileList) => Promise<void> | void;
   framesInputRef: RefObject<HTMLInputElement | null>;
   selectedPoint: FramePoint | null;
   selectedPointKeyframes: KeyframePoint[];
@@ -114,6 +115,7 @@ export function MainStage({
   handleCanvasPointerMove,
   handleCanvasPointerUp,
   handleCanvasWheel,
+  handleDroppedFiles,
   framesInputRef,
   selectedPoint,
   selectedPointKeyframes,
@@ -184,6 +186,7 @@ export function MainStage({
           handleCanvasPointerMove={handleCanvasPointerMove}
           handleCanvasPointerUp={handleCanvasPointerUp}
           handleCanvasWheel={handleCanvasWheel}
+          handleDroppedFiles={handleDroppedFiles}
           framesInputRef={framesInputRef}
         />
 

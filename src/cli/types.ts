@@ -3,8 +3,9 @@ export type CliJsonMode = "pretty" | "minified" | "compact";
 
 export type CliExportConfig = {
   scale?: number;
-  format?: "png" | "webp";
+  format?: "png" | "webp" | "ktx2";
   webpQuality?: number;
+  ktx2Quality?: number;
   smoothing?: boolean;
   pivot?: "top-left" | "bottom-left" | "center";
   rows?: number;

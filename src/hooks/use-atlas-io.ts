@@ -64,7 +64,31 @@ type UseAtlasIOResult = {
   handleNewAtlasCreate: () => Promise<void>;
   handleAppendFrames: () => Promise<void>;
   handleNewPointsImport: (file: File) => Promise<void>;
+  handleDroppedFiles: (files: File[] | FileList) => Promise<void>;
   handleClearFrames: () => void;
+};
+
+const isJsonFile = (file: File) =>
+  file.type === "application/json" || file.name.toLowerCase().endsWith(".json");
+
+const looksLikeAtlasDataFile = async (file: File) => {
+  try {
+    const parsed = JSON.parse(await file.text()) as {
+      frames?: Array<{ x?: unknown; y?: unknown; w?: unknown; h?: unknown }>;
+    };
+    return (
+      Array.isArray(parsed.frames) &&
+      parsed.frames.some(
+        (frame) =>
+          Number.isFinite(Number(frame?.x)) &&
+          Number.isFinite(Number(frame?.y)) &&
+          Number.isFinite(Number(frame?.w ?? (frame as { width?: unknown }).width)) &&
+          Number.isFinite(Number(frame?.h ?? (frame as { height?: unknown }).height))
+      )
+    );
+  } catch {
+    return false;
+  }
 };
 
 export const useAtlasIO = ({
@@ -359,6 +383,63 @@ export const useAtlasIO = ({
     };
   }, [editAtlasPngFile, editAtlasJsonFile, handleEditAtlasImport, notifyError]);
 
+  const handleDroppedFiles = useCallback(
+    async (files: File[] | FileList) => {
+      const dropped = Array.from(files);
+      if (dropped.length === 0) {
+        return;
+      }
+      const imageFiles = dropped.filter(isSupportedAtlasImageFile);
+      const jsonFiles = dropped.filter(isJsonFile);
+      if (imageFiles.length === 0) {
+        return;
+      }
+      try {
+        const atlasJson =
+          jsonFiles.length === 1 && imageFiles.length === 1
+            ? jsonFiles[0]
+            : null;
+        if (atlasJson && (await looksLikeAtlasDataFile(atlasJson))) {
+          await handleEditAtlasImport(imageFiles[0], atlasJson);
+          return;
+        }
+        const result = await createNewAtlasFromFiles({
+          imageFiles,
+          pointsFile: jsonFiles[0] ?? null,
+          t,
+        });
+        if (result.spriteDirection) {
+          setSpriteDirection(result.spriteDirection);
+        }
+        if (result.pivotMode) {
+          setPivotMode(result.pivotMode);
+        }
+        if (typeof result.exportSize === "number") {
+          setExportSize(result.exportSize);
+        }
+        setPointGroups(result.pointGroups);
+        setSelectedGroupId(result.pointGroups[0]?.id ?? null);
+        setFrames(result.frames);
+        setHasEditImport(false);
+        resetSelection();
+      } catch (error) {
+        notifyError(error);
+      }
+    },
+    [
+      handleEditAtlasImport,
+      notifyError,
+      resetSelection,
+      setExportSize,
+      setFrames,
+      setPivotMode,
+      setPointGroups,
+      setSelectedGroupId,
+      setSpriteDirection,
+      t,
+    ]
+  );
+
   return {
     framesInputRef,
     newPointsInputRef,
@@ -372,6 +453,7 @@ export const useAtlasIO = ({
     handleNewAtlasCreate,
     handleAppendFrames,
     handleNewPointsImport,
+    handleDroppedFiles,
     handleClearFrames,
   };
 };

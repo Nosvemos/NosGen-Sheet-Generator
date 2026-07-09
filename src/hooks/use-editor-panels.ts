@@ -1,4 +1,11 @@
-import { useCallback, useMemo, useReducer, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import { useI18n } from "@/lib/use-i18n";
 import { useToast } from "@/components/ui/use-toast";
 import type { LeftSidebarProps } from "@/components/editor/LeftSidebar";
@@ -6,6 +13,7 @@ import type { MainStageProps } from "@/components/editor/MainStage";
 import type { RightSidebarProps } from "@/components/editor/RightSidebar";
 import type { FrameData, PivotMode, StageTransform } from "@/lib/editor-types";
 import {
+  createInitialEditorState,
   createInitialEditorHistory,
   createStateSetter,
   editorHistoryReducer,
@@ -43,11 +51,21 @@ import {
   toNumber,
   toPivotCoords,
 } from "@/lib/editor-helpers";
+import {
+  deleteRecentProject,
+  listRecentProjects,
+  restoreRecentProject,
+  saveRecentProject,
+  type RecentProjectSummary,
+} from "@/lib/recent-projects";
 
 export function useEditorPanels() {
   const { t, locale, setLocale } = useI18n();
   const { pushToast } = useToast();
   const [isExporting, setIsExporting] = useState(false);
+  const [recentProjects, setRecentProjects] = useState<RecentProjectSummary[]>(
+    []
+  );
   const [history, dispatch] = useReducer(
     editorHistoryReducer,
     undefined,
@@ -293,6 +311,22 @@ export function useEditorPanels() {
   const transformRef = useRef<StageTransform | null>(null);
   const stageSize = useStageSizing({ stageRef, canvasRef });
 
+  useEffect(() => {
+    let cancelled = false;
+    listRecentProjects()
+      .then((projects) => {
+        if (!cancelled) {
+          setRecentProjects(projects);
+        }
+      })
+      .catch((error) => {
+        console.warn(error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const currentFrame = frames[currentFrameIndex];
   const currentPoints = currentFrame?.points ?? [];
   const selectedPoint =
@@ -363,6 +397,7 @@ export function useEditorPanels() {
     handleNewAtlasCreate,
     handleAppendFrames,
     handleNewPointsImport,
+    handleDroppedFiles,
     handleClearFrames,
   } = useAtlasIO({
     t,
@@ -391,6 +426,65 @@ export function useEditorPanels() {
     setAnimationFrameSelection,
     supportLegacyAtlas,
   });
+
+  const handleSaveRecentProject = useCallback(async () => {
+    try {
+      const projects = await saveRecentProject(state);
+      setRecentProjects(projects);
+      pushToast({
+        title: t("status.recentProjectSavedTitle"),
+        description: t("status.recentProjectSavedBody"),
+      });
+    } catch (error) {
+      console.error(error);
+      pushToast({
+        variant: "warning",
+        title: t("error.recentProjectFailedTitle"),
+        description:
+          error instanceof Error
+            ? error.message
+            : t("error.recentProjectFailedBody"),
+      });
+    }
+  }, [pushToast, state, t]);
+
+  const handleOpenRecentProject = useCallback(
+    async (id: string) => {
+      try {
+        const restored = await restoreRecentProject(id);
+        dispatch({
+          type: "reset",
+          state: {
+            ...createInitialEditorState(),
+            theme: state.theme,
+            hotkeys: state.hotkeys,
+            historyLimit: state.historyLimit,
+            ...restored,
+          },
+        });
+        setRecentProjects(await listRecentProjects());
+      } catch (error) {
+        console.error(error);
+        pushToast({
+          variant: "warning",
+          title: t("error.recentProjectFailedTitle"),
+          description:
+            error instanceof Error
+              ? error.message
+              : t("error.recentProjectFailedBody"),
+        });
+      }
+    },
+    [pushToast, state.historyLimit, state.hotkeys, state.theme, t]
+  );
+
+  const handleDeleteRecentProject = useCallback(
+    async (id: string) => {
+      await deleteRecentProject(id);
+      setRecentProjects(await listRecentProjects());
+    },
+    []
+  );
 
   const groupPreviewIds = useMemo(() => {
     if (!isGroupPreviewActive || !selectedGroup) {
@@ -905,6 +999,7 @@ export function useEditorPanels() {
     handleCanvasPointerMove,
     handleCanvasPointerUp,
     handleCanvasWheel,
+    handleDroppedFiles,
     framesInputRef,
     selectedPoint,
     selectedPointKeyframes,
@@ -948,6 +1043,10 @@ export function useEditorPanels() {
     handleNewAtlasCreate,
     handleAppendFrames,
     handleNewPointsImport,
+    recentProjects,
+    onSaveRecentProject: handleSaveRecentProject,
+    onOpenRecentProject: handleOpenRecentProject,
+    onDeleteRecentProject: handleDeleteRecentProject,
     onClearFrames: handleClearFrames,
     editAtlasPngInputRef,
     editAtlasJsonInputRef,

@@ -14,8 +14,9 @@ Common Options:
   --rows <number>            Rows for grid packing (default: auto)
   --padding <number>         Padding between frames (default: 2)
   --scale <number>           Export scale multiplier (default: 1)
-  --format <png|webp>        Output image format (default: png)
+  --format <png|webp|ktx2>   Output image format (default: png)
   --webp-quality <0-100>     WebP quality (default: 90)
+  --ktx2-quality <0-3>       KTX2 UASTC quality level (default: 2)
   --smoothing                Enable smoothing (Lanczos3) during scaling
   --pivot <top-left|bottom-left|center>  Pivot mode (default: top-left)
   --mode <uniform|tight|shelf> Packing mode (default: shelf)
@@ -90,8 +91,9 @@ type ParsedArgs = {
   rows?: number;
   padding?: number;
   scale?: number;
-  format?: "png" | "webp";
+  format?: "png" | "webp" | "ktx2";
   webpQuality?: number;
+  ktx2Quality?: number;
   smoothing?: boolean;
   pivot?: "top-left" | "bottom-left" | "center";
   packingMode?: CliPackingMode;
@@ -147,10 +149,13 @@ function parseArgs(): ParsedArgs {
         result.scale = parseFloat(args[++i]);
         break;
       case "--format":
-        result.format = args[++i] as "png" | "webp";
+        result.format = args[++i] as "png" | "webp" | "ktx2";
         break;
       case "--webp-quality":
         result.webpQuality = parseFloat(args[++i]);
+        break;
+      case "--ktx2-quality":
+        result.ktx2Quality = parseFloat(args[++i]);
         break;
       case "--smoothing":
         result.smoothing = true;
@@ -221,6 +226,10 @@ function mergeArgsIntoConfig(
         args.webpQuality !== undefined
           ? args.webpQuality
           : config.export?.webpQuality ?? 90,
+      ktx2Quality:
+        args.ktx2Quality !== undefined
+          ? args.ktx2Quality
+          : config.export?.ktx2Quality ?? 2,
       smoothing:
         args.smoothing !== undefined
           ? args.smoothing

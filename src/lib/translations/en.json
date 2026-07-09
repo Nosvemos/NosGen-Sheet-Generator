@@ -236,5 +236,17 @@
   "lang.de": "DE",
   "lang.pl": "PL",
   "locale.ru": "Russian",
-  "lang.ru": "RU"
+  "lang.ru": "RU",
+  "label.recentProjects": "Recent Projects",
+  "action.saveRecentProject": "Save",
+  "action.openRecentProject": "Open recent project",
+  "action.deleteRecentProject": "Delete recent project",
+  "hint.noRecentProjects": "No saved project snapshots yet.",
+  "hint.recentProjects": "Recent projects are stored locally in this app.",
+  "hint.dropFiles": "Drop frames or an atlas here",
+  "status.recentProjectMeta": "{count} frames · {mode}",
+  "status.recentProjectSavedTitle": "Project saved",
+  "status.recentProjectSavedBody": "The project snapshot was added to recent projects.",
+  "error.recentProjectFailedTitle": "Recent project failed",
+  "error.recentProjectFailedBody": "The recent project action could not be completed."
 }

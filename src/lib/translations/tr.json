@@ -234,5 +234,17 @@
   "lang.de": "DE",
   "lang.pl": "PL",
   "locale.ru": "Rusça",
-  "lang.ru": "RU"
+  "lang.ru": "RU",
+  "label.recentProjects": "Son Projeler",
+  "action.saveRecentProject": "Kaydet",
+  "action.openRecentProject": "Son projeyi aç",
+  "action.deleteRecentProject": "Son projeyi sil",
+  "hint.noRecentProjects": "Henüz kayıtlı proje görüntüsü yok.",
+  "hint.recentProjects": "Son projeler bu uygulamada yerel olarak saklanır.",
+  "hint.dropFiles": "Frame'leri veya atlası buraya bırak",
+  "status.recentProjectMeta": "{count} frame · {mode}",
+  "status.recentProjectSavedTitle": "Proje kaydedildi",
+  "status.recentProjectSavedBody": "Proje görüntüsü son projelere eklendi.",
+  "error.recentProjectFailedTitle": "Son proje işlemi başarısız",
+  "error.recentProjectFailedBody": "Son proje işlemi tamamlanamadı."
 }

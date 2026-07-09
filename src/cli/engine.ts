@@ -4,8 +4,8 @@ import { resolve, join, basename, extname } from "node:path";
 import { tmpdir } from "node:os";
 import { mkdtemp } from "node:fs/promises";
 import {
-  computeTightAtlasLayout,
-  computeShelfAtlasLayout,
+  computeAtlasLayoutByMode,
+  resolveFramePlacements,
   type SizedItem,
 } from "../lib/atlas-layout.ts";
 import {
@@ -20,6 +20,7 @@ import type {
   CliAnimation,
   CliExportConfig,
 } from "./types.ts";
+import type { AtlasLayout } from "../lib/editor-types.ts";
 import * as math from "./math.ts";
 
 type FramePoint = {
@@ -41,12 +42,33 @@ function naturalSort(a: string, b: string) {
   return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
 }
 
-function matchWildcard(pattern: string, str: string): boolean {
+const escapeRegexLiteral = (value: string) =>
+  value.replace(/[\\^$+.[\]{}()|/]/g, "\\$&");
+
+export function matchWildcard(pattern: string, str: string): boolean {
   const regex = new RegExp(
-    "^" + pattern.replace(/\*/g, ".*").replace(/\?/g, ".") + "$"
+    "^" +
+      escapeRegexLiteral(pattern)
+        .replace(/\*/g, ".*")
+        .replace(/\?/g, ".") +
+      "$"
   );
   return regex.test(str);
 }
+
+export const validateAtlasEntry = (
+  entry: { x: number; y: number; w: number; h: number; name?: string },
+  atlas: { width: number; height: number }
+) => {
+  const values = [entry.x, entry.y, entry.w, entry.h];
+  if (!values.every(Number.isFinite)) {
+    return false;
+  }
+  if (entry.w <= 0 || entry.h <= 0 || entry.x < 0 || entry.y < 0) {
+    return false;
+  }
+  return entry.x + entry.w <= atlas.width && entry.y + entry.h <= atlas.height;
+};
 
 async function loadFramesFromDirectory(dir: string): Promise<Frame[]> {
   const inputDir = resolve(dir);
@@ -83,6 +105,11 @@ async function importAtlas(
     readFile(resolve(atlasPath)),
     readFile(resolve(dataPath), "utf-8"),
   ]);
+  const atlasMetadata = await sharp(pngBuffer).metadata();
+  const atlasSize = {
+    width: atlasMetadata.width ?? 0,
+    height: atlasMetadata.height ?? 0,
+  };
   // Accept both verbose and compact JSON: expand to the verbose schema first.
   const parsedRaw = JSON.parse(jsonRaw);
   const parsed = normalizeAtlasPayload(parsedRaw) as typeof parsedRaw;
@@ -107,7 +134,18 @@ async function importAtlas(
     const h = Number(entry.h ?? entry.height ?? 0);
     const x = Number(entry.x ?? 0);
     const y = Number(entry.y ?? 0);
-    if (w <= 0 || h <= 0) continue;
+    const atlasEntry = {
+      name: entry.name || `frame-${i + 1}`,
+      x,
+      y,
+      w,
+      h,
+    };
+    if (!validateAtlasEntry(atlasEntry, atlasSize)) {
+      throw new Error(
+        `Invalid atlas frame bounds for ${atlasEntry.name}: ${x},${y},${w},${h}`
+      );
+    }
 
     const extracted = await sharp(pngBuffer)
       .extract({ left: x, top: y, width: w, height: h })
@@ -149,7 +187,7 @@ async function importAtlas(
     }
 
     frames.push({
-      name: entry.name || `frame-${i + 1}`,
+      name: atlasEntry.name,
       width: w,
       height: h,
       path: tempPath,
@@ -193,7 +231,7 @@ async function importAtlas(
   return { frames, groups, animation, mode: originalMode };
 }
 
-function processPoints(frames: Frame[], pointsConfig?: CliPoint[]) {
+export function processPoints(frames: Frame[], pointsConfig?: CliPoint[]) {
   if (!pointsConfig || pointsConfig.length === 0) return;
   const totalFrames = frames.length;
   const nameToId = new Map<string, string>();
@@ -216,7 +254,12 @@ function processPoints(frames: Frame[], pointsConfig?: CliPoint[]) {
           positions.push({ x: 0, y: 0 });
         }
       }
-    } else if (pt.keyframes && pt.keyframes.length > 0 && pt.autoFill) {
+    } else if (
+      pt.keyframes &&
+      pt.keyframes.length > 0 &&
+      pt.autoFill &&
+      pt.autoFill.enabled !== false
+    ) {
       positions = [];
       const keyframes = pt.keyframes;
       const direction = pt.autoFill.spriteDirection ?? "clockwise";
@@ -325,54 +368,21 @@ function buildGroups(
   }));
 }
 
-function buildLayout(
+export function buildLayout(
   frames: SizedItem[],
   packingConfig: NonNullable<CliConfig["packing"]>
 ) {
   const padding = packingConfig.padding ?? 2;
   const mode = packingConfig.mode ?? "shelf";
-  if (mode === "shelf") {
-    return computeShelfAtlasLayout(frames, padding);
-  }
-  if (mode === "tight") {
-    const rows =
-      packingConfig.rows ?? Math.max(1, Math.ceil(Math.sqrt(frames.length)));
-    return computeTightAtlasLayout(frames, rows, padding);
-  }
-  // uniform
-  const rows = packingConfig.rows ?? 4;
-  const cellWidth = Math.max(1, ...frames.map((f) => f.width));
-  const cellHeight = Math.max(1, ...frames.map((f) => f.height));
-  const columns = Math.max(1, Math.ceil(frames.length / rows));
-  const positions = frames.map((_, index) => {
-    const row = Math.floor(index / columns);
-    const col = index % columns;
-    return {
-      x: padding + col * (cellWidth + padding),
-      y: padding + row * (cellHeight + padding),
-      w: cellWidth,
-      h: cellHeight,
-    };
-  });
-  return {
-    rows,
-    columns,
-    padding,
-    cellWidth,
-    cellHeight,
-    width: columns * cellWidth + padding * (columns + 1),
-    height: rows * cellHeight + padding * (rows + 1),
-    positions,
-  };
+  const rows =
+    packingConfig.rows ??
+    (mode === "uniform" ? 4 : Math.max(1, Math.ceil(Math.sqrt(frames.length))));
+  return computeAtlasLayoutByMode(frames, { mode, rows, padding });
 }
 
 async function renderAtlas(
   frames: Frame[],
-  layout: {
-    width: number;
-    height: number;
-    positions: Array<{ x: number; y: number; w: number; h: number }>;
-  },
+  layout: AtlasLayout,
   exportConfig: CliExportConfig
 ) {
   const scale = exportConfig.scale ?? 1;
@@ -391,13 +401,14 @@ async function renderAtlas(
     },
   });
 
+  const placements = resolveFramePlacements(layout, frames);
   const overlays = await Promise.all(
     frames.map(async (frame, index) => {
-      const cell = layout.positions[index];
-      const left = Math.round(cell.x * scaleX);
-      const top = Math.round(cell.y * scaleY);
-      const w = Math.max(1, Math.round(frame.width * scaleX));
-      const h = Math.max(1, Math.round(frame.height * scaleY));
+      const rect = placements[index];
+      const left = Math.round(rect.x * scaleX);
+      const top = Math.round(rect.y * scaleY);
+      const w = Math.max(1, Math.round(rect.w * scaleX));
+      const h = Math.max(1, Math.round(rect.h * scaleY));
 
       const resized = sharp(frame.path).resize(w, h, {
         kernel: smoothing ? sharp.kernel.lanczos3 : sharp.kernel.nearest,
@@ -413,9 +424,37 @@ async function renderAtlas(
     })
   );
 
-  let atlas = base.composite(overlays);
+  const composited = base.composite(overlays);
 
   const format = exportConfig.format ?? "png";
+  if (format === "ktx2") {
+    const { encodeToKTX2 } = await import("ktx2-encoder");
+    const raw = await composited.raw().toBuffer();
+    const encoded = await encodeToKTX2(new Uint8Array([0]), {
+      isKTX2File: true,
+      isUASTC: true,
+      needSupercompression: true,
+      enableRDO: true,
+      uastcLDRQualityLevel: Math.round(
+        math.clamp(exportConfig.ktx2Quality ?? 2, 0, 3)
+      ),
+      isPerceptual: true,
+      isSetKTX2SRGBTransferFunc: true,
+      imageDecoder: async () => ({
+        width: targetWidth,
+        height: targetHeight,
+        data: new Uint8Array(raw),
+      }),
+    });
+    return {
+      atlas: Buffer.from(encoded),
+      targetWidth,
+      targetHeight,
+      scaleX,
+      scaleY,
+    };
+  }
+  let atlas = composited;
   if (format === "webp") {
     atlas = atlas.webp({
       quality: math.clamp(
@@ -434,14 +473,7 @@ async function renderAtlas(
 
 function buildJsonPayload(
   frames: Frame[],
-  layout: {
-    width: number;
-    height: number;
-    positions: Array<{ x: number; y: number; w: number; h: number }>;
-    rows: number;
-    columns: number;
-    padding: number;
-  },
+  layout: AtlasLayout,
   config: CliConfig,
   targetWidth: number,
   targetHeight: number,
@@ -451,13 +483,14 @@ function buildJsonPayload(
   const mode = config.mode ?? "normal";
   const pivot = config.export?.pivot ?? "top-left";
   const exportScale = config.export?.scale ?? 1;
+  const placements = resolveFramePlacements(layout, frames);
 
   const exportedFrames = frames.map((frame, index) => {
-    const cell = layout.positions[index];
-    const left = Math.round(cell.x * scaleX);
-    const top = Math.round(cell.y * scaleY);
-    const w = Math.max(1, Math.round(frame.width * scaleX));
-    const h = Math.max(1, Math.round(frame.height * scaleY));
+    const rect = placements[index];
+    const left = Math.round(rect.x * scaleX);
+    const top = Math.round(rect.y * scaleY);
+    const w = Math.max(1, Math.round(rect.w * scaleX));
+    const h = Math.max(1, Math.round(rect.h * scaleY));
 
     const base: Record<string, unknown> = {
       name: frame.name,
@@ -612,7 +645,11 @@ export async function run(config: CliConfig) {
   const baseName = math.normalizeExportName(config.name || "sprite", "sprite");
   const imageFilename = `${baseName}_atlas.${exportConfig.format ?? "png"}`;
   const imagePath = join(outputDir, imageFilename);
-  await atlas.toFile(imagePath);
+  if (Buffer.isBuffer(atlas)) {
+    await writeFile(imagePath, atlas);
+  } else {
+    await atlas.toFile(imagePath);
+  }
   console.log(`Atlas saved: ${imagePath}`);
 
   const jsonPath = join(outputDir, `${baseName}_data.json`);
