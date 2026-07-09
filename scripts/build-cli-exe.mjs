@@ -2,16 +2,19 @@
 // Single Executable Application (SEA) support.
 //
 // sharp ships a native libvips binary that cannot be embedded into a single
-// file, so the runtime layout is:
+// file. ktx2-encoder ships an ESM encoder with top-level await, which cannot be
+// lowered into the CommonJS SEA bundle. Both are left on disk, so the runtime
+// layout is:
 //
 //   dist-cli/
 //     nosgen-cli(.exe)        <- the executable (real node + embedded JS blob)
-//     node_modules/sharp/...  <- sharp + its native deps, loaded from disk
+//     node_modules/...        <- sharp + ktx2-encoder runtime deps
 //
 // The embedded JS reassigns `require` to a disk resolver rooted at the
 // executable's directory, so `require("sharp")` (left external by esbuild)
 // resolves `<exe-dir>/node_modules/sharp`, and sharp then loads its own
-// @img/* native packages from the same node_modules tree.
+// @img/* native packages from the same node_modules tree. Dynamic import of
+// `ktx2-encoder` resolves from the same adjacent node_modules directory.
 import { build } from "esbuild";
 import { execFileSync } from "node:child_process";
 import {
@@ -34,10 +37,14 @@ const bundlePath = path.join(outDir, "cli.cjs");
 const blobPath = path.join(outDir, "nosgen-cli.blob");
 const seaConfigPath = path.join(outDir, "sea-config.json");
 
-const sharpVersion =
-  JSON.parse(
-    require("node:fs").readFileSync(path.join(rootDir, "package.json"), "utf8")
-  ).dependencies?.sharp ?? "0.33.5";
+const packageJson = JSON.parse(
+  require("node:fs").readFileSync(path.join(rootDir, "package.json"), "utf8")
+);
+const dependencyVersion = (name, fallback) =>
+  packageJson.dependencies?.[name]?.replace(/^[^\d]*/, "") ?? fallback;
+
+const sharpVersion = dependencyVersion("sharp", "0.33.5");
+const ktx2EncoderVersion = dependencyVersion("ktx2-encoder", "0.5.1");
 
 // Reassign the module's `require` to a disk resolver based on the executable
 // location. `require` is a CommonJS wrapper parameter, so reassigning it is
@@ -66,7 +73,7 @@ console.log("• cleaning dist-cli");
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
 
-console.log("• bundling CLI with esbuild (sharp external)");
+console.log("• bundling CLI with esbuild (native/ESM runtimes external)");
 await build({
   entryPoints: [path.join(rootDir, "src", "cli.ts")],
   bundle: true,
@@ -74,7 +81,7 @@ await build({
   format: "cjs",
   target: "node20",
   outfile: bundlePath,
-  external: ["sharp"],
+  external: ["sharp", "ktx2-encoder"],
   banner: { js: banner },
 });
 
@@ -125,10 +132,11 @@ if (process.platform === "darwin") {
   }
 }
 
-console.log("• installing sharp runtime beside executable");
+console.log("• installing external runtimes beside executable");
 runNpm([
   "install",
-  `sharp@${sharpVersion.replace(/^[^\d]*/, "")}`,
+  `sharp@${sharpVersion}`,
+  `ktx2-encoder@${ktx2EncoderVersion}`,
   "--prefix",
   outDir,
   "--no-save",
