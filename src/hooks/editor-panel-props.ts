@@ -1,0 +1,276 @@
+import type { SetStateAction } from "react";
+import type { LeftSidebarProps } from "@/components/editor/LeftSidebar";
+import type { MainStageProps } from "@/components/editor/MainStage";
+import type { RightSidebarProps } from "@/components/editor/RightSidebar";
+import type { UseAtlasIOResult } from "@/hooks/atlas-io-types";
+import type { useEditorDerived } from "@/hooks/use-editor-derived";
+import type { useEditorExportActions } from "@/hooks/use-editor-export-actions";
+import type { useEditorHistoryHotkeys } from "@/hooks/use-editor-history-hotkeys";
+import type { useEditorStateSetters } from "@/hooks/use-editor-state-setters";
+import type { useEditorWorkspace } from "@/hooks/use-editor-workspace";
+import type { useRecentProjects } from "@/hooks/use-recent-projects";
+import type { Locale } from "@/lib/i18n";
+import type { EditorState } from "@/lib/editor-reducer";
+import type { PivotMode, ThemeMode } from "@/lib/editor-types";
+import {
+  EXPORT_SCALE_STEP,
+  MAX_EXPORT_SCALE,
+  MIN_EXPORT_SCALE,
+  PIVOT_OPTIONS,
+  SPEED_OPTIONS,
+  clamp,
+  createId,
+  fromPivotCoords,
+  toNumber,
+  toPivotCoords,
+} from "@/lib/editor-helpers";
+
+type EditorStateSetters = ReturnType<typeof useEditorStateSetters>;
+type EditorWorkspace = ReturnType<typeof useEditorWorkspace>;
+type EditorDerived = ReturnType<typeof useEditorDerived>;
+type RecentProjects = ReturnType<typeof useRecentProjects>;
+type ExportActions = ReturnType<typeof useEditorExportActions>;
+type HistoryHotkeys = ReturnType<typeof useEditorHistoryHotkeys>;
+
+type BuildEditorPanelPropsParams = {
+  t: LeftSidebarProps["t"];
+  locale: Locale;
+  setLocale: React.Dispatch<SetStateAction<Locale>>;
+  state: EditorState;
+  setters: EditorStateSetters;
+  workspace: EditorWorkspace;
+  derived: EditorDerived;
+  atlasIO: UseAtlasIOResult;
+  recentProjects: RecentProjects;
+  exportActions: ExportActions;
+  historyHotkeys: HistoryHotkeys;
+};
+
+export const buildEditorPanelProps = ({
+  t,
+  locale,
+  setLocale,
+  state,
+  setters,
+  workspace,
+  derived,
+  atlasIO,
+  recentProjects,
+  exportActions,
+  historyHotkeys,
+}: BuildEditorPanelPropsParams) => {
+  const pivotLabels: Record<PivotMode, string> = {
+    "top-left": t("pivot.topLeft"),
+    "bottom-left": t("pivot.bottomLeft"),
+    center: t("pivot.center"),
+  };
+
+  const leftSidebar: LeftSidebarProps = {
+    t,
+    frames: state.frames,
+    currentFrameIndex: state.currentFrameIndex,
+    isProjectSettingsOpen: state.isProjectSettingsOpen,
+    setIsProjectSettingsOpen: setters.setIsProjectSettingsOpen,
+    appMode: state.appMode,
+    setAppMode: setters.setAppMode,
+    projectName: state.projectName,
+    setProjectName: setters.setProjectName,
+    pivotMode: state.pivotMode,
+    setPivotMode: setters.setPivotMode,
+    pivotLabels,
+    pivotOptions: PIVOT_OPTIONS,
+    animationName: state.animationName,
+    setAnimationName: setters.setAnimationName,
+    animationFrameSelection: state.animationFrameSelection,
+    setAnimationFrameSelection: setters.setAnimationFrameSelection,
+    isSettingsOpen: state.isSettingsOpen,
+    setIsSettingsOpen: setters.setIsSettingsOpen,
+    supportLegacyAtlas: state.supportLegacyAtlas,
+    setSupportLegacyAtlas: setters.setSupportLegacyAtlas,
+    historyLimit: state.historyLimit,
+    setHistoryLimit: setters.setHistoryLimit,
+    hotkeys: state.hotkeys,
+    setHotkeys: setters.setHotkeys,
+    onResetHotkeys: historyHotkeys.handleResetHotkeys,
+    historyEntries: historyHotkeys.historyEntries,
+    undoCount: historyHotkeys.undoCount,
+    redoCount: historyHotkeys.redoCount,
+    onClearHistory: historyHotkeys.handleClearHistory,
+    editorMode: state.editorMode,
+    setEditorMode: setters.setEditorMode,
+    currentFrame: workspace.currentFrame,
+    addPointAt: workspace.addPointAt,
+    currentPoints: workspace.currentPoints,
+    selectedPointId: state.selectedPointId,
+    setSelectedPointId: setters.setSelectedPointId,
+    isPointsOpen: state.isPointsOpen,
+    setIsPointsOpen: setters.setIsPointsOpen,
+    toPivotCoords,
+    selectedPoint: workspace.selectedPoint,
+    updateAllFramesPoints: workspace.updateAllFramesPoints,
+    selectedPivotX: derived.selectedPivotX,
+    selectedPivotY: derived.selectedPivotY,
+    updateCurrentFramePoints: workspace.updateCurrentFramePoints,
+    fromPivotCoords,
+    clamp,
+    toNumber,
+    isKeyframesOpen: state.isKeyframesOpen,
+    setIsKeyframesOpen: setters.setIsKeyframesOpen,
+    keyframeCount: derived.keyframeCount,
+    setFrames: setters.setFrames,
+    selectedPointKeyframes: workspace.selectedPointKeyframes,
+    autoFillShape: state.autoFillShape,
+    setAutoFillShape: setters.setAutoFillShape,
+    autoFillSmoothing: state.autoFillSmoothing,
+    setAutoFillSmoothing: setters.setAutoFillSmoothing,
+    handleAutoFill: workspace.handleAutoFill,
+    canAutoFill: derived.canAutoFill,
+    availablePoints: workspace.availablePoints,
+    pointGroups: state.pointGroups,
+    setPointGroups: setters.setPointGroups,
+    selectedGroupId: state.selectedGroupId,
+    setSelectedGroupId: setters.setSelectedGroupId,
+    newGroupName: state.newGroupName,
+    setNewGroupName: setters.setNewGroupName,
+    isPointGroupsOpen: state.isPointGroupsOpen,
+    setIsPointGroupsOpen: setters.setIsPointGroupsOpen,
+    selectedGroup: workspace.selectedGroup,
+    groupEntrySelection: state.groupEntrySelection,
+    setGroupEntrySelection: setters.setGroupEntrySelection,
+    isGroupPreviewActive: state.isGroupPreviewActive,
+    setIsGroupPreviewActive: setters.setIsGroupPreviewActive,
+    isGroupPreviewPlaying: state.isGroupPreviewPlaying,
+    setIsGroupPreviewPlaying: setters.setIsGroupPreviewPlaying,
+    groupPreviewIndex: state.groupPreviewIndex,
+    setGroupPreviewIndex: setters.setGroupPreviewIndex,
+    canPreviewGroup: derived.canPreviewGroup,
+    createId,
+  };
+
+  const mainStage: MainStageProps = {
+    t,
+    locale,
+    setLocale,
+    theme: state.theme as ThemeMode,
+    setTheme: setters.setTheme,
+    currentFrame: workspace.currentFrame,
+    frames: state.frames,
+    currentFrameIndex: state.currentFrameIndex,
+    setCurrentFrameIndex: setters.setCurrentFrameIndex,
+    atlasLayout: workspace.atlasLayout,
+    viewMode: state.viewMode,
+    setViewMode: setters.setViewMode,
+    showGrid: state.showGrid,
+    setShowGrid: setters.setShowGrid,
+    showPoints: state.showPoints,
+    setShowPoints: setters.setShowPoints,
+    isMagnetEnabled: state.isMagnetEnabled,
+    setIsMagnetEnabled: setters.setIsMagnetEnabled,
+    stageRef: workspace.stageRef,
+    canvasRef: workspace.canvasRef,
+    editorMode: state.editorMode,
+    handleCanvasPointerDown: workspace.handleCanvasPointerDown,
+    handleCanvasPointerMove: workspace.handleCanvasPointerMove,
+    handleCanvasPointerUp: workspace.handleCanvasPointerUp,
+    handleCanvasWheel: workspace.handleCanvasWheel,
+    handleDroppedFiles: atlasIO.handleDroppedFiles,
+    framesInputRef: atlasIO.framesInputRef,
+    selectedPoint: workspace.selectedPoint,
+    selectedPointKeyframes: workspace.selectedPointKeyframes,
+    fps: state.fps,
+    setFps: setters.setFps,
+    speed: state.speed,
+    setSpeed: setters.setSpeed,
+    reverse: state.reverse,
+    setReverse: setters.setReverse,
+    loop: state.loop,
+    setLoop: setters.setLoop,
+    isPlaying: state.isPlaying,
+    setIsPlaying: setters.setIsPlaying,
+    setSelectedPointId: setters.setSelectedPointId,
+    canAddKeyframe: derived.canAddKeyframe,
+    canRemoveKeyframe: derived.canRemoveKeyframe,
+    isCurrentFrameKeyframe: derived.isCurrentFrameKeyframe,
+    updateCurrentFramePoints: workspace.updateCurrentFramePoints,
+    canMoveFrameLeft: derived.canMoveFrameLeft,
+    canMoveFrameRight: derived.canMoveFrameRight,
+    canDeleteFrame: derived.canDeleteFrame,
+    setFrames: setters.setFrames,
+    appMode: state.appMode,
+    animationCurrentSeconds: derived.animationCurrentSeconds,
+    animationTotalSeconds: derived.animationTotalSeconds,
+    speedOptions: SPEED_OPTIONS,
+    toNumber,
+    canUndo: historyHotkeys.canUndo,
+    canRedo: historyHotkeys.canRedo,
+    onUndo: historyHotkeys.handleUndo,
+    onRedo: historyHotkeys.handleRedo,
+    hotkeys: state.hotkeys,
+  };
+
+  const rightSidebar: RightSidebarProps = {
+    t,
+    framesLength: state.frames.length,
+    framesInputRef: atlasIO.framesInputRef,
+    newPointsInputRef: atlasIO.newPointsInputRef,
+    appendFramesInputRef: atlasIO.appendFramesInputRef,
+    handleNewAtlasCreate: atlasIO.handleNewAtlasCreate,
+    handleAppendFrames: atlasIO.handleAppendFrames,
+    handleNewPointsImport: atlasIO.handleNewPointsImport,
+    recentProjects: recentProjects.recentProjects,
+    onSaveRecentProject: recentProjects.handleSaveRecentProject,
+    onOpenRecentProject: recentProjects.handleOpenRecentProject,
+    onDeleteRecentProject: recentProjects.handleDeleteRecentProject,
+    onClearFrames: atlasIO.handleClearFrames,
+    editAtlasPngInputRef: atlasIO.editAtlasPngInputRef,
+    editAtlasJsonInputRef: atlasIO.editAtlasJsonInputRef,
+    setEditAtlasPngFile: atlasIO.setEditAtlasPngFile,
+    setEditAtlasJsonFile: atlasIO.setEditAtlasJsonFile,
+    isEditImporting: atlasIO.isEditImporting,
+    hasEditImport: atlasIO.hasEditImport,
+    appMode: state.appMode,
+    isSpriteSettingsOpen: state.isSpriteSettingsOpen,
+    setIsSpriteSettingsOpen: setters.setIsSpriteSettingsOpen,
+    spriteDirection: state.spriteDirection,
+    setSpriteDirection: setters.setSpriteDirection,
+    isAtlasSettingsOpen: state.isAtlasSettingsOpen,
+    setIsAtlasSettingsOpen: setters.setIsAtlasSettingsOpen,
+    rows: state.rows,
+    setRows: setters.setRows,
+    padding: state.padding,
+    setPadding: setters.setPadding,
+    atlasPackingMode: state.atlasPackingMode,
+    setAtlasPackingMode: setters.setAtlasPackingMode,
+    atlasLayout: workspace.atlasLayout,
+    sizeMismatch: workspace.sizeMismatch,
+    toNumber,
+    isExportQualityOpen: state.isExportQualityOpen,
+    setIsExportQualityOpen: setters.setIsExportQualityOpen,
+    exportScale: state.exportScale,
+    setExportScale: setters.setExportScale,
+    exportSmoothing: state.exportSmoothing,
+    setExportSmoothing: setters.setExportSmoothing,
+    exportSize: state.exportSize,
+    setExportSize: setters.setExportSize,
+    exportFormat: state.exportFormat,
+    setExportFormat: setters.setExportFormat,
+    exportJsonMode: state.exportJsonMode,
+    setExportJsonMode: setters.setExportJsonMode,
+    webpQuality: state.webpQuality,
+    setWebpQuality: setters.setWebpQuality,
+    ktx2Quality: state.ktx2Quality,
+    setKtx2Quality: setters.setKtx2Quality,
+    handleExportPng: exportActions.handleExportPng,
+    handleExportJson: exportActions.handleExportJson,
+    handleExportBundle: exportActions.handleExportBundle,
+    handleExportFramesZip: exportActions.handleExportFramesZip,
+    isExporting: exportActions.isExporting,
+    pivotMode: state.pivotMode,
+    pivotLabels,
+    minExportScale: MIN_EXPORT_SCALE,
+    maxExportScale: MAX_EXPORT_SCALE,
+    exportScaleStep: EXPORT_SCALE_STEP,
+  };
+
+  return { leftSidebar, mainStage, rightSidebar };
+};

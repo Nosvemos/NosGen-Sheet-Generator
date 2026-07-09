@@ -1,931 +1,120 @@
-import {
-  useCallback,
-  useMemo,
-  useReducer,
-  useRef,
-  useState,
-} from "react";
+import { useReducer } from "react";
 import { useI18n } from "@/lib/use-i18n";
 import { useToast } from "@/components/ui/use-toast";
-import type { LeftSidebarProps } from "@/components/editor/LeftSidebar";
-import type { MainStageProps } from "@/components/editor/MainStage";
-import type { RightSidebarProps } from "@/components/editor/RightSidebar";
-import type { FrameData, PivotMode, StageTransform } from "@/lib/editor-types";
 import {
   createInitialEditorHistory,
   editorHistoryReducer,
 } from "@/lib/editor-reducer";
-import { useAutoFill } from "@/hooks/use-auto-fill";
+import { buildEditorPanelProps } from "@/hooks/editor-panel-props";
 import { useAtlasIO } from "@/hooks/use-atlas-io";
-import { useCanvasRender } from "@/hooks/use-canvas-render";
 import { useEditorDerived } from "@/hooks/use-editor-derived";
+import { useEditorExportActions } from "@/hooks/use-editor-export-actions";
+import { useEditorHistoryHotkeys } from "@/hooks/use-editor-history-hotkeys";
 import { useEditorStateSetters } from "@/hooks/use-editor-state-setters";
-import { useEditorSync } from "@/hooks/use-editor-sync";
-import { useFrameTransform } from "@/hooks/use-frame-transform";
-import { useGroupPreview } from "@/hooks/use-group-preview";
-import { usePlayback } from "@/hooks/use-playback";
-import { usePointsEditor } from "@/hooks/use-points-editor";
+import { useEditorWorkspace } from "@/hooks/use-editor-workspace";
 import { useRecentProjects } from "@/hooks/use-recent-projects";
-import { useStageInteractions } from "@/hooks/use-stage-interactions";
-import { useStageSizing } from "@/hooks/use-stage-sizing";
-import { useValidationAlerts } from "@/hooks/use-validation-alerts";
-import { useHotkeys } from "@/hooks/use-hotkeys";
-import {
-  exportAtlasBundle,
-  exportAtlasJson,
-  exportAtlasPng,
-  exportFramesZip,
-} from "@/lib/editor-io";
-import { DEFAULT_HOTKEYS } from "@/lib/hotkeys";
-import {
-  EXPORT_SCALE_STEP,
-  MAX_EXPORT_SCALE,
-  MIN_EXPORT_SCALE,
-  PIVOT_OPTIONS,
-  SPEED_OPTIONS,
-  clamp,
-  computeAtlasLayoutByMode,
-  createId,
-  fromPivotCoords,
-  toNumber,
-  toPivotCoords,
-} from "@/lib/editor-helpers";
 
 export function useEditorPanels() {
   const { t, locale, setLocale } = useI18n();
   const { pushToast } = useToast();
-  const [isExporting, setIsExporting] = useState(false);
   const [history, dispatch] = useReducer(
     editorHistoryReducer,
     undefined,
     createInitialEditorHistory
   );
   const state = history.present;
-  const {
-    frames,
-    currentFrameIndex,
-    selectedPointId,
-    editorMode,
-    pivotMode,
-    viewMode,
-    appMode,
-    theme,
-    rows,
-    padding,
-    showGrid,
-    showPoints,
-    frameZoom,
-    panOffset,
-    autoFillShape,
-    autoFillSmoothing,
-    spriteDirection,
-    fps,
-    speed,
-    reverse,
-    loop,
-    isPlaying,
-    isKeyframesOpen,
-    exportScale,
-    exportSmoothing,
-    exportSize,
-    exportFormat,
-    exportJsonMode,
-    atlasPackingMode,
-    webpQuality,
-    ktx2Quality,
-    isSpriteSettingsOpen,
-    isAtlasSettingsOpen,
-    isExportQualityOpen,
-    isSettingsOpen,
-    supportLegacyAtlas,
-    historyLimit,
-    hotkeys,
-    pointGroups,
-    selectedGroupId,
-    newGroupName,
-    groupEntrySelection,
-    isGroupPreviewActive,
-    isGroupPreviewPlaying,
-    groupPreviewIndex,
-    isPointsOpen,
-    isPointGroupsOpen,
-    isProjectSettingsOpen,
-    isMagnetEnabled,
-    projectName,
-    animationName,
-    animationFrameSelection,
-  } = state;
-
   const setters = useEditorStateSetters(dispatch);
-  const {
-    setFrames,
-    setFramesSilent,
-    setCurrentFrameIndex,
-    setSelectedPointId,
-    setEditorMode,
-    setPivotMode,
-    setViewMode,
-    setAppMode,
-    setTheme,
-    setRows,
-    setPadding,
-    setShowGrid,
-    setShowPoints,
-    setFrameZoom,
-    setPanOffset,
-    setAutoFillShape,
-    setAutoFillSmoothing,
-    setSpriteDirection,
-    setFps,
-    setSpeed,
-    setReverse,
-    setLoop,
-    setIsPlaying,
-    setIsKeyframesOpen,
-    setExportScale,
-    setExportSmoothing,
-    setExportSize,
-    setExportFormat,
-    setExportJsonMode,
-    setAtlasPackingMode,
-    setWebpQuality,
-    setKtx2Quality,
-    setIsSpriteSettingsOpen,
-    setIsAtlasSettingsOpen,
-    setIsExportQualityOpen,
-    setIsSettingsOpen,
-    setSupportLegacyAtlas,
-    setHistoryLimit,
-    setHotkeys,
-    setPointGroups,
-    setSelectedGroupId,
-    setNewGroupName,
-    setGroupEntrySelection,
-    setIsGroupPreviewActive,
-    setIsGroupPreviewPlaying,
-    setGroupPreviewIndex,
-    setIsPointsOpen,
-    setIsPointGroupsOpen,
-    setIsProjectSettingsOpen,
-    setProjectName,
-    setAnimationName,
-    setAnimationFrameSelection,
-    setAnimationFrameSelectionSilent,
-  } = setters;
-  const canUndo = history.past.length > 0;
-  const canRedo = history.future.length > 0;
-  const historyEntries = useMemo(
-    () =>
-      history.past
-        .slice(-5)
-        .map((entry) => entry.label)
-        .reverse(),
-    [history.past]
-  );
-  const undoCount = history.past.length;
-  const redoCount = history.future.length;
 
-  const [draggingPointId, setDraggingPointId] = useState<string | null>(null);
-  const commitFramesHistory = useCallback(
-    (before: FrameData[], label: string) => {
-      dispatch({
-        type: "commit",
-        patch: { frames },
-        inverse: { frames: before },
-        label,
-      });
-    },
-    [dispatch, frames]
-  );
-
-  const stageRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const transformRef = useRef<StageTransform | null>(null);
-  const stageSize = useStageSizing({ stageRef, canvasRef });
-
-  const currentFrame = frames[currentFrameIndex];
-  const currentPoints = currentFrame?.points ?? [];
-  const selectedPoint =
-    currentPoints.find((point) => point.id === selectedPointId) ?? null;
-  const pivotLabels: Record<PivotMode, string> = {
-    "top-left": t("pivot.topLeft"),
-    "bottom-left": t("pivot.bottomLeft"),
-    center: t("pivot.center"),
-  };
-
-  const availablePoints = useMemo(() => {
-    const baseFrame = frames[0];
-    if (!baseFrame) {
-      return [];
-    }
-    return baseFrame.points.map((point) => ({
-      id: point.id,
-      name: point.name,
-      color: point.color,
-    }));
-  }, [frames]);
-
-  const selectedGroup =
-    pointGroups.find((group) => group.id === selectedGroupId) ?? null;
-
-  useEditorSync({
-    theme,
-    frames,
-    currentFrameIndex,
-    setCurrentFrameIndex,
-    selectedPointId,
-    setSelectedPointId,
-    setIsPlaying,
-    currentFrame,
-    setAnimationFrameSelection: setAnimationFrameSelectionSilent,
-  });
-
-  usePlayback({
-    isPlaying,
-    framesLength: frames.length,
-    fps,
-    speed,
-    reverse,
-    loop,
-    setCurrentFrameIndex,
-    setIsPlaying,
-  });
-
-  useGroupPreview({
-    selectedGroup,
-    isGroupPreviewPlaying,
-    setIsGroupPreviewPlaying,
-    setGroupPreviewIndex,
-    fps,
-    speed,
-  });
-
-  const {
-    framesInputRef,
-    newPointsInputRef,
-    appendFramesInputRef,
-    editAtlasPngInputRef,
-    editAtlasJsonInputRef,
-    setEditAtlasPngFile,
-    setEditAtlasJsonFile,
-    isEditImporting,
-    hasEditImport,
-    handleNewAtlasCreate,
-    handleAppendFrames,
-    handleNewPointsImport,
-    handleDroppedFiles,
-    handleClearFrames,
-  } = useAtlasIO({
+  const workspace = useEditorWorkspace({
     t,
-    frames,
-    setFrames,
-    setCurrentFrameIndex,
-    setSelectedPointId,
-    setIsPlaying,
-    setIsGroupPreviewActive,
-    setIsGroupPreviewPlaying,
-    setGroupPreviewIndex,
-    setPointGroups,
-    setSelectedGroupId,
-    setSpriteDirection,
-    setPivotMode,
-    setRows,
-    setPadding,
-    setAppMode,
-    setAnimationName,
-    setFps,
-    setSpeed,
-    setLoop,
-    setProjectName,
-    setExportSize,
-    setExportFormat,
-    setAnimationFrameSelection,
-    supportLegacyAtlas,
+    state,
+    setters,
+    dispatch,
   });
 
-  const {
-    recentProjects,
-    handleSaveRecentProject,
-    handleOpenRecentProject,
-    handleDeleteRecentProject,
-  } = useRecentProjects({
+  const atlasIO = useAtlasIO({
+    t,
+    frames: state.frames,
+    setFrames: setters.setFrames,
+    setCurrentFrameIndex: setters.setCurrentFrameIndex,
+    setSelectedPointId: setters.setSelectedPointId,
+    setIsPlaying: setters.setIsPlaying,
+    setIsGroupPreviewActive: setters.setIsGroupPreviewActive,
+    setIsGroupPreviewPlaying: setters.setIsGroupPreviewPlaying,
+    setGroupPreviewIndex: setters.setGroupPreviewIndex,
+    setPointGroups: setters.setPointGroups,
+    setSelectedGroupId: setters.setSelectedGroupId,
+    setSpriteDirection: setters.setSpriteDirection,
+    setPivotMode: setters.setPivotMode,
+    setRows: setters.setRows,
+    setPadding: setters.setPadding,
+    setAppMode: setters.setAppMode,
+    setAnimationName: setters.setAnimationName,
+    setFps: setters.setFps,
+    setSpeed: setters.setSpeed,
+    setLoop: setters.setLoop,
+    setProjectName: setters.setProjectName,
+    setExportSize: setters.setExportSize,
+    setExportFormat: setters.setExportFormat,
+    setAnimationFrameSelection: setters.setAnimationFrameSelection,
+    supportLegacyAtlas: state.supportLegacyAtlas,
+  });
+
+  const recentProjects = useRecentProjects({
     state,
     dispatch,
     pushToast,
     t,
   });
 
-  const groupPreviewIds = useMemo(() => {
-    if (!isGroupPreviewActive || !selectedGroup) {
-      return null;
-    }
-    if (selectedGroup.entries.length === 0) {
-      return null;
-    }
-    return selectedGroup.entries[
-      Math.max(0, Math.min(groupPreviewIndex, selectedGroup.entries.length - 1))
-    ];
-  }, [groupPreviewIndex, isGroupPreviewActive, selectedGroup]);
-
-  const isCharacterMode = appMode === "character";
-  const selectedAnimationFrames = useMemo(
-    () => frames.filter((frame) => animationFrameSelection[frame.id]),
-    [animationFrameSelection, frames]
-  );
-
-  const {
-    selectedPointKeyframes,
-    selectedAutoFillModel,
-    selectedAutoFillPositions,
-    handleAutoFill,
-  } = useAutoFill({
-    frames,
-    selectedPointId,
-    selectedPoint,
-    autoFillShape,
-    spriteDirection,
-    setFrames,
-    isDraggingPoint: draggingPointId !== null,
+  const derived = useEditorDerived({
+    frames: state.frames,
+    currentFrameIndex: state.currentFrameIndex,
+    currentFrame: workspace.currentFrame,
+    selectedPoint: workspace.selectedPoint,
+    selectedPointKeyframes: workspace.selectedPointKeyframes,
+    selectedAutoFillPositions: workspace.selectedAutoFillPositions,
+    selectedGroup: workspace.selectedGroup,
+    appMode: state.appMode,
+    fps: state.fps,
+    projectName: state.projectName,
+    pivotMode: state.pivotMode,
   });
 
-  const atlasLayout = useMemo(
-    () =>
-      computeAtlasLayoutByMode(frames, {
-        mode: atlasPackingMode,
-        rows,
-        padding,
-      }),
-    [frames, atlasPackingMode, rows, padding]
-  );
-
-  const sizeMismatch = useMemo(() => {
-    if (appMode === "normal") {
-      return false;
-    }
-    if (frames.length < 2) {
-      return false;
-    }
-    const base = frames[0];
-    return frames.some(
-      (frame) => frame.width !== base.width || frame.height !== base.height
-    );
-  }, [appMode, frames]);
-
-  const unassignedPointsCount = useMemo(() => {
-    if (frames.length === 0) {
-      return 0;
-    }
-    const keyframeMap = new Map<string, boolean>();
-    frames.forEach((frame) => {
-      frame.points.forEach((point) => {
-        const hasKeyframe = keyframeMap.get(point.id) ?? false;
-        keyframeMap.set(point.id, hasKeyframe || Boolean(point.isKeyframe));
-      });
-    });
-    let count = 0;
-    keyframeMap.forEach((hasKeyframe) => {
-      if (!hasKeyframe) {
-        count += 1;
-      }
-    });
-    return count;
-  }, [frames]);
-
-  const getFrameTransform = useFrameTransform({
-    currentFrame,
-    frameZoom,
-    panOffset,
-  });
-
-  useCanvasRender({
-    canvasRef,
-    stageSize,
-    theme,
-    viewMode,
-    currentFrame,
-    frames,
-    atlasLayout,
-    currentFrameIndex,
-    showGrid,
-    showPoints,
-    pivotMode,
-    groupPreviewIds,
-    currentPoints,
-    selectedPointId,
-    selectedPoint,
-    selectedAutoFillModel,
-    selectedAutoFillPositions,
-    selectedPointKeyframes,
-    autoFillSmoothing,
-    isCharacterMode,
-    getFrameTransform,
-    transformRef,
-    frameZoom,
-    panOffset,
-  });
-
-  useValidationAlerts({
+  const exportActions = useEditorExportActions({
     t,
-    framesLength: frames.length,
-    sizeMismatch,
-    unassignedPointsCount,
-    appMode,
+    pushToast,
+    state,
+    selectedAnimationFrames: workspace.selectedAnimationFrames,
+    exportAtlasName: derived.exportAtlasName,
+    exportDataName: derived.exportDataName,
   });
 
-  const {
-    updateCurrentFramePoints,
-    updateCurrentFramePointsSilent,
-    updateAllFramesPoints,
-    addPointAt,
-  } = usePointsEditor({
-    frames,
-    currentFrame,
-    setFrames,
-    setFramesSilent,
-    setSelectedPointId,
-    t,
+  const historyHotkeys = useEditorHistoryHotkeys({
+    history,
+    dispatch,
+    hotkeys: state.hotkeys,
+    frames: state.frames,
+    currentFrame: workspace.currentFrame,
+    currentPoints: workspace.currentPoints,
+    selectedPointId: state.selectedPointId,
+    appMode: state.appMode,
+    addPointAt: workspace.addPointAt,
+    updateAllFramesPoints: workspace.updateAllFramesPoints,
+    setters,
   });
 
-  const {
-    handleCanvasPointerDown,
-    handleCanvasPointerMove,
-    handleCanvasPointerUp,
-    handleCanvasWheel,
-  } = useStageInteractions({
-    canvasRef,
-    currentFrame,
-    currentPoints,
-    frames,
-    viewMode,
-    isCharacterMode,
-    editorMode,
-    isMagnetEnabled,
-    frameZoom,
-    setFrameZoom,
-    panOffset,
-    setPanOffset,
-    stageSize,
-    getFrameTransform,
-    addPointAt,
-    updateCurrentFramePointsSilent,
-    setSelectedPointId,
-    draggingPointId,
-    setDraggingPointId,
-    commitFramesHistory,
-  });
-
-  const runExport = useCallback(
-    async (task: () => Promise<unknown> | void) => {
-      if (isExporting) {
-        return;
-      }
-      setIsExporting(true);
-      try {
-        await task();
-      } catch (error) {
-        console.error(error);
-        pushToast({
-          variant: "warning",
-          title: t("error.exportFailedTitle"),
-          description:
-            error instanceof Error
-              ? error.message
-              : t("error.exportFailedBody"),
-        });
-      } finally {
-        setIsExporting(false);
-      }
-    },
-    [isExporting, pushToast, t]
-  );
-
-  const handleExportPng = () => {
-    void runExport(() =>
-      exportAtlasPng({
-        frames,
-        rows,
-        padding,
-        packingMode: atlasPackingMode,
-        exportScale,
-        exportSmoothing,
-        exportFormat,
-        exportAtlasName,
-        webpQuality,
-        ktx2Quality,
-        minScale: MIN_EXPORT_SCALE,
-        maxScale: MAX_EXPORT_SCALE,
-      })
-    );
-  };
-
-  const handleExportJson = () => {
-    void runExport(() =>
-    exportAtlasJson({
-      frames,
-      rows,
-      padding,
-      packingMode: atlasPackingMode,
-      exportScale,
-      pivotMode,
-      spriteDirection,
-      appMode,
-      pointGroups,
-      animationName,
-      fps,
-      speed,
-      loop,
-      exportSize,
-      exportFormat,
-      exportJsonMode,
-      minScale: MIN_EXPORT_SCALE,
-      maxScale: MAX_EXPORT_SCALE,
-      selectedAnimationFrames,
-      exportAtlasName,
-      exportDataName,
-    })
-    );
-  };
-
-  const handleExportFramesZip = () => {
-    void runExport(() => exportFramesZip({ frames, exportAtlasName }));
-  };
-
-  const handleExportBundle = () => {
-    void runExport(() =>
-      exportAtlasBundle({
-        frames,
-        rows,
-        padding,
-        packingMode: atlasPackingMode,
-        exportScale,
-        exportSmoothing,
-        pivotMode,
-        spriteDirection,
-        appMode,
-        pointGroups,
-        animationName,
-        fps,
-        speed,
-        loop,
-        exportSize,
-        exportJsonMode,
-        webpQuality,
-        ktx2Quality,
-        minScale: MIN_EXPORT_SCALE,
-        maxScale: MAX_EXPORT_SCALE,
-        selectedAnimationFrames,
-        exportAtlasName,
-        exportDataName,
-      })
-    );
-  };
-
-  const {
-    selectedPivotX,
-    selectedPivotY,
-    keyframeCount,
-    canAutoFill,
-    canAddKeyframe,
-    isCurrentFrameKeyframe,
-    canRemoveKeyframe,
-    canDeleteFrame,
-    canMoveFrameLeft,
-    canMoveFrameRight,
-    canPreviewGroup,
-    exportAtlasName,
-    exportDataName,
-    animationTotalSeconds,
-    animationCurrentSeconds,
-  } = useEditorDerived({
-    frames,
-    currentFrameIndex,
-    currentFrame,
-    selectedPoint,
-    selectedPointKeyframes,
-    selectedAutoFillPositions,
-    selectedGroup,
-    appMode,
-    fps,
-    projectName,
-    pivotMode,
-  });
-
-  const handleUndo = () => {
-    if (!canUndo) {
-      return;
-    }
-    dispatch({ type: "undo" });
-    setIsPlaying(false);
-  };
-
-  const handleRedo = () => {
-    if (!canRedo) {
-      return;
-    }
-    dispatch({ type: "redo" });
-    setIsPlaying(false);
-  };
-
-  const handleResetHotkeys = () => {
-    setHotkeys(DEFAULT_HOTKEYS);
-  };
-
-  const handleClearHistory = () => {
-    dispatch({ type: "clearHistory" });
-  };
-
-  useHotkeys({
-    hotkeys,
-    handlers: {
-      undo: handleUndo,
-      redo: handleRedo,
-      playPause: () => {
-        if (frames.length === 0) {
-          return;
-        }
-        setIsPlaying((prev) => !prev);
-      },
-      nextFrame: () => {
-        if (frames.length === 0) {
-          return;
-        }
-        setCurrentFrameIndex((prev) =>
-          Math.min(frames.length - 1, prev + 1)
-        );
-      },
-      prevFrame: () => {
-        if (frames.length === 0) {
-          return;
-        }
-        setCurrentFrameIndex((prev) => Math.max(0, prev - 1));
-      },
-      firstFrame: () => {
-        if (frames.length === 0) {
-          return;
-        }
-        setCurrentFrameIndex(0);
-      },
-      lastFrame: () => {
-        if (frames.length === 0) {
-          return;
-        }
-        setCurrentFrameIndex(Math.max(0, frames.length - 1));
-      },
-      toggleGrid: () => setShowGrid((prev) => !prev),
-      togglePoints: () => setShowPoints((prev) => !prev),
-      selectMode: () => setEditorMode("select"),
-      addMode: () => setEditorMode("add"),
-      addPoint: () => {
-        if (!currentFrame || appMode !== "character") {
-          return;
-        }
-        addPointAt(currentFrame.width / 2, currentFrame.height / 2);
-      },
-      deletePoint: () => {
-        if (!selectedPointId || appMode !== "character") {
-          return;
-        }
-        updateAllFramesPoints((points) =>
-          points.filter((point) => point.id !== selectedPointId)
-        );
-        setSelectedPointId(null);
-      },
-      selectNextPoint: () => {
-        if (currentPoints.length === 0) {
-          return;
-        }
-        const currentIndex = currentPoints.findIndex(
-          (point) => point.id === selectedPointId
-        );
-        const nextIndex =
-          currentIndex >= 0
-            ? (currentIndex + 1) % currentPoints.length
-            : 0;
-        setSelectedPointId(currentPoints[nextIndex].id);
-      },
-      selectPrevPoint: () => {
-        if (currentPoints.length === 0) {
-          return;
-        }
-        const currentIndex = currentPoints.findIndex(
-          (point) => point.id === selectedPointId
-        );
-        const nextIndex =
-          currentIndex >= 0
-            ? (currentIndex - 1 + currentPoints.length) %
-              currentPoints.length
-            : currentPoints.length - 1;
-        setSelectedPointId(currentPoints[nextIndex].id);
-      },
-    },
-  });
-
-  const leftSidebar: LeftSidebarProps = {
-    t,
-    frames,
-    currentFrameIndex,
-    isProjectSettingsOpen,
-    setIsProjectSettingsOpen,
-    appMode,
-    setAppMode,
-    projectName,
-    setProjectName,
-    pivotMode,
-    setPivotMode,
-    pivotLabels,
-    pivotOptions: PIVOT_OPTIONS,
-    animationName,
-    setAnimationName,
-    animationFrameSelection,
-    setAnimationFrameSelection,
-    isSettingsOpen,
-    setIsSettingsOpen,
-    supportLegacyAtlas,
-    setSupportLegacyAtlas,
-    historyLimit,
-    setHistoryLimit,
-    hotkeys,
-    setHotkeys,
-    onResetHotkeys: handleResetHotkeys,
-    historyEntries,
-    undoCount,
-    redoCount,
-    onClearHistory: handleClearHistory,
-    editorMode,
-    setEditorMode,
-    currentFrame,
-    addPointAt,
-    currentPoints,
-    selectedPointId,
-    setSelectedPointId,
-    isPointsOpen,
-    setIsPointsOpen,
-    toPivotCoords,
-    selectedPoint,
-    updateAllFramesPoints,
-    selectedPivotX,
-    selectedPivotY,
-    updateCurrentFramePoints,
-    fromPivotCoords,
-    clamp,
-    toNumber,
-    isKeyframesOpen,
-    setIsKeyframesOpen,
-    keyframeCount,
-    setFrames,
-    selectedPointKeyframes,
-    autoFillShape,
-    setAutoFillShape,
-    autoFillSmoothing,
-    setAutoFillSmoothing,
-    handleAutoFill,
-    canAutoFill,
-    availablePoints,
-    pointGroups,
-    setPointGroups,
-    selectedGroupId,
-    setSelectedGroupId,
-    newGroupName,
-    setNewGroupName,
-    isPointGroupsOpen,
-    setIsPointGroupsOpen,
-    selectedGroup,
-    groupEntrySelection,
-    setGroupEntrySelection,
-    isGroupPreviewActive,
-    setIsGroupPreviewActive,
-    isGroupPreviewPlaying,
-    setIsGroupPreviewPlaying,
-    groupPreviewIndex,
-    setGroupPreviewIndex,
-    canPreviewGroup,
-    createId,
-  };
-
-  const mainStage: MainStageProps = {
+  return buildEditorPanelProps({
     t,
     locale,
     setLocale,
-    theme,
-    setTheme,
-    currentFrame,
-    frames,
-    currentFrameIndex,
-    setCurrentFrameIndex,
-    atlasLayout,
-    viewMode,
-    setViewMode,
-    showGrid,
-    setShowGrid,
-    showPoints,
-    setShowPoints,
-    isMagnetEnabled,
-    setIsMagnetEnabled: setters.setIsMagnetEnabled,
-    stageRef,
-    canvasRef,
-    editorMode,
-    handleCanvasPointerDown,
-    handleCanvasPointerMove,
-    handleCanvasPointerUp,
-    handleCanvasWheel,
-    handleDroppedFiles,
-    framesInputRef,
-    selectedPoint,
-    selectedPointKeyframes,
-    fps,
-    setFps,
-    speed,
-    setSpeed,
-    reverse,
-    setReverse,
-    loop,
-    setLoop,
-    isPlaying,
-    setIsPlaying,
-    setSelectedPointId,
-    canAddKeyframe,
-    canRemoveKeyframe,
-    isCurrentFrameKeyframe,
-    updateCurrentFramePoints,
-    canMoveFrameLeft,
-    canMoveFrameRight,
-    canDeleteFrame,
-    setFrames,
-    appMode,
-    animationCurrentSeconds,
-    animationTotalSeconds,
-    speedOptions: SPEED_OPTIONS,
-    toNumber,
-    canUndo,
-    canRedo,
-    onUndo: handleUndo,
-    onRedo: handleRedo,
-    hotkeys,
-  };
-
-  const rightSidebar: RightSidebarProps = {
-    t,
-    framesLength: frames.length,
-    framesInputRef,
-    newPointsInputRef,
-    appendFramesInputRef,
-    handleNewAtlasCreate,
-    handleAppendFrames,
-    handleNewPointsImport,
+    state,
+    setters,
+    workspace,
+    derived,
+    atlasIO,
     recentProjects,
-    onSaveRecentProject: handleSaveRecentProject,
-    onOpenRecentProject: handleOpenRecentProject,
-    onDeleteRecentProject: handleDeleteRecentProject,
-    onClearFrames: handleClearFrames,
-    editAtlasPngInputRef,
-    editAtlasJsonInputRef,
-    setEditAtlasPngFile,
-    setEditAtlasJsonFile,
-    isEditImporting,
-    hasEditImport,
-    appMode,
-    isSpriteSettingsOpen,
-    setIsSpriteSettingsOpen,
-    spriteDirection,
-    setSpriteDirection,
-    isAtlasSettingsOpen,
-    setIsAtlasSettingsOpen,
-    rows,
-    setRows,
-    padding,
-    setPadding,
-    atlasPackingMode,
-    setAtlasPackingMode,
-    atlasLayout,
-    sizeMismatch,
-    toNumber,
-    isExportQualityOpen,
-    setIsExportQualityOpen,
-    exportScale,
-    setExportScale,
-    exportSmoothing,
-    setExportSmoothing,
-    exportSize,
-    setExportSize,
-    exportFormat,
-    setExportFormat,
-    exportJsonMode,
-    setExportJsonMode,
-    webpQuality,
-    setWebpQuality,
-    ktx2Quality,
-    setKtx2Quality,
-    handleExportPng,
-    handleExportJson,
-    handleExportBundle,
-    handleExportFramesZip,
-    isExporting,
-    pivotMode,
-    pivotLabels,
-    minExportScale: MIN_EXPORT_SCALE,
-    maxExportScale: MAX_EXPORT_SCALE,
-    exportScaleStep: EXPORT_SCALE_STEP,
-  };
-
-  return { leftSidebar, mainStage, rightSidebar };
+    exportActions,
+    historyHotkeys,
+  });
 }
