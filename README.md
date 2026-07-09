@@ -48,6 +48,8 @@ Open the app, import PNG frames, place points, then export PNG + JSON.
 **Export**
 - Atlas PNG: `<project>_atlas.png`
 - Data JSON: `<project>_data.json`
+- Bundle ZIP: `<project>_bundle.zip` (PNG + WebP + KTX2 atlas + JSON)
+- Frames ZIP: `<project>_frames.zip` (source frames as PNG)
 
 On desktop builds (Wails), export uses a native Save dialog so you can choose the location. In the browser, modern Chromium-based browsers will also show a Save dialog; otherwise files download to the default downloads folder.
 Metadata includes a `scale` number (default 1) for game-side sizing.
@@ -192,9 +194,12 @@ This bundles the CLI with esbuild, wraps it as a Node Single Executable Applicat
 | `--rows <number>` | Rows for grid packing (`uniform`/`tight`) | auto |
 | `--padding <number>` | Padding between frames | `2` |
 | `--scale <number>` | Export scale multiplier | `1` |
-| `--format <png\|webp>` | Output image format | `png` |
+| `--format <png\|webp\|ktx2>` | Output image format | `png` |
 | `--webp-quality <0-100>` | WebP quality | `90` |
+| `--ktx2-quality <0-3>` | KTX2 UASTC quality level | `2` |
 | `--smoothing` | Enable Lanczos3 smoothing when scaling | false |
+| `--bundle` | Also write `<name>_bundle.zip` with PNG, WebP, KTX2, and JSON | false |
+| `--frames-zip` | Also write `<name>_frames.zip` with source frames as PNG | false |
 | `--pivot <top-left\|bottom-left\|center>` | Pivot space | `top-left` |
 | `--mode <uniform\|tight\|shelf>` | Packing algorithm | `shelf` |
 | `--json <pretty\|minified\|compact>` | JSON output shape | `pretty` |
@@ -211,6 +216,13 @@ This bundles the CLI with esbuild, wraps it as a Node Single Executable Applicat
 ```bash
 npm run cli -- pack -i ./frames -o ./dist -n hero --mode shelf --padding 4
 ```
+
+#### UI Export Parity
+```bash
+npm run cli -- pack -i ./frames -o ./dist -n hero --format webp --bundle --frames-zip
+```
+
+This produces the same export surfaces available in the editor: single atlas image, data JSON, bundle ZIP, and frames ZIP.
 
 #### Character Mode (with Points & Groups)
 ```bash
@@ -251,7 +263,10 @@ The config file mirrors the full editor state. All UI features are configurable 
     "scale": 1,
     "format": "png",
     "webpQuality": 90,
+    "ktx2Quality": 2,
     "smoothing": true,
+    "bundle": false,
+    "framesZip": false,
     "pivot": "top-left",
     "jsonMode": "compact"
   }
@@ -275,6 +290,8 @@ The config file mirrors the full editor state. All UI features are configurable 
     "scale": 1,
     "format": "png",
     "smoothing": true,
+    "bundle": true,
+    "framesZip": true,
     "pivot": "center"
   },
   "spriteDirection": "clockwise",

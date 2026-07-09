@@ -7,6 +7,8 @@ export type CliExportConfig = {
   webpQuality?: number;
   ktx2Quality?: number;
   smoothing?: boolean;
+  bundle?: boolean;
+  framesZip?: boolean;
   pivot?: "top-left" | "bottom-left" | "center";
   rows?: number;
   padding?: number;

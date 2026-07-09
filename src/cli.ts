@@ -18,6 +18,8 @@ Common Options:
   --webp-quality <0-100>     WebP quality (default: 90)
   --ktx2-quality <0-3>       KTX2 UASTC quality level (default: 2)
   --smoothing                Enable smoothing (Lanczos3) during scaling
+  --bundle                   Also export <name>_bundle.zip (PNG/WebP/KTX2 + JSON)
+  --frames-zip               Also export <name>_frames.zip with source frames as PNG
   --pivot <top-left|bottom-left|center>  Pivot mode (default: top-left)
   --mode <uniform|tight|shelf> Packing mode (default: shelf)
   --json <pretty|minified|compact>  JSON output shape (default: pretty)
@@ -95,6 +97,8 @@ type ParsedArgs = {
   webpQuality?: number;
   ktx2Quality?: number;
   smoothing?: boolean;
+  bundle?: boolean;
+  framesZip?: boolean;
   pivot?: "top-left" | "bottom-left" | "center";
   packingMode?: CliPackingMode;
   jsonMode?: CliJsonMode;
@@ -120,67 +124,98 @@ function parseArgs(): ParsedArgs {
     args.shift();
   }
 
+  const readValue = (index: number, flag: string) => {
+    const value = args[index + 1];
+    if (!value || value.startsWith("-")) {
+      throw new Error(`${flag} requires a value.`);
+    }
+    return value;
+  };
+
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     switch (arg) {
       case "-i":
       case "--input":
-        result.input = args[++i];
+        result.input = readValue(i, arg);
+        i += 1;
         break;
       case "-o":
       case "--output":
-        result.output = args[++i];
+        result.output = readValue(i, arg);
+        i += 1;
         break;
       case "-n":
       case "--name":
-        result.name = args[++i];
+        result.name = readValue(i, arg);
+        i += 1;
         break;
       case "-c":
       case "--config":
-        result.config = args[++i];
+        result.config = readValue(i, arg);
+        i += 1;
         break;
       case "--rows":
-        result.rows = parseInt(args[++i], 10);
+        result.rows = parseInt(readValue(i, arg), 10);
+        i += 1;
         break;
       case "--padding":
-        result.padding = parseFloat(args[++i]);
+        result.padding = parseFloat(readValue(i, arg));
+        i += 1;
         break;
       case "--scale":
-        result.scale = parseFloat(args[++i]);
+        result.scale = parseFloat(readValue(i, arg));
+        i += 1;
         break;
       case "--format":
-        result.format = args[++i] as "png" | "webp" | "ktx2";
+        result.format = readValue(i, arg) as "png" | "webp" | "ktx2";
+        i += 1;
         break;
       case "--webp-quality":
-        result.webpQuality = parseFloat(args[++i]);
+        result.webpQuality = parseFloat(readValue(i, arg));
+        i += 1;
         break;
       case "--ktx2-quality":
-        result.ktx2Quality = parseFloat(args[++i]);
+        result.ktx2Quality = parseFloat(readValue(i, arg));
+        i += 1;
         break;
       case "--smoothing":
         result.smoothing = true;
         break;
+      case "--bundle":
+        result.bundle = true;
+        break;
+      case "--frames-zip":
+        result.framesZip = true;
+        break;
       case "--pivot":
-        result.pivot = args[++i] as "top-left" | "bottom-left" | "center";
+        result.pivot = readValue(i, arg) as "top-left" | "bottom-left" | "center";
+        i += 1;
         break;
       case "--mode":
-        result.packingMode = args[++i] as CliPackingMode;
+        result.packingMode = readValue(i, arg) as CliPackingMode;
+        i += 1;
         break;
       case "--json":
-        result.jsonMode = args[++i] as CliJsonMode;
+        result.jsonMode = readValue(i, arg) as CliJsonMode;
+        i += 1;
         break;
       case "-a":
       case "--atlas":
-        result.atlas = args[++i];
+        result.atlas = readValue(i, arg);
+        i += 1;
         break;
       case "-d":
       case "--data":
-        result.data = args[++i];
+        result.data = readValue(i, arg);
+        i += 1;
         break;
       case "-h":
       case "--help":
         result.help = true;
         break;
+      default:
+        throw new Error(`Unknown option: ${arg}`);
     }
   }
   return result;
@@ -234,6 +269,12 @@ function mergeArgsIntoConfig(
         args.smoothing !== undefined
           ? args.smoothing
           : config.export?.smoothing ?? false,
+      bundle:
+        args.bundle !== undefined ? args.bundle : config.export?.bundle ?? false,
+      framesZip:
+        args.framesZip !== undefined
+          ? args.framesZip
+          : config.export?.framesZip ?? false,
       pivot: args.pivot || config.export?.pivot || "top-left",
       jsonMode: args.jsonMode || config.export?.jsonMode || "pretty",
       rows:

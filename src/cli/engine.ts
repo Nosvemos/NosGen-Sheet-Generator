@@ -11,7 +11,11 @@ import { buildJsonPayload } from "./json-payload.ts";
 import { buildLayout } from "./layout.ts";
 import { processPoints } from "./points.ts";
 import { renderAtlas } from "./render-atlas.ts";
-import * as math from "./math.ts";
+import {
+  exportAtlasBundle,
+  exportFramesZip,
+  normalizeCliExportName,
+} from "./export-extras.ts";
 
 export { matchWildcard } from "./glob.ts";
 export { buildLayout } from "./layout.ts";
@@ -46,7 +50,7 @@ export async function run(config: CliConfig) {
 
   const outputDir = resolve(config.output || "./output");
   await mkdir(outputDir, { recursive: true });
-  const baseName = math.normalizeExportName(config.name || "sprite", "sprite");
+  const baseName = normalizeCliExportName(config.name || "sprite");
 
   const imagePath = join(
     outputDir,
@@ -67,6 +71,19 @@ export async function run(config: CliConfig) {
     "utf-8"
   );
   console.log(`Data saved: ${jsonPath} (${jsonMode})`);
+
+  if (exportConfig.bundle) {
+    await exportAtlasBundle({
+      frames,
+      layout,
+      config,
+      outputDir,
+      baseName,
+    });
+  }
+  if (exportConfig.framesZip) {
+    await exportFramesZip(frames, outputDir, baseName);
+  }
 }
 
 const loadInputFrames = async (
@@ -157,6 +174,8 @@ export function generateSampleConfig(
       webpQuality: 90,
       ktx2Quality: 2,
       smoothing: true,
+      bundle: false,
+      framesZip: false,
       pivot: "top-left",
     },
   };
