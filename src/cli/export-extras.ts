@@ -90,13 +90,17 @@ export const exportAtlasBundle = async ({
     return;
   }
   const zip = new JSZip();
-  const formats: AtlasImageFormat[] = ["png", "webp", "ktx2"];
+  const formats: AtlasImageFormat[] =
+    config.export?.bundleFormats && config.export.bundleFormats.length > 0
+      ? config.export.bundleFormats
+      : ["png", "webp", "ktx2"];
+  const jsonFormat = formats.includes("png") ? "png" : formats[0];
   const bundleConfig = {
     ...config,
     name: baseName,
     export: {
       ...config.export,
-      format: "png" as const,
+      format: jsonFormat,
     },
   };
   const renderedAtlases = await Promise.all(
@@ -109,7 +113,7 @@ export const exportAtlasBundle = async ({
     }))
   );
   const jsonAtlas =
-    renderedAtlases.find(({ format }) => format === "png")?.rendered ??
+    renderedAtlases.find(({ format }) => format === jsonFormat)?.rendered ??
     renderedAtlases[0].rendered;
   const payload = buildJsonPayload(
     frames,

@@ -199,6 +199,7 @@ This bundles the CLI with esbuild, wraps it as a Node Single Executable Applicat
 | `--ktx2-quality <0-3>` | KTX2 UASTC quality level | `2` |
 | `--smoothing` | Enable Lanczos3 smoothing when scaling | false |
 | `--bundle` | Also write `<name>_bundle.zip` with PNG, WebP, KTX2, and JSON | false |
+| `--bundle-formats <list>` | Comma-separated bundle image formats (`png`, `webp`, `ktx2`) | `png,webp,ktx2` |
 | `--frames-zip` | Also write `<name>_frames.zip` with source frames as PNG | false |
 | `--pivot <top-left\|bottom-left\|center>` | Pivot space | `top-left` |
 | `--mode <uniform\|tight\|shelf>` | Packing algorithm | `shelf` |
@@ -223,6 +224,12 @@ npm run cli -- pack -i ./frames -o ./dist -n hero --format webp --bundle --frame
 ```
 
 This produces the same export surfaces available in the editor: single atlas image, data JSON, bundle ZIP, and frames ZIP.
+
+For faster bundle exports, limit expensive formats:
+
+```bash
+npm run cli -- pack -i ./frames -o ./dist -n hero --bundle --bundle-formats png,webp
+```
 
 #### Character Mode (with Points & Groups)
 ```bash
@@ -266,6 +273,7 @@ The config file mirrors the full editor state. All UI features are configurable 
     "ktx2Quality": 2,
     "smoothing": true,
     "bundle": false,
+    "bundleFormats": ["png", "webp", "ktx2"],
     "framesZip": false,
     "pivot": "top-left",
     "jsonMode": "compact"
