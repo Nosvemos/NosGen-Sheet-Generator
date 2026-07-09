@@ -1,6 +1,5 @@
 import {
   useCallback,
-  useEffect,
   useMemo,
   useReducer,
   useRef,
@@ -13,20 +12,20 @@ import type { MainStageProps } from "@/components/editor/MainStage";
 import type { RightSidebarProps } from "@/components/editor/RightSidebar";
 import type { FrameData, PivotMode, StageTransform } from "@/lib/editor-types";
 import {
-  createInitialEditorState,
   createInitialEditorHistory,
-  createStateSetter,
   editorHistoryReducer,
 } from "@/lib/editor-reducer";
 import { useAutoFill } from "@/hooks/use-auto-fill";
 import { useAtlasIO } from "@/hooks/use-atlas-io";
 import { useCanvasRender } from "@/hooks/use-canvas-render";
 import { useEditorDerived } from "@/hooks/use-editor-derived";
+import { useEditorStateSetters } from "@/hooks/use-editor-state-setters";
 import { useEditorSync } from "@/hooks/use-editor-sync";
 import { useFrameTransform } from "@/hooks/use-frame-transform";
 import { useGroupPreview } from "@/hooks/use-group-preview";
 import { usePlayback } from "@/hooks/use-playback";
 import { usePointsEditor } from "@/hooks/use-points-editor";
+import { useRecentProjects } from "@/hooks/use-recent-projects";
 import { useStageInteractions } from "@/hooks/use-stage-interactions";
 import { useStageSizing } from "@/hooks/use-stage-sizing";
 import { useValidationAlerts } from "@/hooks/use-validation-alerts";
@@ -51,21 +50,11 @@ import {
   toNumber,
   toPivotCoords,
 } from "@/lib/editor-helpers";
-import {
-  deleteRecentProject,
-  listRecentProjects,
-  restoreRecentProject,
-  saveRecentProject,
-  type RecentProjectSummary,
-} from "@/lib/recent-projects";
 
 export function useEditorPanels() {
   const { t, locale, setLocale } = useI18n();
   const { pushToast } = useToast();
   const [isExporting, setIsExporting] = useState(false);
-  const [recentProjects, setRecentProjects] = useState<RecentProjectSummary[]>(
-    []
-  );
   const [history, dispatch] = useReducer(
     editorHistoryReducer,
     undefined,
@@ -127,104 +116,7 @@ export function useEditorPanels() {
     animationFrameSelection,
   } = state;
 
-  const setters = useMemo(() => {
-    const silent = { history: "ignore" as const };
-    return {
-      setFrames: createStateSetter(dispatch, "frames"),
-      setFramesSilent: createStateSetter(dispatch, "frames", silent),
-      setCurrentFrameIndex: createStateSetter(
-        dispatch,
-        "currentFrameIndex",
-        silent
-      ),
-      setSelectedPointId: createStateSetter(dispatch, "selectedPointId", silent),
-      setEditorMode: createStateSetter(dispatch, "editorMode"),
-      setPivotMode: createStateSetter(dispatch, "pivotMode"),
-      setViewMode: createStateSetter(dispatch, "viewMode", silent),
-      setAppMode: createStateSetter(dispatch, "appMode", silent),
-      setTheme: createStateSetter(dispatch, "theme", silent),
-      setRows: createStateSetter(dispatch, "rows"),
-      setPadding: createStateSetter(dispatch, "padding"),
-      setShowGrid: createStateSetter(dispatch, "showGrid", silent),
-      setShowPoints: createStateSetter(dispatch, "showPoints", silent),
-      setFrameZoom: createStateSetter(dispatch, "frameZoom", silent),
-      setPanOffset: createStateSetter(dispatch, "panOffset", silent),
-      setAutoFillShape: createStateSetter(dispatch, "autoFillShape"),
-      setAutoFillSmoothing: createStateSetter(dispatch, "autoFillSmoothing"),
-      setSpriteDirection: createStateSetter(dispatch, "spriteDirection"),
-      setFps: createStateSetter(dispatch, "fps"),
-      setSpeed: createStateSetter(dispatch, "speed"),
-      setReverse: createStateSetter(dispatch, "reverse"),
-      setLoop: createStateSetter(dispatch, "loop"),
-      setIsPlaying: createStateSetter(dispatch, "isPlaying", silent),
-      setIsKeyframesOpen: createStateSetter(dispatch, "isKeyframesOpen"),
-      setExportScale: createStateSetter(dispatch, "exportScale"),
-      setExportSmoothing: createStateSetter(dispatch, "exportSmoothing"),
-      setExportSize: createStateSetter(dispatch, "exportSize"),
-      setExportFormat: createStateSetter(dispatch, "exportFormat"),
-      setExportJsonMode: createStateSetter(dispatch, "exportJsonMode"),
-      setAtlasPackingMode: createStateSetter(dispatch, "atlasPackingMode"),
-      setWebpQuality: createStateSetter(dispatch, "webpQuality"),
-      setKtx2Quality: createStateSetter(dispatch, "ktx2Quality"),
-      setIsSpriteSettingsOpen: createStateSetter(dispatch, "isSpriteSettingsOpen"),
-      setIsAtlasSettingsOpen: createStateSetter(dispatch, "isAtlasSettingsOpen"),
-      setIsExportQualityOpen: createStateSetter(dispatch, "isExportQualityOpen"),
-      setIsSettingsOpen: createStateSetter(dispatch, "isSettingsOpen", silent),
-      setSupportLegacyAtlas: createStateSetter(
-        dispatch,
-        "supportLegacyAtlas",
-        silent
-      ),
-      setHistoryLimit: createStateSetter(
-        dispatch,
-        "historyLimit",
-        silent
-      ),
-      setHotkeys: createStateSetter(dispatch, "hotkeys", silent),
-      setPointGroups: createStateSetter(dispatch, "pointGroups"),
-      setSelectedGroupId: createStateSetter(dispatch, "selectedGroupId"),
-      setNewGroupName: createStateSetter(dispatch, "newGroupName"),
-      setGroupEntrySelection: createStateSetter(dispatch, "groupEntrySelection"),
-      setIsGroupPreviewActive: createStateSetter(dispatch, "isGroupPreviewActive"),
-      setIsGroupPreviewPlaying: createStateSetter(
-        dispatch,
-        "isGroupPreviewPlaying",
-        silent
-      ),
-      setGroupPreviewIndex: createStateSetter(
-        dispatch,
-        "groupPreviewIndex",
-        silent
-      ),
-      setIsPointsOpen: createStateSetter(dispatch, "isPointsOpen", silent),
-      setIsPointGroupsOpen: createStateSetter(
-        dispatch,
-        "isPointGroupsOpen",
-        silent
-      ),
-      setIsProjectSettingsOpen: createStateSetter(
-        dispatch,
-        "isProjectSettingsOpen",
-        silent
-      ),
-      setIsMagnetEnabled: createStateSetter(
-        dispatch,
-        "isMagnetEnabled",
-        silent
-      ),
-      setProjectName: createStateSetter(dispatch, "projectName"),
-      setAnimationName: createStateSetter(dispatch, "animationName"),
-      setAnimationFrameSelection: createStateSetter(
-        dispatch,
-        "animationFrameSelection"
-      ),
-      setAnimationFrameSelectionSilent: createStateSetter(
-        dispatch,
-        "animationFrameSelection",
-        silent
-      ),
-    };
-  }, [dispatch]);
+  const setters = useEditorStateSetters(dispatch);
   const {
     setFrames,
     setFramesSilent,
@@ -310,22 +202,6 @@ export function useEditorPanels() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const transformRef = useRef<StageTransform | null>(null);
   const stageSize = useStageSizing({ stageRef, canvasRef });
-
-  useEffect(() => {
-    let cancelled = false;
-    listRecentProjects()
-      .then((projects) => {
-        if (!cancelled) {
-          setRecentProjects(projects);
-        }
-      })
-      .catch((error) => {
-        console.warn(error);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const currentFrame = frames[currentFrameIndex];
   const currentPoints = currentFrame?.points ?? [];
@@ -427,64 +303,17 @@ export function useEditorPanels() {
     supportLegacyAtlas,
   });
 
-  const handleSaveRecentProject = useCallback(async () => {
-    try {
-      const projects = await saveRecentProject(state);
-      setRecentProjects(projects);
-      pushToast({
-        title: t("status.recentProjectSavedTitle"),
-        description: t("status.recentProjectSavedBody"),
-      });
-    } catch (error) {
-      console.error(error);
-      pushToast({
-        variant: "warning",
-        title: t("error.recentProjectFailedTitle"),
-        description:
-          error instanceof Error
-            ? error.message
-            : t("error.recentProjectFailedBody"),
-      });
-    }
-  }, [pushToast, state, t]);
-
-  const handleOpenRecentProject = useCallback(
-    async (id: string) => {
-      try {
-        const restored = await restoreRecentProject(id);
-        dispatch({
-          type: "reset",
-          state: {
-            ...createInitialEditorState(),
-            theme: state.theme,
-            hotkeys: state.hotkeys,
-            historyLimit: state.historyLimit,
-            ...restored,
-          },
-        });
-        setRecentProjects(await listRecentProjects());
-      } catch (error) {
-        console.error(error);
-        pushToast({
-          variant: "warning",
-          title: t("error.recentProjectFailedTitle"),
-          description:
-            error instanceof Error
-              ? error.message
-              : t("error.recentProjectFailedBody"),
-        });
-      }
-    },
-    [pushToast, state.historyLimit, state.hotkeys, state.theme, t]
-  );
-
-  const handleDeleteRecentProject = useCallback(
-    async (id: string) => {
-      await deleteRecentProject(id);
-      setRecentProjects(await listRecentProjects());
-    },
-    []
-  );
+  const {
+    recentProjects,
+    handleSaveRecentProject,
+    handleOpenRecentProject,
+    handleDeleteRecentProject,
+  } = useRecentProjects({
+    state,
+    dispatch,
+    pushToast,
+    t,
+  });
 
   const groupPreviewIds = useMemo(() => {
     if (!isGroupPreviewActive || !selectedGroup) {

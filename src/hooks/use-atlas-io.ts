@@ -1,95 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Dispatch, RefObject, SetStateAction } from "react";
-import type { TranslationKey } from "@/lib/i18n";
 import type {
-  AppMode,
-  AtlasImageFormat,
-  FrameData,
-  PivotMode,
-  PointGroup,
-  SpriteDirection,
-} from "@/lib/editor-types";
+  UseAtlasIOParams,
+  UseAtlasIOResult,
+} from "@/hooks/atlas-io-types";
 import {
   createNewAtlasFromFiles,
   importAtlasFromFiles,
   importPointsIntoFrames,
 } from "@/lib/editor-io";
 import { loadFrameFromFile } from "@/lib/editor-helpers";
+import { resolveDroppedAtlasFiles } from "@/lib/editor-drop-imports";
 import { isSupportedAtlasImageFile } from "@/lib/texture-codecs";
 import { useToast } from "@/components/ui/use-toast";
-
-type Translate = (
-  key: TranslationKey,
-  params?: Record<string, string | number>
-) => string;
-
-type UseAtlasIOParams = {
-  t: Translate;
-  frames: FrameData[];
-  setFrames: Dispatch<SetStateAction<FrameData[]>>;
-  setCurrentFrameIndex: Dispatch<SetStateAction<number>>;
-  setSelectedPointId: Dispatch<SetStateAction<string | null>>;
-  setIsPlaying: Dispatch<SetStateAction<boolean>>;
-  setIsGroupPreviewActive: Dispatch<SetStateAction<boolean>>;
-  setIsGroupPreviewPlaying: Dispatch<SetStateAction<boolean>>;
-  setGroupPreviewIndex: Dispatch<SetStateAction<number>>;
-  setPointGroups: Dispatch<SetStateAction<PointGroup[]>>;
-  setSelectedGroupId: Dispatch<SetStateAction<string | null>>;
-  setSpriteDirection: Dispatch<SetStateAction<SpriteDirection>>;
-  setPivotMode: Dispatch<SetStateAction<PivotMode>>;
-  setRows: Dispatch<SetStateAction<number>>;
-  setPadding: Dispatch<SetStateAction<number>>;
-  setAppMode: Dispatch<SetStateAction<AppMode>>;
-  setAnimationName: Dispatch<SetStateAction<string>>;
-  setFps: Dispatch<SetStateAction<number>>;
-  setSpeed: Dispatch<SetStateAction<number>>;
-  setLoop: Dispatch<SetStateAction<boolean>>;
-  setProjectName: Dispatch<SetStateAction<string>>;
-  setExportSize: Dispatch<SetStateAction<number>>;
-  setExportFormat: Dispatch<SetStateAction<AtlasImageFormat>>;
-  setAnimationFrameSelection: Dispatch<SetStateAction<Record<string, boolean>>>;
-  supportLegacyAtlas: boolean;
-};
-
-type UseAtlasIOResult = {
-  framesInputRef: RefObject<HTMLInputElement | null>;
-  newPointsInputRef: RefObject<HTMLInputElement | null>;
-  appendFramesInputRef: RefObject<HTMLInputElement | null>;
-  editAtlasPngInputRef: RefObject<HTMLInputElement | null>;
-  editAtlasJsonInputRef: RefObject<HTMLInputElement | null>;
-  setEditAtlasPngFile: Dispatch<SetStateAction<File | null>>;
-  setEditAtlasJsonFile: Dispatch<SetStateAction<File | null>>;
-  isEditImporting: boolean;
-  hasEditImport: boolean;
-  handleNewAtlasCreate: () => Promise<void>;
-  handleAppendFrames: () => Promise<void>;
-  handleNewPointsImport: (file: File) => Promise<void>;
-  handleDroppedFiles: (files: File[] | FileList) => Promise<void>;
-  handleClearFrames: () => void;
-};
-
-const isJsonFile = (file: File) =>
-  file.type === "application/json" || file.name.toLowerCase().endsWith(".json");
-
-const looksLikeAtlasDataFile = async (file: File) => {
-  try {
-    const parsed = JSON.parse(await file.text()) as {
-      frames?: Array<{ x?: unknown; y?: unknown; w?: unknown; h?: unknown }>;
-    };
-    return (
-      Array.isArray(parsed.frames) &&
-      parsed.frames.some(
-        (frame) =>
-          Number.isFinite(Number(frame?.x)) &&
-          Number.isFinite(Number(frame?.y)) &&
-          Number.isFinite(Number(frame?.w ?? (frame as { width?: unknown }).width)) &&
-          Number.isFinite(Number(frame?.h ?? (frame as { height?: unknown }).height))
-      )
-    );
-  } catch {
-    return false;
-  }
-};
 
 export const useAtlasIO = ({
   t,
@@ -158,6 +80,31 @@ export const useAtlasIO = ({
     setSelectedPointId,
   ]);
 
+  const applyNewAtlasResult = useCallback(
+    (result: Awaited<ReturnType<typeof createNewAtlasFromFiles>>) => {
+      if (result.spriteDirection) {
+        setSpriteDirection(result.spriteDirection);
+      }
+      if (result.pivotMode) {
+        setPivotMode(result.pivotMode);
+      }
+      if (typeof result.exportSize === "number") {
+        setExportSize(result.exportSize);
+      }
+      setPointGroups(result.pointGroups);
+      setSelectedGroupId(result.pointGroups[0]?.id ?? null);
+      setFrames(result.frames);
+    },
+    [
+      setExportSize,
+      setFrames,
+      setPivotMode,
+      setPointGroups,
+      setSelectedGroupId,
+      setSpriteDirection,
+    ]
+  );
+
   const handleNewAtlasCreate = async () => {
     const files = framesInputRef.current?.files;
     if (!files || files.length === 0) {
@@ -174,18 +121,7 @@ export const useAtlasIO = ({
         pointsFile,
         t,
       });
-      if (result.spriteDirection) {
-        setSpriteDirection(result.spriteDirection);
-      }
-      if (result.pivotMode) {
-        setPivotMode(result.pivotMode);
-      }
-      if (typeof result.exportSize === "number") {
-        setExportSize(result.exportSize);
-      }
-      setPointGroups(result.pointGroups);
-      setSelectedGroupId(result.pointGroups[0]?.id ?? null);
-      setFrames(result.frames);
+      applyNewAtlasResult(result);
       setHasEditImport(false);
       resetSelection();
     } catch (error) {
@@ -385,41 +321,21 @@ export const useAtlasIO = ({
 
   const handleDroppedFiles = useCallback(
     async (files: File[] | FileList) => {
-      const dropped = Array.from(files);
-      if (dropped.length === 0) {
-        return;
-      }
-      const imageFiles = dropped.filter(isSupportedAtlasImageFile);
-      const jsonFiles = dropped.filter(isJsonFile);
-      if (imageFiles.length === 0) {
-        return;
-      }
       try {
-        const atlasJson =
-          jsonFiles.length === 1 && imageFiles.length === 1
-            ? jsonFiles[0]
-            : null;
-        if (atlasJson && (await looksLikeAtlasDataFile(atlasJson))) {
-          await handleEditAtlasImport(imageFiles[0], atlasJson);
+        const resolved = await resolveDroppedAtlasFiles(files);
+        if (!resolved) {
+          return;
+        }
+        if (resolved.kind === "edit") {
+          await handleEditAtlasImport(resolved.pngFile, resolved.jsonFile);
           return;
         }
         const result = await createNewAtlasFromFiles({
-          imageFiles,
-          pointsFile: jsonFiles[0] ?? null,
+          imageFiles: resolved.imageFiles,
+          pointsFile: resolved.pointsFile,
           t,
         });
-        if (result.spriteDirection) {
-          setSpriteDirection(result.spriteDirection);
-        }
-        if (result.pivotMode) {
-          setPivotMode(result.pivotMode);
-        }
-        if (typeof result.exportSize === "number") {
-          setExportSize(result.exportSize);
-        }
-        setPointGroups(result.pointGroups);
-        setSelectedGroupId(result.pointGroups[0]?.id ?? null);
-        setFrames(result.frames);
+        applyNewAtlasResult(result);
         setHasEditImport(false);
         resetSelection();
       } catch (error) {
@@ -427,15 +343,10 @@ export const useAtlasIO = ({
       }
     },
     [
+      applyNewAtlasResult,
       handleEditAtlasImport,
       notifyError,
       resetSelection,
-      setExportSize,
-      setFrames,
-      setPivotMode,
-      setPointGroups,
-      setSelectedGroupId,
-      setSpriteDirection,
       t,
     ]
   );
