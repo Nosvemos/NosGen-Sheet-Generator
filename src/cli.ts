@@ -109,6 +109,39 @@ type ParsedArgs = {
   [key: string]: unknown;
 };
 
+const FORMATS = ["png", "webp", "ktx2"] as const;
+const PIVOTS = ["top-left", "bottom-left", "center"] as const;
+const PACKING_MODES = ["uniform", "tight", "shelf"] as const;
+const CONFIG_MODES = ["normal", "character", "animation"] as const;
+const JSON_MODES = ["pretty", "minified", "compact"] as const;
+
+const parseChoice = <T extends string>(
+  value: string,
+  flag: string,
+  choices: readonly T[]
+): T => {
+  if ((choices as readonly string[]).includes(value)) {
+    return value as T;
+  }
+  throw new Error(`${flag} must be one of: ${choices.join(", ")}.`);
+};
+
+const parseFiniteNumber = (value: string, flag: string) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`${flag} must be a valid number.`);
+  }
+  return parsed;
+};
+
+const parseInteger = (value: string, flag: string) => {
+  const parsed = parseFiniteNumber(value, flag);
+  if (!Number.isInteger(parsed)) {
+    throw new Error(`${flag} must be an integer.`);
+  }
+  return parsed;
+};
+
 function parseArgs(): ParsedArgs {
   const args = process.argv.slice(2);
   const result: ParsedArgs = {};
@@ -156,27 +189,27 @@ function parseArgs(): ParsedArgs {
         i += 1;
         break;
       case "--rows":
-        result.rows = parseInt(readValue(i, arg), 10);
+        result.rows = parseInteger(readValue(i, arg), arg);
         i += 1;
         break;
       case "--padding":
-        result.padding = parseFloat(readValue(i, arg));
+        result.padding = parseFiniteNumber(readValue(i, arg), arg);
         i += 1;
         break;
       case "--scale":
-        result.scale = parseFloat(readValue(i, arg));
+        result.scale = parseFiniteNumber(readValue(i, arg), arg);
         i += 1;
         break;
       case "--format":
-        result.format = readValue(i, arg) as "png" | "webp" | "ktx2";
+        result.format = parseChoice(readValue(i, arg), arg, FORMATS);
         i += 1;
         break;
       case "--webp-quality":
-        result.webpQuality = parseFloat(readValue(i, arg));
+        result.webpQuality = parseFiniteNumber(readValue(i, arg), arg);
         i += 1;
         break;
       case "--ktx2-quality":
-        result.ktx2Quality = parseFloat(readValue(i, arg));
+        result.ktx2Quality = parseFiniteNumber(readValue(i, arg), arg);
         i += 1;
         break;
       case "--smoothing":
@@ -189,15 +222,21 @@ function parseArgs(): ParsedArgs {
         result.framesZip = true;
         break;
       case "--pivot":
-        result.pivot = readValue(i, arg) as "top-left" | "bottom-left" | "center";
+        result.pivot = parseChoice(readValue(i, arg), arg, PIVOTS);
         i += 1;
         break;
-      case "--mode":
-        result.packingMode = readValue(i, arg) as CliPackingMode;
+      case "--mode": {
+        const value = readValue(i, arg);
+        if (result.command === "init-config") {
+          result.mode = parseChoice(value, arg, CONFIG_MODES);
+        } else {
+          result.packingMode = parseChoice(value, arg, PACKING_MODES);
+        }
         i += 1;
         break;
+      }
       case "--json":
-        result.jsonMode = readValue(i, arg) as CliJsonMode;
+        result.jsonMode = parseChoice(readValue(i, arg), arg, JSON_MODES);
         i += 1;
         break;
       case "-a":
