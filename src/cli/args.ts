@@ -29,7 +29,7 @@ export type ParsedArgs = {
 
 const FORMATS = ["png"] as const;
 const PIVOTS = ["top-left", "bottom-left", "center"] as const;
-const PACKING_MODES = ["uniform", "tight", "shelf"] as const;
+const PACKING_MODES = ["uniform", "tight", "shelf", "maxrects"] as const;
 const CONFIG_MODES = ["normal", "character", "animation"] as const;
 const JSON_MODES = ["pretty", "minified", "compact"] as const;
 

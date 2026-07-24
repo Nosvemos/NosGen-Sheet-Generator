@@ -11,6 +11,10 @@ export type ShelfAtlasLayout = AtlasLayout & {
   mode: "shelf";
 };
 
+export type MaxRectsAtlasLayout = AtlasLayout & {
+  mode: "maxrects";
+};
+
 export const computeAtlasLayout = (
   frames: SizedItem[],
   rows: number,
@@ -108,41 +112,25 @@ export const computeTightAtlasLayout = <T extends SizedItem>(
   };
 };
 
-export const computeShelfAtlasLayout = <T extends SizedItem>(
-  frames: T[],
-  padding: number,
-  maxWidth?: number
-): ShelfAtlasLayout => {
-  const safePadding = Math.max(0, Math.round(padding));
-  const sorted = [...frames]
-    .map((frame, index) => ({ frame, index }))
-    .sort((a, b) => b.frame.height - a.frame.height);
+type InternalShelf = {
+  y: number;
+  height: number;
+  currentX: number;
+  items: { index: number; x: number }[];
+};
 
-  const limit =
-    maxWidth && maxWidth > 0
-      ? maxWidth
-      : Math.ceil(
-          Math.sqrt(
-            sorted.reduce(
-              (sum, { frame }) =>
-                sum + (frame.width + safePadding) * (frame.height + safePadding),
-              0
-            )
-          )
-        ) * 2;
-
-  const shelves: {
-    y: number;
-    height: number;
-    currentX: number;
-    items: { index: number; x: number }[];
-  }[] = [];
+const packShelvesForWidth = <T extends SizedItem>(
+  sorted: { frame: T; index: number }[],
+  safePadding: number,
+  limitWidth: number
+) => {
+  const shelves: InternalShelf[] = [];
 
   for (const { frame, index } of sorted) {
     let placed = false;
     for (const shelf of shelves) {
       if (
-        shelf.currentX + frame.width + safePadding <= limit + safePadding &&
+        shelf.currentX + frame.width + safePadding <= limitWidth + safePadding &&
         frame.height <= shelf.height
       ) {
         shelf.items.push({ index, x: shelf.currentX });
@@ -167,20 +155,100 @@ export const computeShelfAtlasLayout = <T extends SizedItem>(
     }
   }
 
+  let totalWidth = 0;
+  for (const shelf of shelves) {
+    let shelfMaxX = safePadding;
+    for (const item of shelf.items) {
+      const itemFrame = sorted.find((s) => s.index === item.index)!.frame;
+      shelfMaxX = Math.max(shelfMaxX, item.x + itemFrame.width);
+    }
+    totalWidth = Math.max(totalWidth, shelfMaxX + safePadding);
+  }
+  const lastShelf = shelves[shelves.length - 1];
+  const totalHeight = lastShelf ? lastShelf.y + lastShelf.height + safePadding : 0;
+  const area = totalWidth * totalHeight;
+  const aspectDiff = Math.abs(totalWidth - totalHeight);
+  const score = area + aspectDiff * 0.1;
+
+  return { shelves, totalWidth, totalHeight, area, score };
+};
+
+export const computeShelfAtlasLayout = <T extends SizedItem>(
+  frames: T[],
+  padding: number,
+  maxWidth?: number
+): ShelfAtlasLayout => {
+  const safePadding = Math.max(0, Math.round(padding));
+  if (frames.length === 0) {
+    return {
+      rows: 0,
+      columns: -1,
+      padding: safePadding,
+      cellWidth: 1,
+      cellHeight: 1,
+      width: 0,
+      height: 0,
+      positions: [],
+      mode: "shelf",
+    };
+  }
+
+  const sorted = [...frames]
+    .map((frame, index) => ({ frame, index }))
+    .sort((a, b) => b.frame.height - a.frame.height || b.frame.width - a.frame.width);
+
+  let bestResult: ReturnType<typeof packShelvesForWidth<T>>;
+
+  if (maxWidth && maxWidth > 0) {
+    bestResult = packShelvesForWidth(sorted, safePadding, maxWidth);
+  } else {
+    const totalArea = sorted.reduce(
+      (sum, { frame }) =>
+        sum + (frame.width + safePadding) * (frame.height + safePadding),
+      0
+    );
+    const maxItemWidth = Math.max(...sorted.map(({ frame }) => frame.width));
+    const idealSide = Math.ceil(Math.sqrt(totalArea));
+
+    const minLimit = Math.max(idealSide, maxItemWidth + safePadding);
+    const maxLimit = Math.max(Math.ceil(idealSide * 1.8), maxItemWidth + safePadding);
+
+    const candidates = new Set<number>();
+    candidates.add(minLimit);
+    candidates.add(maxLimit);
+
+    const step = Math.max(8, Math.floor((maxLimit - minLimit) / 24));
+    for (let w = minLimit; w <= maxLimit; w += step) {
+      candidates.add(w);
+    }
+
+    let accum = safePadding;
+    for (const { frame } of sorted) {
+      accum += frame.width + safePadding;
+      if (accum >= minLimit && accum <= maxLimit) {
+        candidates.add(accum);
+      }
+    }
+
+    let bestScore = Infinity;
+    bestResult = packShelvesForWidth(sorted, safePadding, minLimit);
+
+    for (const candidateWidth of candidates) {
+      const result = packShelvesForWidth(sorted, safePadding, candidateWidth);
+      if (result.score < bestScore) {
+        bestScore = result.score;
+        bestResult = result;
+      }
+    }
+  }
+
+  const { shelves, totalWidth, totalHeight } = bestResult;
+
   const positions = new Array<{ x: number; y: number; w: number; h: number }>(
     frames.length
   );
-  let totalWidth = 0;
-  let totalHeight = 0;
 
   for (const shelf of shelves) {
-    const shelfWidth =
-      shelf.items.reduce(
-        (max, item) => Math.max(max, item.x + frames[item.index].width),
-        0
-      ) + safePadding;
-    totalWidth = Math.max(totalWidth, shelfWidth);
-    totalHeight = Math.max(totalHeight, shelf.y + shelf.height + safePadding);
     for (const item of shelf.items) {
       const frame = frames[item.index];
       positions[item.index] = {
@@ -205,14 +273,257 @@ export const computeShelfAtlasLayout = <T extends SizedItem>(
   };
 };
 
-// Single entry point: pick a packing algorithm by mode. Shared by the web
-// export pipeline and the CLI so both produce identical layouts.
+type Rect = { x: number; y: number; w: number; h: number };
+
+class MaxRectsBinPacker {
+  binWidth: number;
+  binHeight: number;
+  usedRectangles: Rect[] = [];
+  freeRectangles: Rect[] = [];
+
+  constructor(width: number, height: number) {
+    this.binWidth = width;
+    this.binHeight = height;
+    this.freeRectangles = [{ x: 0, y: 0, w: width, h: height }];
+  }
+
+  insert(width: number, height: number): Rect | null {
+    let bestNode: Rect | null = null;
+    let bestShortSideFit = Infinity;
+    let bestAreaFit = Infinity;
+
+    for (const freeRect of this.freeRectangles) {
+      if (freeRect.w >= width && freeRect.h >= height) {
+        const leftoverX = Math.abs(freeRect.w - width);
+        const leftoverY = Math.abs(freeRect.h - height);
+        const shortSideFit = Math.min(leftoverX, leftoverY);
+        const areaFit = freeRect.w * freeRect.h - width * height;
+
+        if (
+          shortSideFit < bestShortSideFit ||
+          (shortSideFit === bestShortSideFit && areaFit < bestAreaFit)
+        ) {
+          bestNode = { x: freeRect.x, y: freeRect.y, w: width, h: height };
+          bestShortSideFit = shortSideFit;
+          bestAreaFit = areaFit;
+        }
+      }
+    }
+
+    if (!bestNode) {
+      return null;
+    }
+
+    this.placeRect(bestNode);
+    return bestNode;
+  }
+
+  private placeRect(node: Rect) {
+    let numRectanglesToProcess = this.freeRectangles.length;
+    for (let i = 0; i < numRectanglesToProcess; ++i) {
+      if (this.splitFreeNode(this.freeRectangles[i], node)) {
+        this.freeRectangles.splice(i, 1);
+        --i;
+        --numRectanglesToProcess;
+      }
+    }
+    this.pruneFreeList();
+    this.usedRectangles.push(node);
+  }
+
+  private splitFreeNode(freeNode: Rect, usedNode: Rect): boolean {
+    if (
+      usedNode.x >= freeNode.x + freeNode.w ||
+      usedNode.x + usedNode.w <= freeNode.x ||
+      usedNode.y >= freeNode.y + freeNode.h ||
+      usedNode.y + usedNode.h <= freeNode.y
+    ) {
+      return false;
+    }
+
+    if (usedNode.y > freeNode.y && usedNode.y < freeNode.y + freeNode.h) {
+      const newNode = { ...freeNode, h: usedNode.y - freeNode.y };
+      this.freeRectangles.push(newNode);
+    }
+
+    if (usedNode.y + usedNode.h < freeNode.y + freeNode.h) {
+      const newNode = {
+        x: freeNode.x,
+        y: usedNode.y + usedNode.h,
+        w: freeNode.w,
+        h: freeNode.y + freeNode.h - (usedNode.y + usedNode.h),
+      };
+      this.freeRectangles.push(newNode);
+    }
+
+    if (usedNode.x > freeNode.x && usedNode.x < freeNode.x + freeNode.w) {
+      const newNode = { ...freeNode, w: usedNode.x - freeNode.x };
+      this.freeRectangles.push(newNode);
+    }
+
+    if (usedNode.x + usedNode.w < freeNode.x + freeNode.w) {
+      const newNode = {
+        x: usedNode.x + usedNode.w,
+        y: freeNode.y,
+        w: freeNode.x + freeNode.w - (usedNode.x + usedNode.w),
+        h: freeNode.h,
+      };
+      this.freeRectangles.push(newNode);
+    }
+
+    return true;
+  }
+
+  private pruneFreeList() {
+    for (let i = 0; i < this.freeRectangles.length; ++i) {
+      for (let j = i + 1; j < this.freeRectangles.length; ++j) {
+        if (this.isContainedIn(this.freeRectangles[i], this.freeRectangles[j])) {
+          this.freeRectangles.splice(i, 1);
+          --i;
+          break;
+        }
+        if (this.isContainedIn(this.freeRectangles[j], this.freeRectangles[i])) {
+          this.freeRectangles.splice(j, 1);
+          --j;
+        }
+      }
+    }
+  }
+
+  private isContainedIn(a: Rect, b: Rect): boolean {
+    return (
+      a.x >= b.x &&
+      a.y >= b.y &&
+      a.x + a.w <= b.x + b.w &&
+      a.y + a.h <= b.y + b.h
+    );
+  }
+}
+
+export const computeMaxRectsAtlasLayout = <T extends SizedItem>(
+  frames: T[],
+  padding: number
+): MaxRectsAtlasLayout => {
+  const safePadding = Math.max(0, Math.round(padding));
+  if (frames.length === 0) {
+    return {
+      rows: 0,
+      columns: -1,
+      padding: safePadding,
+      cellWidth: 1,
+      cellHeight: 1,
+      width: 0,
+      height: 0,
+      positions: [],
+      mode: "maxrects",
+    };
+  }
+
+  const sorted = [...frames]
+    .map((frame, index) => ({ frame, index }))
+    .sort(
+      (a, b) =>
+        b.frame.width * b.frame.height - a.frame.width * a.frame.height ||
+        b.frame.height - a.frame.height
+    );
+
+  const totalArea = sorted.reduce(
+    (sum, { frame }) =>
+      sum + (frame.width + safePadding) * (frame.height + safePadding),
+    0
+  );
+  const maxItemWidth = Math.max(...sorted.map(({ frame }) => frame.width));
+  const idealSide = Math.ceil(Math.sqrt(totalArea));
+
+  const minBinW = Math.max(idealSide, maxItemWidth + safePadding * 2);
+  const maxBinW = Math.max(Math.ceil(idealSide * 1.8), maxItemWidth + safePadding * 2);
+
+  const candidateWidths: number[] = [];
+  const step = Math.max(16, Math.floor((maxBinW - minBinW) / 20));
+  for (let w = minBinW; w <= maxBinW; w += step) {
+    candidateWidths.push(w);
+  }
+
+  let bestPositions: Rect[] = [];
+  let bestWidth = Infinity;
+  let bestHeight = Infinity;
+  let bestScore = Infinity;
+
+  for (const binW of candidateWidths) {
+    const packer = new MaxRectsBinPacker(binW, 16384);
+    const candidatePositions: Rect[] = new Array(frames.length);
+    let success = true;
+
+    for (const { frame, index } of sorted) {
+      const wWithPad = frame.width + safePadding;
+      const hWithPad = frame.height + safePadding;
+      const node = packer.insert(wWithPad, hWithPad);
+      if (!node) {
+        success = false;
+        break;
+      }
+      candidatePositions[index] = {
+        x: node.x + safePadding,
+        y: node.y + safePadding,
+        w: frame.width,
+        h: frame.height,
+      };
+    }
+
+    if (!success) continue;
+
+    let maxX = 0;
+    let maxY = 0;
+    for (const pos of candidatePositions) {
+      if (pos) {
+        maxX = Math.max(maxX, pos.x + pos.w + safePadding);
+        maxY = Math.max(maxY, pos.y + pos.h + safePadding);
+      }
+    }
+
+    const boundArea = maxX * maxY;
+    const aspectDiff = Math.abs(maxX - maxY);
+    const score = boundArea + aspectDiff * 0.1;
+
+    if (score < bestScore) {
+      bestScore = score;
+      bestWidth = maxX;
+      bestHeight = maxY;
+      bestPositions = candidatePositions;
+    }
+  }
+
+  // Fallback if no candidate bin fit: use shelf
+  if (bestPositions.length === 0) {
+    const shelf = computeShelfAtlasLayout(frames, safePadding);
+    return {
+      ...shelf,
+      mode: "maxrects",
+    };
+  }
+
+  return {
+    rows: -1,
+    columns: -1,
+    padding: safePadding,
+    cellWidth: Math.max(1, ...frames.map((f) => f.width)),
+    cellHeight: Math.max(1, ...frames.map((f) => f.height)),
+    width: bestWidth,
+    height: bestHeight,
+    positions: bestPositions,
+    mode: "maxrects",
+  };
+};
+
 export const computeAtlasLayoutByMode = <T extends SizedItem>(
   frames: T[],
   options: { mode?: AtlasPackingMode; rows?: number; padding?: number }
 ): AtlasLayout => {
   const padding = options.padding ?? 0;
   const mode = options.mode ?? "uniform";
+  if (mode === "maxrects") {
+    return computeMaxRectsAtlasLayout(frames, padding);
+  }
   if (mode === "shelf") {
     return computeShelfAtlasLayout(frames, padding);
   }
@@ -224,17 +535,13 @@ export const computeAtlasLayoutByMode = <T extends SizedItem>(
   return computeAtlasLayout(frames, rows, padding, "uniform");
 };
 
-// Convert a layout's cells into final frame draw rects. Uniform layouts use
-// max-size cells and need the frame centered inside; tight/shelf already store
-// frame-final positions. This keeps drawing logic identical across all modes
-// (the historical bug was that the web export only handled uniform centering).
 export const resolveFramePlacements = (
   layout: AtlasLayout,
   frames: SizedItem[]
 ): FramePlacement[] =>
   layout.positions.map((cell, index) => {
     const frame = frames[index] ?? { width: cell.w, height: cell.h };
-    if (layout.mode === "tight" || layout.mode === "shelf") {
+    if (layout.mode === "tight" || layout.mode === "shelf" || layout.mode === "maxrects") {
       return { x: cell.x, y: cell.y, w: frame.width, h: frame.height };
     }
     return {

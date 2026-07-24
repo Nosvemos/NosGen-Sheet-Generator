@@ -4,7 +4,7 @@ export type ViewMode = "frame" | "atlas";
 export type ThemeMode = "dark" | "light";
 export type AppMode = "character" | "animation" | "normal";
 export type AtlasImageFormat = "png";
-export type AtlasPackingMode = "uniform" | "tight" | "shelf";
+export type AtlasPackingMode = "uniform" | "tight" | "shelf" | "maxrects";
 export type ExportJsonMode = "pretty" | "minified" | "compact";
 
 export type FramePoint = {

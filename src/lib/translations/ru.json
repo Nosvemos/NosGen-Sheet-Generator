@@ -176,6 +176,7 @@
   "confirm.deleteFrame": "Удалить этот кадр?",
   "action.deleteGroup": "Удалить группу",
   "label.packingMode": "Упаковка",
+  "packing.maxrects": "MaxRects 2D (самый плотный)",
   "packing.shelf": "Полка (компактно)",
   "packing.tight": "Плотная сетка",
   "packing.uniform": "Равномерная сетка",

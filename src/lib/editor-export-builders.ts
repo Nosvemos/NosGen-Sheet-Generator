@@ -192,8 +192,6 @@ export const buildAtlasJsonPayload = ({
       app: "NosGalaxy",
       image: getAtlasImageFilename(exportAtlasName, exportFormat),
       size: { w: targetWidth, h: targetHeight },
-      rows: layout.rows,
-      columns: layout.columns,
       padding: Math.round(layout.padding * scaleX),
       scale: exportSize,
       pivot: pivotMode,

@@ -56,11 +56,9 @@ export function buildJsonPayload(
 
   return {
     meta: {
-      app: "NosGen",
+      app: "NosGalaxy",
       image: `${math.normalizeExportName(config.name || "sprite", "sprite")}_atlas.${config.export?.format ?? "png"}`,
       size: { w: targetWidth, h: targetHeight },
-      rows: layout.rows,
-      columns: layout.columns,
       padding: Math.round(layout.padding * scaleX),
       scale: exportScale,
       pivot,

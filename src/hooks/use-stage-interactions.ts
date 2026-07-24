@@ -201,7 +201,20 @@ export const useStageInteractions = ({
     if (!currentFrame || viewMode !== "frame") {
       return;
     }
-    if (event.button === 1) {
+
+    // Double click resets zoom & pan
+    if (event.detail === 2) {
+      setFrameZoom(1);
+      setPanOffset({ x: 0, y: 0 });
+      return;
+    }
+
+    // Middle click, right click, or Space/Shift + Left click activates Pan mode
+    if (
+      event.button === 1 ||
+      event.button === 2 ||
+      (event.button === 0 && event.shiftKey)
+    ) {
       beginPan(event);
       return;
     }

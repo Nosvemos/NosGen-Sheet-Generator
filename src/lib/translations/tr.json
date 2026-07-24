@@ -176,6 +176,7 @@
   "confirm.deleteFrame": "Bu kare silinsin mi?",
   "action.deleteGroup": "Grubu sil",
   "label.packingMode": "Paketleme",
+  "packing.maxrects": "MaxRects 2D (en sıkı)",
   "packing.shelf": "Raf (kompakt)",
   "packing.tight": "Sıkı ızgara",
   "packing.uniform": "Tekdüze ızgara",

@@ -1,8 +1,9 @@
 import { useState } from "react";
-import type { DragEvent, PointerEvent, RefObject, WheelEvent } from "react";
+import type { Dispatch, DragEvent, PointerEvent, RefObject, SetStateAction, WheelEvent } from "react";
 import { cn } from "@/lib/utils";
 import type { TranslationKey } from "@/lib/i18n";
-import type { EditorMode, ViewMode } from "@/lib/editor-types";
+import type { AtlasLayout, EditorMode, FrameData, ViewMode } from "@/lib/editor-types";
+import { StageMinimap } from "@/components/editor/main-stage/StageMinimap";
 import { Upload } from "lucide-react";
 
 type Translate = (
@@ -23,6 +24,13 @@ type StageCanvasProps = {
   handleCanvasWheel: (event: WheelEvent<HTMLCanvasElement>) => void;
   handleDroppedFiles: (files: File[] | FileList) => Promise<void> | void;
   framesInputRef: RefObject<HTMLInputElement | null>;
+  currentFrame?: FrameData;
+  frames?: FrameData[];
+  atlasLayout?: AtlasLayout;
+  frameZoom?: number;
+  setFrameZoom?: Dispatch<SetStateAction<number>>;
+  panOffset?: { x: number; y: number };
+  setPanOffset?: Dispatch<SetStateAction<{ x: number; y: number }>>;
 };
 
 export function StageCanvas({
@@ -38,6 +46,13 @@ export function StageCanvas({
   handleCanvasWheel,
   handleDroppedFiles,
   framesInputRef,
+  currentFrame,
+  frames = [],
+  atlasLayout = { rows: 1, columns: 1, padding: 0, cellWidth: 0, cellHeight: 0, width: 0, height: 0, positions: [] },
+  frameZoom = 1,
+  setFrameZoom,
+  panOffset = { x: 0, y: 0 },
+  setPanOffset,
 }: StageCanvasProps) {
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const hasFiles = (event: DragEvent<HTMLDivElement>) =>
@@ -121,6 +136,19 @@ export function StageCanvas({
         <div className="pointer-events-none absolute left-4 top-4 rounded-full border border-accent/40 bg-accent/10 px-3 py-1 text-xs text-accent-foreground">
           {t("status.addMode")}
         </div>
+      )}
+
+      {framesLength > 0 && setPanOffset && setFrameZoom && (
+        <StageMinimap
+          currentFrame={currentFrame}
+          frames={frames}
+          atlasLayout={atlasLayout}
+          viewMode={viewMode}
+          frameZoom={frameZoom}
+          panOffset={panOffset}
+          setPanOffset={setPanOffset}
+          setFrameZoom={setFrameZoom}
+        />
       )}
     </div>
   );

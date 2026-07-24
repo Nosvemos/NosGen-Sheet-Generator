@@ -176,6 +176,7 @@
   "confirm.deleteFrame": "Delete this frame?",
   "action.deleteGroup": "Delete group",
   "label.packingMode": "Packing",
+  "packing.maxrects": "MaxRects 2D (tightest)",
   "packing.shelf": "Shelf (compact)",
   "packing.tight": "Tight grid",
   "packing.uniform": "Uniform grid",

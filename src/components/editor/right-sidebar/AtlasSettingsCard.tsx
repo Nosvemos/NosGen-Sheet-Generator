@@ -48,7 +48,7 @@ export function AtlasSettingsCard({
   sizeMismatch,
   toNumber,
 }: AtlasSettingsCardProps) {
-  const rowsDisabled = atlasPackingMode === "shelf";
+  const rowsDisabled = atlasPackingMode === "shelf" || atlasPackingMode === "maxrects";
   return (
     <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
       <div className="flex items-center justify-between">
@@ -91,6 +91,7 @@ export function AtlasSettingsCard({
                 <SelectValue placeholder={t("label.packingMode")} />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="maxrects">{t("packing.maxrects")}</SelectItem>
                 <SelectItem value="shelf">{t("packing.shelf")}</SelectItem>
                 <SelectItem value="tight">{t("packing.tight")}</SelectItem>
                 <SelectItem value="uniform">{t("packing.uniform")}</SelectItem>

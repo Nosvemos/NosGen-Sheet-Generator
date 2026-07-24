@@ -56,6 +56,10 @@ export type MainStageProps = {
   handleCanvasWheel: (event: WheelEvent<HTMLCanvasElement>) => void;
   handleDroppedFiles: (files: File[] | FileList) => Promise<void> | void;
   framesInputRef: RefObject<HTMLInputElement | null>;
+  frameZoom: number;
+  setFrameZoom: Dispatch<SetStateAction<number>>;
+  panOffset: { x: number; y: number };
+  setPanOffset: Dispatch<SetStateAction<{ x: number; y: number }>>;
   selectedPoint: FramePoint | null;
   selectedPointKeyframes: KeyframePoint[];
   fps: number;
@@ -117,6 +121,10 @@ export function MainStage({
   handleCanvasWheel,
   handleDroppedFiles,
   framesInputRef,
+  frameZoom,
+  setFrameZoom,
+  panOffset,
+  setPanOffset,
   selectedPoint,
   selectedPointKeyframes,
   fps,
@@ -188,6 +196,13 @@ export function MainStage({
           handleCanvasWheel={handleCanvasWheel}
           handleDroppedFiles={handleDroppedFiles}
           framesInputRef={framesInputRef}
+          currentFrame={currentFrame}
+          frames={frames}
+          atlasLayout={atlasLayout}
+          frameZoom={frameZoom}
+          setFrameZoom={setFrameZoom}
+          panOffset={panOffset}
+          setPanOffset={setPanOffset}
         />
 
         <PlaybackPanel

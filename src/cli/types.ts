@@ -1,4 +1,4 @@
-export type CliPackingMode = "uniform" | "tight" | "shelf";
+export type CliPackingMode = "uniform" | "tight" | "shelf" | "maxrects";
 export type CliJsonMode = "pretty" | "minified" | "compact";
 export type CliAtlasFormat = "png";
 

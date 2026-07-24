@@ -24,10 +24,13 @@ describe("atlas-layout", () => {
     expect(
       computeAtlasLayoutByMode(frames, { mode: "shelf", padding: 2 }).mode
     ).toBe("shelf");
+    expect(
+      computeAtlasLayoutByMode(frames, { mode: "maxrects", padding: 2 }).mode
+    ).toBe("maxrects");
   });
 
   it("produces one placement per frame within atlas bounds", () => {
-    for (const mode of ["uniform", "tight", "shelf"] as const) {
+    for (const mode of ["uniform", "tight", "shelf", "maxrects"] as const) {
       const layout = computeAtlasLayoutByMode(frames, {
         mode,
         rows: 2,

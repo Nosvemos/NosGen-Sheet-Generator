@@ -176,6 +176,7 @@
   "confirm.deleteFrame": "Usunąć tę klatkę?",
   "action.deleteGroup": "Usuń grupę",
   "label.packingMode": "Pakowanie",
+  "packing.maxrects": "MaxRects 2D (najciaśniejszy)",
   "packing.shelf": "Półka (kompakt)",
   "packing.tight": "Ciasna siatka",
   "packing.uniform": "Jednolita siatka",

@@ -10,11 +10,9 @@ import {
 
 const characterPayload: AtlasPayload = {
   meta: {
-    app: "NosGen",
+    app: "NosGalaxy",
     image: "hero_atlas.png",
     size: { w: 218, h: 134 },
-    rows: 2,
-    columns: -1,
     padding: 2,
     scale: 1,
     pivot: "center",

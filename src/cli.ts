@@ -20,7 +20,7 @@ Common Options:
   --bundle                   Also export <name>_bundle.zip (PNG + JSON)
   --frames-zip               Also export <name>_frames.zip with source frames as PNG
   --pivot <top-left|bottom-left|center>  Pivot mode (default: top-left)
-  --mode <uniform|tight|shelf> Packing mode (default: shelf)
+  --mode <uniform|tight|shelf|maxrects> Packing mode (default: shelf)
   --json <pretty|minified|compact>  JSON output shape (default: pretty)
   -h, --help                 Show help
 `;
