@@ -39,7 +39,6 @@ export type UseAtlasIOParams = {
   setExportSize: Dispatch<SetStateAction<number>>;
   setExportFormat: Dispatch<SetStateAction<AtlasImageFormat>>;
   setAnimationFrameSelection: Dispatch<SetStateAction<Record<string, boolean>>>;
-  supportLegacyAtlas: boolean;
 };
 
 export type UseAtlasIOResult = {

@@ -47,8 +47,6 @@ export type LeftSidebarProps = {
   setAnimationFrameSelection: Dispatch<SetStateAction<Record<string, boolean>>>;
   isSettingsOpen: boolean;
   setIsSettingsOpen: Dispatch<SetStateAction<boolean>>;
-  supportLegacyAtlas: boolean;
-  setSupportLegacyAtlas: Dispatch<SetStateAction<boolean>>;
   historyLimit: number;
   setHistoryLimit: Dispatch<SetStateAction<number>>;
   hotkeys: HotkeyMap;
@@ -137,8 +135,6 @@ export function LeftSidebar({
   setAnimationFrameSelection,
   isSettingsOpen,
   setIsSettingsOpen,
-  supportLegacyAtlas,
-  setSupportLegacyAtlas,
   historyLimit,
   setHistoryLimit,
   hotkeys,
@@ -331,8 +327,6 @@ export function LeftSidebar({
         t={t}
         isOpen={isSettingsOpen}
         onOpenChange={setIsSettingsOpen}
-        supportLegacyAtlas={supportLegacyAtlas}
-        setSupportLegacyAtlas={setSupportLegacyAtlas}
         historyLimit={historyLimit}
         setHistoryLimit={setHistoryLimit}
         hotkeys={hotkeys}

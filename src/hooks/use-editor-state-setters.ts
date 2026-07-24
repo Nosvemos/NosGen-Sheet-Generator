@@ -60,11 +60,6 @@ export const useEditorStateSetters = (
         "isExportQualityOpen"
       ),
       setIsSettingsOpen: createStateSetter(dispatch, "isSettingsOpen", silent),
-      setSupportLegacyAtlas: createStateSetter(
-        dispatch,
-        "supportLegacyAtlas",
-        silent
-      ),
       setHistoryLimit: createStateSetter(dispatch, "historyLimit", silent),
       setHotkeys: createStateSetter(dispatch, "hotkeys", silent),
       setPointGroups: createStateSetter(dispatch, "pointGroups"),

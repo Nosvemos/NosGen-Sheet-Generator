@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Switch } from "@/components/ui/switch";
 import type { TranslationKey } from "@/lib/i18n";
 import type { HotkeyAction, HotkeyMap } from "@/lib/hotkeys";
 import { DEFAULT_HOTKEYS, formatHotkey } from "@/lib/hotkeys";
@@ -18,8 +17,6 @@ type SettingsCardProps = {
   t: Translate;
   isSettingsOpen: boolean;
   setIsSettingsOpen: Dispatch<SetStateAction<boolean>>;
-  supportLegacyAtlas: boolean;
-  setSupportLegacyAtlas: Dispatch<SetStateAction<boolean>>;
   historyLimit: number;
   setHistoryLimit: Dispatch<SetStateAction<number>>;
   hotkeys: HotkeyMap;
@@ -55,8 +52,6 @@ export function SettingsCard({
   t,
   isSettingsOpen,
   setIsSettingsOpen,
-  supportLegacyAtlas,
-  setSupportLegacyAtlas,
   historyLimit,
   setHistoryLimit,
   hotkeys,
@@ -107,22 +102,7 @@ export function SettingsCard({
       )}
       {isExpanded && (
         <>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">
-                  {t("label.supportLegacyAtlas")}
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  {t("hint.supportLegacyAtlas")}
-                </p>
-              </div>
-              <Switch
-                checked={supportLegacyAtlas}
-                onCheckedChange={setSupportLegacyAtlas}
-              />
-            </div>
-          </div>
+
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">
               {t("label.historyLimit")}

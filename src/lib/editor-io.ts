@@ -235,12 +235,10 @@ export const importAtlasFromFiles = async ({
   pngFile,
   jsonFile,
   t,
-  supportLegacyAtlas = false,
 }: {
   pngFile: File;
   jsonFile: File;
   t: Translate;
-  supportLegacyAtlas?: boolean;
 }): Promise<AtlasImportResult | null> => {
   const raw = await jsonFile.text();
   const parsedRaw = JSON.parse(raw);
@@ -270,15 +268,10 @@ export const importAtlasFromFiles = async ({
     : undefined;
   const exportSize = Number.isFinite(exportSizeRaw) ? exportSizeRaw : undefined;
   const exportFormat = getAtlasImageFormat(pngFile) ?? undefined;
-  let appMode =
+  const appMode =
     modeRaw === "animation" || modeRaw === "character" || modeRaw === "normal"
       ? modeRaw
       : undefined;
-  if (!appMode && supportLegacyAtlas) {
-    appMode = nextFrames.some((frame) => frame.points.length > 0)
-      ? "character"
-      : "normal";
-  }
 
   let projectName: string | undefined;
   if (typeof pngFile.name === "string") {

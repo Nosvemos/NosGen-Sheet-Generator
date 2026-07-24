@@ -38,7 +38,6 @@ export const useAtlasIO = ({
   setExportSize,
   setExportFormat,
   setAnimationFrameSelection,
-  supportLegacyAtlas,
 }: UseAtlasIOParams): UseAtlasIOResult => {
   const { pushToast } = useToast();
   const notifyError = useCallback(
@@ -215,7 +214,6 @@ export const useAtlasIO = ({
         pngFile,
         jsonFile,
         t,
-        supportLegacyAtlas,
       });
       if (!imported) {
         return;
@@ -283,7 +281,6 @@ export const useAtlasIO = ({
       setSpeed,
       setSpriteDirection,
       resetSelection,
-      supportLegacyAtlas,
       t,
     ]
   );

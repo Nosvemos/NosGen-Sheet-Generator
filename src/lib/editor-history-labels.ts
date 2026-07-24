@@ -36,7 +36,6 @@ const HISTORY_LABEL_OVERRIDES: Partial<Record<keyof EditorState, string>> = {
   isAtlasSettingsOpen: "Atlas settings",
   isExportQualityOpen: "Export quality",
   isSettingsOpen: "Settings",
-  supportLegacyAtlas: "Legacy atlas support",
   historyLimit: "History limit",
   hotkeys: "Hotkeys updated",
   pointGroups: "Point groups updated",

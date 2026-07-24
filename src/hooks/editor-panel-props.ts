@@ -85,8 +85,6 @@ export const buildEditorPanelProps = ({
     setAnimationFrameSelection: setters.setAnimationFrameSelection,
     isSettingsOpen: state.isSettingsOpen,
     setIsSettingsOpen: setters.setIsSettingsOpen,
-    supportLegacyAtlas: state.supportLegacyAtlas,
-    setSupportLegacyAtlas: setters.setSupportLegacyAtlas,
     historyLimit: state.historyLimit,
     setHistoryLimit: setters.setHistoryLimit,
     hotkeys: state.hotkeys,

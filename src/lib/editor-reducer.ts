@@ -54,7 +54,6 @@ export type EditorState = {
   isAtlasSettingsOpen: boolean;
   isExportQualityOpen: boolean;
   isSettingsOpen: boolean;
-  supportLegacyAtlas: boolean;
   historyLimit: number;
   hotkeys: HotkeyMap;
   pointGroups: PointGroup[];
@@ -166,7 +165,6 @@ export const createInitialEditorState = (): EditorState => {
     isAtlasSettingsOpen: true,
     isExportQualityOpen: true,
     isSettingsOpen: false,
-    supportLegacyAtlas: false,
     historyLimit: DEFAULT_HISTORY_LIMIT,
     hotkeys: DEFAULT_HOTKEYS,
     pointGroups: [],

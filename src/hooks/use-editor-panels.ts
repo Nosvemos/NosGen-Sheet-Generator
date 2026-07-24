@@ -57,7 +57,6 @@ export function useEditorPanels() {
     setExportSize: setters.setExportSize,
     setExportFormat: setters.setExportFormat,
     setAnimationFrameSelection: setters.setAnimationFrameSelection,
-    supportLegacyAtlas: state.supportLegacyAtlas,
   });
 
   const recentProjects = useRecentProjects({

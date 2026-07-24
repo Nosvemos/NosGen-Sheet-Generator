@@ -16,8 +16,6 @@ type SettingsModalProps = {
   t: Translate;
   isOpen: boolean;
   onOpenChange: Dispatch<SetStateAction<boolean>>;
-  supportLegacyAtlas: boolean;
-  setSupportLegacyAtlas: Dispatch<SetStateAction<boolean>>;
   historyLimit: number;
   setHistoryLimit: Dispatch<SetStateAction<number>>;
   hotkeys: HotkeyMap;
@@ -34,8 +32,6 @@ export function SettingsModal({
   t,
   isOpen,
   onOpenChange,
-  supportLegacyAtlas,
-  setSupportLegacyAtlas,
   historyLimit,
   setHistoryLimit,
   hotkeys,
@@ -141,8 +137,6 @@ export function SettingsModal({
             setIsSettingsOpen={(value) =>
               onOpenChange(typeof value === "function" ? value(isOpen) : value)
             }
-            supportLegacyAtlas={supportLegacyAtlas}
-            setSupportLegacyAtlas={setSupportLegacyAtlas}
             historyLimit={historyLimit}
             setHistoryLimit={setHistoryLimit}
             hotkeys={hotkeys}
