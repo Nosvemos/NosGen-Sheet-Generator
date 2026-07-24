@@ -25,7 +25,7 @@ tasks:
     summary: Refreshes build metadata files for Wails v3 packaging
     dir: build
     cmds:
-      - wails3 update build-assets -name "NosGen" -binaryname "{{.APP_NAME}}" -config config.yml -dir .
+      - wails3 update build-assets -name "NosGalaxy" -binaryname "{{.APP_NAME}}" -config config.yml -dir .
 
   generate:icons:
     summary: Generates desktop icons from `build/appicon.png`

@@ -1,6 +1,6 @@
-# NosGen
+# NosGalaxy Sprite Generator
 
-NosGen is a sprite atlas editor for PNG frame sets. Import frames, place per-frame points, build point groups, preview animation, and export a packed atlas with clean JSON data.
+NosGalaxy is a sprite atlas editor for PNG frame sets. Import frames, place per-frame points, build point groups, preview animation, and export a packed atlas with clean JSON data.
 
 ## Features
 - Import PNG frames or open an existing atlas (PNG + JSON).

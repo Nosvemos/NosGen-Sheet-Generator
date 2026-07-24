@@ -6,10 +6,10 @@
 		"0000": {
 			"ProductVersion": "0.1.5",
 			"CompanyName": "Nosvemos",
-			"FileDescription": "Sprite atlas editor for PNG frame sets",
+			"FileDescription": "NosGalaxy Sprite Generator",
 			"LegalCopyright": "(c) 2026 Nosvemos",
-			"ProductName": "NosGen",
-			"Comments": "NosGen desktop application"
+			"ProductName": "NosGalaxy",
+			"Comments": "NosGalaxy Sprite Generator"
 		}
 	}
 }

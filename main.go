@@ -12,8 +12,8 @@ var assets embed.FS
 
 func main() {
 	app := application.New(application.Options{
-		Name:        "NosGen",
-		Description: "Sprite atlas editor for PNG frame sets",
+		Name:        "NosGalaxy",
+		Description: "NosGalaxy Sprite Generator",
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
 		},
@@ -23,7 +23,7 @@ func main() {
 	})
 	app.RegisterService(application.NewService(NewApp(app)))
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:             "NosGen",
+		Title:             "NosGalaxy Sprite Generator",
 		Width:             1520,
 		Height:            940,
 		MinWidth:          1280,

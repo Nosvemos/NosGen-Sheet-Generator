@@ -28,7 +28,7 @@ Common Options:
   -h, --help                 Show help
 `;
 
-  const general = `NosGen Sheet Generator CLI
+  const general = `NosGalaxy Sprite Generator CLI
 
 Subcommands:
   pack [options]              Pack frames into a spritesheet (normal mode)

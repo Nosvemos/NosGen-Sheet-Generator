@@ -38,13 +38,16 @@ export function MainStageHeader({
   return (
     <section className="rounded-3xl border border-border/60 bg-card/80 p-5 shadow-soft backdrop-blur">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
-            <Sparkles className="h-4 w-4" />
-            {t("app.kicker")}
+        <div className="flex items-center gap-4">
+          <img src="/logo.png" alt="NosGalaxy Logo" className="h-11 w-11 rounded-xl shadow-md" />
+          <div>
+            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              <Sparkles className="h-4 w-4 text-primary" />
+              {t("app.kicker")}
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">{t("app.title")}</h1>
+            <p className="text-sm text-muted-foreground">{t("app.subtitle")}</p>
           </div>
-          <h1 className="text-2xl font-semibold">{t("app.title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("app.subtitle")}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="font-mono">

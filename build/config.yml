@@ -2,11 +2,11 @@ version: '3'
 
 info:
   companyName: "Nosvemos"
-  productName: "NosGen"
-  productIdentifier: "io.github.nosvemos.nosgen"
-  description: "Sprite atlas editor for PNG frame sets"
+  productName: "NosGalaxy"
+  productIdentifier: "io.github.nosvemos.nosgalaxy"
+  description: "NosGalaxy Sprite Generator"
   copyright: "(c) 2026 Nosvemos"
-  comments: "NosGen desktop application"
+  comments: "NosGalaxy Sprite Generator"
   version: "0.1.9"
 
 dev_mode:
@@ -42,4 +42,4 @@ dev_mode:
       type: primary
 
 other:
-  - name: NosGen
+  - name: NosGalaxy
