@@ -128,7 +128,7 @@ export const saveRecentProject = async (
       panOffset: { x: 0, y: 0 },
       autoFillShape: state.autoFillShape,
       autoFillSmoothing: state.autoFillSmoothing,
-      spriteDirection: state.spriteDirection,
+      rotation: state.rotation,
       fps: state.fps,
       speed: state.speed,
       reverse: state.reverse,

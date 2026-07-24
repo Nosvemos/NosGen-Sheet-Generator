@@ -115,10 +115,7 @@ export function ExportQualityCard({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="pretty">{t("jsonMode.pretty")}</SelectItem>
-                <SelectItem value="minified">
-                  {t("jsonMode.minified")}
-                </SelectItem>
-                <SelectItem value="compact">{t("jsonMode.compact")}</SelectItem>
+                <SelectItem value="raylib">{t("jsonMode.raylib")}</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">

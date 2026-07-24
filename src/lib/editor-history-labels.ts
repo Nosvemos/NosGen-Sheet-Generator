@@ -17,7 +17,7 @@ const HISTORY_LABEL_OVERRIDES: Partial<Record<keyof EditorState, string>> = {
   panOffset: "Panned view",
   autoFillShape: "Auto fill shape",
   autoFillSmoothing: "Auto fill smoothing",
-  spriteDirection: "Sprite direction",
+  rotation: "Rotation direction",
   fps: "FPS updated",
   speed: "Speed updated",
   reverse: "Reverse toggled",

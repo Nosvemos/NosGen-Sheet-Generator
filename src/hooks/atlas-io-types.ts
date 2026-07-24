@@ -26,6 +26,7 @@ export type UseAtlasIOParams = {
   setGroupPreviewIndex: Dispatch<SetStateAction<number>>;
   setPointGroups: Dispatch<SetStateAction<PointGroup[]>>;
   setSelectedGroupId: Dispatch<SetStateAction<string | null>>;
+  setRotation: Dispatch<SetStateAction<SpriteDirection>>;
   setSpriteDirection: Dispatch<SetStateAction<SpriteDirection>>;
   setPivotMode: Dispatch<SetStateAction<PivotMode>>;
   setRows: Dispatch<SetStateAction<number>>;

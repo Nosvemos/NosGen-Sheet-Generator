@@ -78,7 +78,7 @@ export function ProjectSettingsCard({
                 <SelectValue placeholder={t("label.appMode")} />
               </SelectTrigger>
               <SelectContent>
-              <SelectItem value="character">{t("mode.character")}</SelectItem>
+              <SelectItem value="ship">{t("mode.ship")}</SelectItem>
               <SelectItem value="animation">{t("mode.animation")}</SelectItem>
               <SelectItem value="normal">{t("mode.normal")}</SelectItem>
             </SelectContent>

@@ -29,17 +29,17 @@ Common Options:
 
 Subcommands:
   pack [options]              Pack frames into a spritesheet (normal mode)
-  character [options]         Pack frames with points and groups
+  ship [options]              Pack ship frames with points and groups
   animation [options]         Pack frames with animation metadata
   import [options]            Import existing atlas (PNG+JSON) and re-export
   init-config [options]       Generate a sample JSON config file
 
 Examples:
   npm run cli -- pack -i ./frames -o ./dist -n hero --mode shelf
-  npm run cli -- character -i ./frames -c char.json
+  npm run cli -- ship -i ./frames -c ship.json
   npm run cli -- animation -i ./frames -c anim.json
   npm run cli -- import -a atlas.png -d data.json -o ./dist --scale 2
-  npm run cli -- init-config --mode character -o ./config.json
+  npm run cli -- init-config --mode ship -o ./config.json
 ${common}`;
 
   if (!command) {
@@ -53,9 +53,10 @@ ${common}`;
         `Usage: nosgalaxy pack [options]\n\nPack PNG frames into a spritesheet (normal mode).\n${common}`
       );
       break;
+    case "ship":
     case "character":
       console.log(
-        `Usage: nosgalaxy character [options]\n\nPack frames with points and point groups.\nPoint definitions are read from --config.\n${common}`
+        `Usage: nosgalaxy ship [options]\n\nPack ship frames with points and point groups.\nPoint definitions are read from --config.\n${common}`
       );
       break;
     case "animation":
@@ -74,7 +75,7 @@ ${common}`
     case "init-config":
       console.log(
         `Usage: nosgalaxy init-config [options]\n\nGenerate a sample config file.\n\nOptions:
-  --mode <normal|character|animation>  Config mode (default: normal)
+  --mode <normal|ship|animation>  Config mode (default: normal)
   -o, --output <path>                  Output config path (default: ./nosgen-config.json)`
       );
       break;

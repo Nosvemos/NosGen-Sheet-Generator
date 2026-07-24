@@ -32,7 +32,7 @@ export const useEditorStateSetters = (
       setPanOffset: createStateSetter(dispatch, "panOffset", silent),
       setAutoFillShape: createStateSetter(dispatch, "autoFillShape"),
       setAutoFillSmoothing: createStateSetter(dispatch, "autoFillSmoothing"),
-      setSpriteDirection: createStateSetter(dispatch, "spriteDirection"),
+      setRotation: createStateSetter(dispatch, "rotation"),
       setFps: createStateSetter(dispatch, "fps"),
       setSpeed: createStateSetter(dispatch, "speed"),
       setReverse: createStateSetter(dispatch, "reverse"),

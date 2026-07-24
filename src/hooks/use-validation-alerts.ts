@@ -47,7 +47,7 @@ export const useValidationAlerts = ({
       });
     }
     if (
-      appMode === "character" &&
+      appMode === "ship" &&
       unassignedPointsCount > 0 &&
       prev.unassignedPointsCount === 0
     ) {

@@ -2,6 +2,7 @@ import type {
   AppMode,
   AtlasImageFormat,
   AtlasPackingMode,
+  ExportJsonMode,
   FrameData,
   PivotMode,
   PointGroup,
@@ -28,7 +29,7 @@ type AtlasExportCommonParams = {
 
 export type AtlasJsonExportParams = AtlasExportCommonParams & {
   pivotMode: PivotMode;
-  spriteDirection: SpriteDirection;
+  rotation: SpriteDirection;
   appMode: AppMode;
   pointGroups: PointGroup[];
   animationName: string;
@@ -37,6 +38,7 @@ export type AtlasJsonExportParams = AtlasExportCommonParams & {
   loop: boolean;
   exportSize: number;
   exportFormat: AtlasImageFormat;
+  exportJsonMode?: ExportJsonMode;
   selectedAnimationFrames: FrameData[];
   exportAtlasName: string;
 };
@@ -107,7 +109,7 @@ export const buildAtlasJsonPayload = ({
   packingMode,
   exportScale,
   pivotMode,
-  spriteDirection,
+  rotation,
   appMode,
   pointGroups,
   animationName,
@@ -116,11 +118,12 @@ export const buildAtlasJsonPayload = ({
   loop,
   exportSize,
   exportFormat = "png",
+  exportJsonMode = "pretty",
   minScale,
   maxScale,
   selectedAnimationFrames,
   exportAtlasName,
-}: AtlasJsonExportParams): AtlasPayload | null => {
+}: AtlasJsonExportParams): unknown | null => {
   if (frames.length === 0) {
     return null;
   }
@@ -134,32 +137,8 @@ export const buildAtlasJsonPayload = ({
   const targetHeight = Math.max(1, Math.round(layout.height * scale));
   const scaleX = targetWidth / layout.width;
   const scaleY = targetHeight / layout.height;
-  const includePoints = appMode === "character";
+  const includePoints = appMode === "ship";
   const placements = resolveFramePlacements(layout, frames);
-  const exportedFrames = frames.map((frame, index) => {
-    const rect = placements[index];
-    const base = {
-      name: frame.name,
-      x: Math.round(rect.x * scaleX),
-      y: Math.round(rect.y * scaleY),
-      w: Math.round(rect.w * scaleX),
-      h: Math.round(rect.h * scaleY),
-    };
-    if (!includePoints) {
-      return base;
-    }
-    return {
-      ...base,
-      points: frame.points.map((point) => {
-        const pivotPoint = toPivotCoords(point, frame, pivotMode);
-        return {
-          name: point.name,
-          x: Math.round(pivotPoint.x * scaleX),
-          y: Math.round(pivotPoint.y * scaleY),
-        };
-      }),
-    };
-  });
 
   let groups: Record<string, string[][]> | undefined;
   if (includePoints && pointGroups.length > 0) {
@@ -187,6 +166,80 @@ export const buildAtlasJsonPayload = ({
         }
       : undefined;
 
+  // Raylib (NosGalaxy C/C++ Engine Preset) Format
+  if (exportJsonMode === "raylib") {
+    const raylibFrames = frames.map((frame, index) => {
+      const rect = placements[index];
+      const w = Math.round(rect.w * scaleX);
+      const h = Math.round(rect.h * scaleY);
+      const pointsObj = includePoints
+        ? frame.points.reduce<Record<string, { x: number; y: number }>>((acc, point) => {
+            const pivotPoint = toPivotCoords(point, frame, pivotMode);
+            acc[point.name] = {
+              x: Math.round(pivotPoint.x * scaleX),
+              y: Math.round(pivotPoint.y * scaleY),
+            };
+            return acc;
+          }, {})
+        : undefined;
+
+      return {
+        name: frame.name,
+        rect: {
+          x: Math.round(rect.x * scaleX),
+          y: Math.round(rect.y * scaleY),
+          w,
+          h,
+        },
+        pivot: { x: Math.round(w / 2), y: Math.round(h / 2) },
+        ...(pointsObj && Object.keys(pointsObj).length > 0 ? { points: pointsObj } : {}),
+      };
+    });
+
+    return {
+      meta: {
+        app: "NosGalaxy",
+        version: "1.0",
+        image: getAtlasImageFilename(exportAtlasName, exportFormat),
+        size: { w: targetWidth, h: targetHeight },
+        padding: Math.round(layout.padding * scaleX),
+        scale: exportSize,
+        pivot: pivotMode,
+        ...(appMode === "ship" ? { rotation } : {}),
+        mode: appMode,
+      },
+      ...(groups ? { groups } : {}),
+      ...(animation ? { animation } : {}),
+      frames: raylibFrames,
+    };
+  }
+
+  // Standard Verbose Atlas JSON Format
+  const exportedFrames = frames.map((frame, index) => {
+    const rect = placements[index];
+    const base = {
+      name: frame.name,
+      x: Math.round(rect.x * scaleX),
+      y: Math.round(rect.y * scaleY),
+      w: Math.round(rect.w * scaleX),
+      h: Math.round(rect.h * scaleY),
+    };
+    if (!includePoints) {
+      return base;
+    }
+    return {
+      ...base,
+      points: frame.points.map((point) => {
+        const pivotPoint = toPivotCoords(point, frame, pivotMode);
+        return {
+          name: point.name,
+          x: Math.round(pivotPoint.x * scaleX),
+          y: Math.round(pivotPoint.y * scaleY),
+        };
+      }),
+    };
+  });
+
   return {
     meta: {
       app: "NosGalaxy",
@@ -195,11 +248,11 @@ export const buildAtlasJsonPayload = ({
       padding: Math.round(layout.padding * scaleX),
       scale: exportSize,
       pivot: pivotMode,
-      ...(appMode === "character" ? { spriteDirection } : {}),
+      ...(appMode === "ship" ? { rotation } : {}),
       mode: appMode,
     },
     ...(groups ? { groups } : {}),
     ...(animation ? { animation } : {}),
     frames: exportedFrames,
-  };
+  } as AtlasPayload;
 };

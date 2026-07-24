@@ -21,16 +21,16 @@ type SpriteSettingsCardProps = {
   t: Translate;
   isSpriteSettingsOpen: boolean;
   setIsSpriteSettingsOpen: Dispatch<SetStateAction<boolean>>;
-  spriteDirection: SpriteDirection;
-  setSpriteDirection: Dispatch<SetStateAction<SpriteDirection>>;
+  rotation: SpriteDirection;
+  setRotation: Dispatch<SetStateAction<SpriteDirection>>;
 };
 
 export function SpriteSettingsCard({
   t,
   isSpriteSettingsOpen,
   setIsSpriteSettingsOpen,
-  spriteDirection,
-  setSpriteDirection,
+  rotation,
+  setRotation,
 }: SpriteSettingsCardProps) {
   return (
     <div className="space-y-3 rounded-2xl border border-border/50 bg-background/70 p-3">
@@ -55,16 +55,16 @@ export function SpriteSettingsCard({
         <>
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">
-              {t("label.spriteDirection")}
+              {t("label.rotation")}
             </Label>
             <Select
-              value={spriteDirection}
+              value={rotation}
               onValueChange={(value) =>
-                setSpriteDirection(value as SpriteDirection)
+                setRotation(value as SpriteDirection)
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder={t("label.spriteDirection")} />
+                <SelectValue placeholder={t("label.rotation")} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="clockwise">{t("direction.clockwise")}</SelectItem>

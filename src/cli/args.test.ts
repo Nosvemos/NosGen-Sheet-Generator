@@ -21,7 +21,7 @@ describe("cli args", () => {
       "--format must be one of: png."
     );
     expect(() => parseArgs(["pack", "--json", "xml"])).toThrow(
-      "--json must be one of: pretty, minified, compact."
+      "--json must be one of: pretty, raylib."
     );
   });
 

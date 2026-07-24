@@ -35,7 +35,7 @@ export type EditorState = {
   panOffset: { x: number; y: number };
   autoFillShape: AutoFillShape;
   autoFillSmoothing: boolean;
-  spriteDirection: SpriteDirection;
+  rotation: SpriteDirection;
   fps: number;
   speed: number;
   reverse: boolean;
@@ -134,7 +134,7 @@ export const createInitialEditorState = (): EditorState => {
     editorMode: "select",
     pivotMode: "top-left",
     viewMode: "frame",
-    appMode: "character",
+    appMode: "ship",
     theme,
     rows: DEFAULT_ROWS,
     padding: DEFAULT_PADDING,
@@ -144,7 +144,7 @@ export const createInitialEditorState = (): EditorState => {
     panOffset: { x: 0, y: 0 },
     autoFillShape: "ellipse",
     autoFillSmoothing: true,
-    spriteDirection: "clockwise",
+    rotation: "clockwise",
     fps: DEFAULT_FPS,
     speed: 1,
     reverse: false,

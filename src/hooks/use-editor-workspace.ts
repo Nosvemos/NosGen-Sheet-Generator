@@ -56,7 +56,7 @@ export const useEditorWorkspace = ({
     panOffset,
     autoFillShape,
     autoFillSmoothing,
-    spriteDirection,
+    rotation,
     fps,
     speed,
     reverse,
@@ -121,7 +121,7 @@ export const useEditorWorkspace = ({
     ];
   }, [groupPreviewIndex, isGroupPreviewActive, selectedGroup]);
 
-  const isCharacterMode = appMode === "character";
+  const isCharacterMode = appMode === "ship";
   const selectedAnimationFrames = useMemo(
     () => frames.filter((frame) => animationFrameSelection[frame.id]),
     [animationFrameSelection, frames]
@@ -169,7 +169,7 @@ export const useEditorWorkspace = ({
     selectedPointId,
     selectedPoint,
     autoFillShape,
-    spriteDirection,
+    rotation,
     setFrames,
     isDraggingPoint: draggingPointId !== null,
   });

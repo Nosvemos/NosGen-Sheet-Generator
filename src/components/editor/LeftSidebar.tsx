@@ -194,7 +194,7 @@ export function LeftSidebar({
   canPreviewGroup,
   createId,
 }: LeftSidebarProps) {
-  const isCharacterMode = appMode === "character";
+  const isShipMode = appMode === "ship";
   const isNormalMode = appMode === "normal";
 
   return (
@@ -236,7 +236,7 @@ export function LeftSidebar({
         <NormalFramesCard t={t} frames={frames} setFrames={setFrames} />
       )}
 
-        {isCharacterMode && (
+        {isShipMode && (
           <PointModeCard
             t={t}
             editorMode={editorMode}
@@ -246,7 +246,7 @@ export function LeftSidebar({
           />
         )}
 
-        {isCharacterMode && (
+        {isShipMode && (
           <PointsCard
             t={t}
             currentPoints={currentPoints}
@@ -261,7 +261,7 @@ export function LeftSidebar({
           />
         )}
 
-        {isCharacterMode && selectedPoint && (
+        {isShipMode && selectedPoint && (
           <SelectedPointCard
             t={t}
             selectedPoint={selectedPoint}
@@ -289,7 +289,7 @@ export function LeftSidebar({
           />
         )}
 
-        {isCharacterMode && (
+        {isShipMode && (
           <PointGroupsCard
             t={t}
             pointGroups={pointGroups}
@@ -304,7 +304,7 @@ export function LeftSidebar({
           />
         )}
 
-        {isCharacterMode && selectedGroup && (
+        {isShipMode && selectedGroup && (
           <GroupEditorCard
             t={t}
             selectedGroup={selectedGroup}

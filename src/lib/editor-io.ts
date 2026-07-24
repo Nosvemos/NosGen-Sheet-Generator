@@ -32,6 +32,7 @@ type Translate = (
 type NewAtlasResult = {
   frames: FrameData[];
   pointGroups: PointGroup[];
+  rotation?: SpriteDirection;
   spriteDirection?: SpriteDirection;
   pivotMode?: PivotMode;
   exportSize?: number;
@@ -40,6 +41,7 @@ type NewAtlasResult = {
 type AtlasImportResult = {
   frames: FrameData[];
   pointGroups: PointGroup[];
+  rotation?: SpriteDirection;
   spriteDirection?: SpriteDirection;
   pivotMode?: PivotMode;
   rows?: number;
@@ -196,7 +198,7 @@ export const createNewAtlasFromFiles = async ({
     const parsed = JSON.parse(raw);
     const imported = importPointsJsonToFrames(parsed, nextFrames, t);
     nextFrames = imported.frames;
-    spriteDirection = imported.spriteDirection;
+    spriteDirection = imported.rotation ?? imported.spriteDirection;
     pivotMode = imported.pivotMode;
     exportSize = imported.exportSize;
     pointGroups = buildGroupsFromJson(parsed, nextFrames);
@@ -204,6 +206,7 @@ export const createNewAtlasFromFiles = async ({
   return {
     frames: nextFrames,
     pointGroups,
+    rotation: spriteDirection,
     spriteDirection,
     pivotMode,
     exportSize,
@@ -226,6 +229,7 @@ export const importPointsIntoFrames = async ({
   return {
     frames: imported.frames,
     pointGroups: groups,
+    rotation: imported.rotation ?? imported.spriteDirection,
     spriteDirection: imported.spriteDirection,
     pivotMode: imported.pivotMode,
     exportSize: imported.exportSize,
@@ -269,10 +273,12 @@ export const importAtlasFromFiles = async ({
     : undefined;
   const exportSize = Number.isFinite(exportSizeRaw) ? exportSizeRaw : undefined;
   const exportFormat = getAtlasImageFormat(pngFile) ?? undefined;
-  const appMode =
-    modeRaw === "animation" || modeRaw === "character" || modeRaw === "normal"
-      ? modeRaw
-      : undefined;
+  const appMode: AppMode | undefined =
+    modeRaw === "animation" || modeRaw === "ship" || modeRaw === "normal"
+      ? (modeRaw as AppMode)
+      : modeRaw === "character"
+        ? "ship"
+        : undefined;
 
   let projectName: string | undefined;
   if (typeof pngFile.name === "string") {
@@ -313,6 +319,7 @@ export const importAtlasFromFiles = async ({
   return {
     frames: nextFrames,
     pointGroups,
+    rotation: imported.rotation ?? imported.spriteDirection,
     spriteDirection: imported.spriteDirection,
     pivotMode: imported.pivotMode,
     rows,

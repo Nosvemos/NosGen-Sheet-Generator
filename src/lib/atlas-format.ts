@@ -40,6 +40,7 @@ export type AtlasMeta = {
   padding?: number;
   scale?: number;
   pivot?: string;
+  rotation?: string;
   spriteDirection?: string;
   mode?: string;
   [key: string]: unknown;
@@ -212,14 +213,9 @@ export const normalizeAtlasPayload = (parsed: unknown): unknown => {
 };
 
 export const serializeAtlasPayload = (
-  payload: AtlasPayload,
-  mode: ExportJsonMode
+  payload: unknown,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _mode: ExportJsonMode = "pretty"
 ): string => {
-  if (mode === "compact") {
-    return JSON.stringify(toCompactPayload(payload));
-  }
-  if (mode === "minified") {
-    return JSON.stringify(payload);
-  }
   return JSON.stringify(payload, null, 2);
 };

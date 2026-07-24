@@ -4,9 +4,10 @@ import type {
   CliJsonMode,
   CliPackingMode,
 } from "./types.ts";
+import type { PivotMode } from "../lib/editor-types.ts";
 
 export type ParsedArgs = {
-  command?: string;
+  command?: "pack" | "ship" | "character" | "animation" | "import" | "init-config";
   input?: string;
   output?: string;
   name?: string;
@@ -18,20 +19,22 @@ export type ParsedArgs = {
   smoothing?: boolean;
   bundle?: boolean;
   framesZip?: boolean;
-  pivot?: "top-left" | "bottom-left" | "center";
+  pivot?: PivotMode;
   packingMode?: CliPackingMode;
   jsonMode?: CliJsonMode;
+  spriteDirection?: "clockwise" | "counterclockwise";
+  rotation?: "clockwise" | "counterclockwise";
   atlas?: string;
   data?: string;
-  mode?: "normal" | "character" | "animation";
+  mode?: "normal" | "ship" | "character" | "animation";
   help?: boolean;
 };
 
 const FORMATS = ["png"] as const;
 const PIVOTS = ["top-left", "bottom-left", "center"] as const;
 const PACKING_MODES = ["uniform", "tight", "shelf", "maxrects"] as const;
-const CONFIG_MODES = ["normal", "character", "animation"] as const;
-const JSON_MODES = ["pretty", "minified", "compact"] as const;
+const CONFIG_MODES = ["normal", "ship", "character", "animation"] as const;
+const JSON_MODES = ["pretty", "raylib"] as const;
 
 const parseChoice = <T extends string>(
   value: string,
@@ -44,129 +47,100 @@ const parseChoice = <T extends string>(
   throw new Error(`${flag} must be one of: ${choices.join(", ")}.`);
 };
 
-const parseFiniteNumber = (value: string, flag: string) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
-    throw new Error(`${flag} must be a valid number.`);
+const parsePositiveNumber = (value: string, flag: string): number => {
+  const parsed = parseFloat(value);
+  if (isNaN(parsed) || parsed <= 0) {
+    throw new Error(`${flag} must be a positive number.`);
   }
   return parsed;
 };
 
-const parseInteger = (value: string, flag: string) => {
-  const parsed = parseFiniteNumber(value, flag);
-  if (!Number.isInteger(parsed)) {
-    throw new Error(`${flag} must be an integer.`);
+const parseNonNegativeNumber = (value: string, flag: string): number => {
+  const parsed = parseFloat(value);
+  if (isNaN(parsed) || parsed < 0) {
+    throw new Error(`${flag} must be 0 or a positive number.`);
   }
   return parsed;
 };
 
-export function parseArgs(argv: string[]): ParsedArgs {
-  const args = [...argv];
+export function parseArgs(rawArgs: string[]): ParsedArgs {
   const result: ParsedArgs = {};
+  const args = [...rawArgs];
 
-  if (args.length === 0) {
-    result.help = true;
-    return result;
-  }
-
-  const commands = ["pack", "character", "animation", "import", "init-config"];
-  if (commands.includes(args[0])) {
-    result.command = args[0];
-    args.shift();
-  }
-
-  const readValue = (index: number, flag: string) => {
-    const value = args[index + 1];
-    if (!value || value.startsWith("-")) {
-      throw new Error(`${flag} requires a value.`);
+  const commands = ["pack", "ship", "character", "animation", "import", "init-config"];
+  if (args.length > 0 && !args[0].startsWith("-")) {
+    const cmd = args.shift()!;
+    if (commands.includes(cmd)) {
+      result.command = cmd as ParsedArgs["command"];
+    } else {
+      throw new Error(
+        `Unknown command '${cmd}'. Available commands: ${commands.join(", ")}.`
+      );
     }
-    return value;
-  };
+  }
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    switch (arg) {
-      case "-i":
-      case "--input":
-        result.input = readValue(i, arg);
-        i += 1;
-        break;
-      case "-o":
-      case "--output":
-        result.output = readValue(i, arg);
-        i += 1;
-        break;
-      case "-n":
-      case "--name":
-        result.name = readValue(i, arg);
-        i += 1;
-        break;
-      case "-c":
-      case "--config":
-        result.config = readValue(i, arg);
-        i += 1;
-        break;
-      case "--rows":
-        result.rows = parseInteger(readValue(i, arg), arg);
-        i += 1;
-        break;
-      case "--padding":
-        result.padding = parseFiniteNumber(readValue(i, arg), arg);
-        i += 1;
-        break;
-      case "--scale":
-        result.scale = parseFiniteNumber(readValue(i, arg), arg);
-        i += 1;
-        break;
-      case "--format":
-        result.format = parseChoice(readValue(i, arg), arg, FORMATS);
-        i += 1;
-        break;
-      case "--smoothing":
-        result.smoothing = true;
-        break;
-      case "--bundle":
-        result.bundle = true;
-        break;
-      case "--frames-zip":
-        result.framesZip = true;
-        break;
-      case "--pivot":
-        result.pivot = parseChoice(readValue(i, arg), arg, PIVOTS);
-        i += 1;
-        break;
-      case "--mode": {
-        const value = readValue(i, arg);
-        if (result.command === "init-config") {
-          result.mode = parseChoice(value, arg, CONFIG_MODES);
-        } else {
-          result.packingMode = parseChoice(value, arg, PACKING_MODES);
-        }
-        i += 1;
-        break;
+
+    if (arg === "-h" || arg === "--help") {
+      result.help = true;
+      continue;
+    }
+
+    if (arg === "-i" || arg === "--input") {
+      result.input = args[++i];
+    } else if (arg === "-o" || arg === "--output") {
+      result.output = args[++i];
+    } else if (arg === "-n" || arg === "--name") {
+      result.name = args[++i];
+    } else if (arg === "-c" || arg === "--config") {
+      result.config = args[++i];
+    } else if (arg === "--rows") {
+      result.rows = Math.max(
+        1,
+        Math.round(parsePositiveNumber(args[++i], "--rows"))
+      );
+    } else if (arg === "--padding") {
+      result.padding = parseNonNegativeNumber(args[++i], "--padding");
+    } else if (arg === "--scale") {
+      result.scale = parsePositiveNumber(args[++i], "--scale");
+    } else if (arg === "--format") {
+      result.format = parseChoice(args[++i], "--format", FORMATS);
+    } else if (arg === "--smoothing") {
+      result.smoothing = true;
+    } else if (arg === "--bundle") {
+      result.bundle = true;
+    } else if (arg === "--frames-zip") {
+      result.framesZip = true;
+    } else if (arg === "--pivot") {
+      result.pivot = parseChoice(args[++i], "--pivot", PIVOTS);
+    } else if (arg === "--mode") {
+      if (result.command === "init-config") {
+        result.mode = parseChoice(args[++i], "--mode", CONFIG_MODES) as "normal" | "ship" | "character" | "animation";
+      } else {
+        result.packingMode = parseChoice(args[++i], "--mode", PACKING_MODES);
       }
-      case "--json":
-        result.jsonMode = parseChoice(readValue(i, arg), arg, JSON_MODES);
-        i += 1;
-        break;
-      case "-a":
-      case "--atlas":
-        result.atlas = readValue(i, arg);
-        i += 1;
-        break;
-      case "-d":
-      case "--data":
-        result.data = readValue(i, arg);
-        i += 1;
-        break;
-      case "-h":
-      case "--help":
-        result.help = true;
-        break;
-      default:
-        throw new Error(`Unknown option: ${arg}`);
+    } else if (arg === "--json") {
+      result.jsonMode = parseChoice(args[++i], "--json", JSON_MODES);
+    } else if (arg === "--rotation") {
+      result.rotation = parseChoice(args[++i], "--rotation", [
+        "clockwise",
+        "counterclockwise",
+      ] as const);
+    } else if (arg === "--sprite-direction") {
+      result.spriteDirection = parseChoice(args[++i], "--sprite-direction", [
+        "clockwise",
+        "counterclockwise",
+      ] as const);
+    } else if (arg === "-a" || arg === "--atlas") {
+      result.atlas = args[++i];
+    } else if (arg === "-d" || arg === "--data") {
+      result.data = args[++i];
+    } else {
+      throw new Error(`Unknown option '${arg}'. Use --help for usage.`);
     }
   }
+
   return result;
 }
 
@@ -175,13 +149,13 @@ export function mergeArgsIntoConfig(
   config: Partial<CliConfig>
 ): CliConfig {
   const mode =
-    args.command === "character"
-      ? "character"
+    args.command === "ship" || args.command === "character"
+      ? "ship"
       : args.command === "animation"
         ? "animation"
         : args.command === "import"
           ? undefined
-          : config.mode || "normal";
+          : (config.mode === "character" ? "ship" : config.mode || "normal");
 
   return {
     input: args.input || config.input,
@@ -198,7 +172,7 @@ export function mergeArgsIntoConfig(
     },
     export: {
       scale: args.scale !== undefined ? args.scale : config.export?.scale ?? 1,
-      format: "png",
+      format: args.format || config.export?.format || "png",
       smoothing:
         args.smoothing !== undefined
           ? args.smoothing
@@ -211,19 +185,10 @@ export function mergeArgsIntoConfig(
           : config.export?.framesZip ?? false,
       pivot: args.pivot || config.export?.pivot || "top-left",
       jsonMode: args.jsonMode || config.export?.jsonMode || "pretty",
-      rows: args.rows !== undefined ? args.rows : config.export?.rows,
-      padding:
-        args.padding !== undefined
-          ? args.padding
-          : config.export?.padding ?? 2,
-      packingMode: args.packingMode || config.export?.packingMode,
     },
-    points: config.points,
+    rotation: args.rotation || args.spriteDirection || config.rotation || config.spriteDirection || "clockwise",
+    spriteDirection: args.rotation || args.spriteDirection || config.rotation || config.spriteDirection || "clockwise",
     pointGroups: config.pointGroups,
     animation: config.animation,
-    spriteDirection: config.spriteDirection,
-    import:
-      config.import ||
-      (args.atlas && args.data ? { atlas: args.atlas, data: args.data } : undefined),
   };
 }

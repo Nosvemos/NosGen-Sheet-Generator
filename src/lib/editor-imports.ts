@@ -19,6 +19,7 @@ export const importPointsJsonToFrames = (
   t: Translate
 ): {
   frames: FrameData[];
+  rotation?: SpriteDirection;
   spriteDirection?: SpriteDirection;
   pivotMode?: PivotMode;
   exportSize?: number;
@@ -39,11 +40,15 @@ export const importPointsJsonToFrames = (
     pivotRaw === "center"
       ? pivotRaw
       : undefined;
-  const spriteDirection =
-    payload.meta?.spriteDirection === "clockwise" ||
-    payload.meta?.spriteDirection === "counterclockwise"
-      ? payload.meta?.spriteDirection
-      : undefined;
+  const rotation =
+    payload.meta?.rotation === "clockwise" ||
+    payload.meta?.rotation === "counterclockwise"
+      ? payload.meta?.rotation
+      : payload.meta?.spriteDirection === "clockwise" ||
+        payload.meta?.spriteDirection === "counterclockwise"
+        ? payload.meta?.spriteDirection
+        : undefined;
+  const spriteDirection = rotation;
   const exportSizeRaw = Number(
     payload.meta?.scale ?? payload.meta?.exportSize ?? payload.scale
   );
@@ -137,14 +142,14 @@ export const importPointsJsonToFrames = (
       }
       return { ...frame, points: nextPoints };
     });
-    return { frames: nextFrames, spriteDirection, pivotMode, exportSize };
+    return { frames: nextFrames, rotation, spriteDirection, pivotMode, exportSize };
   }
 
   const entries = Object.entries(payload).filter(
     ([key, value]) => key !== "meta" && Array.isArray(value)
   );
   if (entries.length === 0) {
-    return { frames: baseFrames, spriteDirection, pivotMode, exportSize };
+    return { frames: baseFrames, rotation, spriteDirection, pivotMode, exportSize };
   }
   const nextFrames = baseFrames.map((frame, frameIndex) => {
     const nextPoints = entries.map(([rawName, rawPoints], index) => {
@@ -186,7 +191,7 @@ export const importPointsJsonToFrames = (
     });
     return { ...frame, points: nextPoints };
   });
-  return { frames: nextFrames, spriteDirection, pivotMode, exportSize };
+  return { frames: nextFrames, rotation, spriteDirection, pivotMode, exportSize };
 };
 
 export const buildGroupsFromJson = (parsed: unknown, baseFrames: FrameData[]) => {

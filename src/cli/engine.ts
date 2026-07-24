@@ -143,7 +143,7 @@ const applyModeSpecificData = (
   frames: CliFrame[],
   loaded: { importedGroups?: CliPointGroup[] }
 ) => {
-  if (config.mode !== "character") {
+  if (config.mode !== "ship" && (config.mode as string) !== "character") {
     return;
   }
 
@@ -157,13 +157,13 @@ const applyModeSpecificData = (
 };
 
 export function generateSampleConfig(
-  mode: "normal" | "character" | "animation"
+  mode: "normal" | "ship" | "character" | "animation"
 ): CliConfig {
   const base: CliConfig = {
     input: "./frames",
     output: "./output",
     name: "sprite",
-    mode,
+    mode: mode === "character" ? "ship" : mode,
     packing: {
       mode: "shelf",
       padding: 2,
@@ -178,7 +178,7 @@ export function generateSampleConfig(
     },
   };
 
-  if (mode === "character") {
+  if (mode === "ship" || mode === "character") {
     base.points = [
       {
         name: "head",
@@ -202,7 +202,7 @@ export function generateSampleConfig(
         autoFill: {
           shape: "ellipse",
           enabled: true,
-          spriteDirection: "clockwise",
+          rotation: "clockwise",
         },
       },
     ];
@@ -215,7 +215,7 @@ export function generateSampleConfig(
         ],
       },
     ];
-    base.spriteDirection = "clockwise";
+    base.rotation = "clockwise";
   }
 
   if (mode === "animation") {

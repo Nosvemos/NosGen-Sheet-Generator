@@ -134,13 +134,13 @@ export const useEditorHistoryHotkeys = ({
       selectMode: () => setEditorMode("select"),
       addMode: () => setEditorMode("add"),
       addPoint: () => {
-        if (!currentFrame || appMode !== "character") {
+        if (!currentFrame || appMode !== "ship") {
           return;
         }
         addPointAt(currentFrame.width / 2, currentFrame.height / 2);
       },
       deletePoint: () => {
-        if (!selectedPointId || appMode !== "character") {
+        if (!selectedPointId || appMode !== "ship") {
           return;
         }
         updateAllFramesPoints((points) =>

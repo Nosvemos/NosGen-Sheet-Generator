@@ -25,7 +25,7 @@ export const useAtlasIO = ({
   setGroupPreviewIndex,
   setPointGroups,
   setSelectedGroupId,
-  setSpriteDirection,
+  setRotation,
   setPivotMode,
   setRows,
   setPadding,
@@ -81,8 +81,8 @@ export const useAtlasIO = ({
 
   const applyNewAtlasResult = useCallback(
     (result: Awaited<ReturnType<typeof createNewAtlasFromFiles>>) => {
-      if (result.spriteDirection) {
-        setSpriteDirection(result.spriteDirection);
+      if (result.rotation ?? result.spriteDirection) {
+        setRotation((result.rotation ?? result.spriteDirection)!);
       }
       if (result.pivotMode) {
         setPivotMode(result.pivotMode);
@@ -100,7 +100,7 @@ export const useAtlasIO = ({
       setPivotMode,
       setPointGroups,
       setSelectedGroupId,
-      setSpriteDirection,
+      setRotation,
     ]
   );
 
@@ -169,8 +169,8 @@ export const useAtlasIO = ({
         t,
       });
       setFrames(imported.frames);
-      if (imported.spriteDirection) {
-        setSpriteDirection(imported.spriteDirection);
+      if (imported.rotation ?? imported.spriteDirection) {
+        setRotation((imported.rotation ?? imported.spriteDirection)!);
       }
       if (imported.pivotMode) {
         setPivotMode(imported.pivotMode);
@@ -218,8 +218,8 @@ export const useAtlasIO = ({
       if (!imported) {
         return;
       }
-      if (imported.spriteDirection) {
-        setSpriteDirection(imported.spriteDirection);
+      if (imported.rotation ?? imported.spriteDirection) {
+        setRotation((imported.rotation ?? imported.spriteDirection)!);
       }
       if (imported.pivotMode) {
         setPivotMode(imported.pivotMode);
@@ -279,7 +279,7 @@ export const useAtlasIO = ({
       setRows,
       setSelectedGroupId,
       setSpeed,
-      setSpriteDirection,
+      setRotation,
       resetSelection,
       t,
     ]

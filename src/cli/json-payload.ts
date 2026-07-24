@@ -15,10 +15,70 @@ export function buildJsonPayload(
   scaleX: number,
   scaleY: number
 ) {
-  const mode = config.mode ?? "normal";
+  const mode = (config.mode === "ship" || (config.mode as string) === "character") ? "ship" : (config.mode ?? "normal");
   const pivot = config.export?.pivot ?? "top-left";
   const exportScale = config.export?.scale ?? 1;
+  const jsonMode = config.export?.jsonMode ?? "pretty";
+  const rotation = config.rotation ?? config.spriteDirection ?? "clockwise";
   const placements = resolveFramePlacements(layout, frames);
+
+  const groups =
+    mode === "ship" && config.pointGroups && config.pointGroups.length > 0
+      ? buildGroupsPayload(config, frames)
+      : undefined;
+
+  const animation =
+    mode === "animation" && config.animation
+      ? buildAnimationPayload(config, frames)
+      : undefined;
+
+  if (jsonMode === "raylib") {
+    const raylibFrames = frames.map((frame, index) => {
+      const rect = placements[index];
+      const w = Math.max(1, Math.round(rect.w * scaleX));
+      const h = Math.max(1, Math.round(rect.h * scaleY));
+      const pointsObj =
+        mode === "ship" && frame.points.length > 0
+          ? frame.points.reduce<Record<string, { x: number; y: number }>>((acc, point) => {
+              const pivotPoint = math.toPivotCoords(point, frame, pivot);
+              acc[point.name] = {
+                x: Math.round(pivotPoint.x * scaleX),
+                y: Math.round(pivotPoint.y * scaleY),
+              };
+              return acc;
+            }, {})
+          : undefined;
+
+      return {
+        name: frame.name,
+        rect: {
+          x: Math.round(rect.x * scaleX),
+          y: Math.round(rect.y * scaleY),
+          w,
+          h,
+        },
+        pivot: { x: Math.round(w / 2), y: Math.round(h / 2) },
+        ...(pointsObj && Object.keys(pointsObj).length > 0 ? { points: pointsObj } : {}),
+      };
+    });
+
+    return {
+      meta: {
+        app: "NosGalaxy",
+        version: "1.0",
+        image: `${math.normalizeExportName(config.name || "sprite", "sprite")}_atlas.${config.export?.format ?? "png"}`,
+        size: { w: targetWidth, h: targetHeight },
+        padding: Math.round(layout.padding * scaleX),
+        scale: exportScale,
+        pivot,
+        ...(mode === "ship" ? { rotation } : {}),
+        mode,
+      },
+      ...(groups ? { groups } : {}),
+      ...(animation ? { animation } : {}),
+      frames: raylibFrames,
+    };
+  }
 
   const exportedFrames = frames.map((frame, index) => {
     const rect = placements[index];
@@ -30,7 +90,7 @@ export function buildJsonPayload(
       h: Math.max(1, Math.round(rect.h * scaleY)),
     };
 
-    if (mode === "character" && frame.points.length > 0) {
+    if (mode === "ship" && frame.points.length > 0) {
       base.points = frame.points.map((point) => {
         const pivotPoint = math.toPivotCoords(point, frame, pivot);
         return {
@@ -44,16 +104,6 @@ export function buildJsonPayload(
     return base;
   });
 
-  const groups =
-    mode === "character" && config.pointGroups && config.pointGroups.length > 0
-      ? buildGroupsPayload(config, frames)
-      : undefined;
-
-  const animation =
-    mode === "animation" && config.animation
-      ? buildAnimationPayload(config, frames)
-      : undefined;
-
   return {
     meta: {
       app: "NosGalaxy",
@@ -62,9 +112,7 @@ export function buildJsonPayload(
       padding: Math.round(layout.padding * scaleX),
       scale: exportScale,
       pivot,
-      ...(mode === "character"
-        ? { spriteDirection: config.spriteDirection ?? "clockwise" }
-        : {}),
+      ...(mode === "ship" ? { rotation } : {}),
       mode,
     },
     ...(groups ? { groups } : {}),

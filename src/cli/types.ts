@@ -1,5 +1,5 @@
 export type CliPackingMode = "uniform" | "tight" | "shelf" | "maxrects";
-export type CliJsonMode = "pretty" | "minified" | "compact";
+export type CliJsonMode = "pretty" | "raylib";
 export type CliAtlasFormat = "png";
 
 export type CliExportConfig = {
@@ -24,6 +24,7 @@ export type CliKeyframe = {
 export type CliAutoFill = {
   shape: "ellipse" | "circle" | "square" | "linear" | "tangent";
   enabled?: boolean;
+  rotation?: "clockwise" | "counterclockwise";
   spriteDirection?: "clockwise" | "counterclockwise";
 };
 
@@ -57,7 +58,7 @@ export type CliConfig = {
   input?: string;
   output?: string;
   name?: string;
-  mode?: "normal" | "character" | "animation";
+  mode?: "normal" | "ship" | "character" | "animation";
   packing?: {
     mode?: CliPackingMode;
     rows?: number;
@@ -67,6 +68,7 @@ export type CliConfig = {
   points?: CliPoint[];
   pointGroups?: CliPointGroup[];
   animation?: CliAnimation;
+  rotation?: "clockwise" | "counterclockwise";
   spriteDirection?: "clockwise" | "counterclockwise";
   import?: CliImportSource;
 };

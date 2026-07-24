@@ -22,7 +22,7 @@ type UseAutoFillParams = {
   selectedPointId: string | null;
   selectedPoint: FramePoint | null;
   autoFillShape: AutoFillShape;
-  spriteDirection: SpriteDirection;
+  rotation: SpriteDirection;
   setFrames: Dispatch<SetStateAction<FrameData[]>>;
   isDraggingPoint?: boolean;
 };
@@ -32,7 +32,7 @@ export const useAutoFill = ({
   selectedPointId,
   selectedPoint,
   autoFillShape,
-  spriteDirection,
+  rotation,
   setFrames,
   isDraggingPoint = false,
 }: UseAutoFillParams) => {
@@ -76,7 +76,7 @@ export const useAutoFill = ({
       const circle = computeCircleFit(
         selectedPointKeyframes,
         frames.length,
-        spriteDirection
+        rotation
       );
       return circle ? { shape: "circle", ...circle } : null;
     }
@@ -84,21 +84,21 @@ export const useAutoFill = ({
       const square = computeSquareFit(
         selectedPointKeyframes,
         frames.length,
-        spriteDirection
+        rotation
       );
       return square ? { shape: "square", ...square } : null;
     }
     const ellipse = computeEllipseFit(
       selectedPointKeyframes,
       frames.length,
-      spriteDirection
+      rotation
     );
     return ellipse ? { shape: "ellipse", ...ellipse } : null;
   }, [
     autoFillShape,
     frames.length,
     selectedPointKeyframes,
-    spriteDirection,
+    rotation,
     isDraggingPoint,
   ]);
 
@@ -107,7 +107,7 @@ export const useAutoFill = ({
       return null;
     }
     const totalFrames = frames.length;
-    const directionSign = spriteDirection === "clockwise" ? 1 : -1;
+    const directionSign = rotation === "clockwise" ? 1 : -1;
     const positions = Array.from({ length: totalFrames }, (_, index) => {
       if (selectedAutoFillModel.shape === "ellipse") {
         const cosRot = Math.cos(selectedAutoFillModel.rotation);
@@ -160,7 +160,7 @@ export const useAutoFill = ({
     frames.length,
     selectedAutoFillModel,
     selectedPointKeyframes,
-    spriteDirection,
+    rotation,
   ]);
 
   const handleAutoFill = useCallback(() => {

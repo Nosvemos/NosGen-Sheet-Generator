@@ -56,7 +56,7 @@ const buildAutoFillPositions = (pointConfig: CliPoint, totalFrames: number) => {
   const positions: Array<{ x: number; y: number }> = [];
   const keyframes = pointConfig.keyframes ?? [];
   const autoFill = pointConfig.autoFill;
-  const direction = autoFill?.spriteDirection ?? "clockwise";
+  const direction = autoFill?.rotation ?? autoFill?.spriteDirection ?? "clockwise";
 
   for (let index = 0; index < totalFrames; index++) {
     switch (autoFill?.shape) {

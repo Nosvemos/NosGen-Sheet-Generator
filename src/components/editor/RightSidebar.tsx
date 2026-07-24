@@ -45,8 +45,8 @@ export type RightSidebarProps = {
   appMode: AppMode;
   isSpriteSettingsOpen: boolean;
   setIsSpriteSettingsOpen: Dispatch<SetStateAction<boolean>>;
-  spriteDirection: SpriteDirection;
-  setSpriteDirection: Dispatch<SetStateAction<SpriteDirection>>;
+  rotation: SpriteDirection;
+  setRotation: Dispatch<SetStateAction<SpriteDirection>>;
   isAtlasSettingsOpen: boolean;
   setIsAtlasSettingsOpen: Dispatch<SetStateAction<boolean>>;
   rows: number;
@@ -103,8 +103,8 @@ export function RightSidebar({
   appMode,
   isSpriteSettingsOpen,
   setIsSpriteSettingsOpen,
-  spriteDirection,
-  setSpriteDirection,
+  rotation,
+  setRotation,
   isAtlasSettingsOpen,
   setIsAtlasSettingsOpen,
   rows,
@@ -163,13 +163,13 @@ export function RightSidebar({
         hasEditImport={hasEditImport}
       />
 
-      {appMode === "character" && (
+      {appMode === "ship" && (
         <SpriteSettingsCard
           t={t}
           isSpriteSettingsOpen={isSpriteSettingsOpen}
           setIsSpriteSettingsOpen={setIsSpriteSettingsOpen}
-          spriteDirection={spriteDirection}
-          setSpriteDirection={setSpriteDirection}
+          rotation={rotation}
+          setRotation={setRotation}
         />
       )}
 

@@ -16,8 +16,8 @@ const characterPayload: AtlasPayload = {
     padding: 2,
     scale: 1,
     pivot: "center",
-    spriteDirection: "clockwise",
-    mode: "character",
+    rotation: "clockwise",
+    mode: "ship",
   },
   groups: { body: [["head", "hand"], ["head", "hand"]] },
   frames: [
@@ -47,7 +47,7 @@ const characterPayload: AtlasPayload = {
 };
 
 const normalPayload: AtlasPayload = {
-  meta: { app: "NosGen", mode: "normal", pivot: "top-left" },
+  meta: { app: "NosGalaxy", mode: "normal", pivot: "top-left" },
   frames: [
     { name: "a", x: 0, y: 0, w: 16, h: 16 },
     { name: "b", x: 18, y: 0, w: 16, h: 16 },
@@ -84,16 +84,9 @@ describe("atlas-format compact codec", () => {
     expect((fromCompact as AtlasPayload).frames).toEqual(characterPayload.frames);
   });
 
-  it("serializes each mode and parses back to the same data", () => {
+  it("serializes pretty mode and parses back to the same data", () => {
     const pretty = serializeAtlasPayload(characterPayload, "pretty");
-    const minified = serializeAtlasPayload(characterPayload, "minified");
-    const compact = serializeAtlasPayload(characterPayload, "compact");
-
-    expect(pretty.length).toBeGreaterThan(minified.length);
-    expect(compact.length).toBeLessThan(minified.length);
-
-    expect(normalizeAtlasPayload(JSON.parse(compact))).toEqual(
-      normalizeAtlasPayload(JSON.parse(pretty))
-    );
+    const parsed = normalizeAtlasPayload(JSON.parse(pretty));
+    expect((parsed as AtlasPayload).frames).toEqual(characterPayload.frames);
   });
 });

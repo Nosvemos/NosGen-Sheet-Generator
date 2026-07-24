@@ -2,10 +2,10 @@ export type PivotMode = "top-left" | "bottom-left" | "center";
 export type EditorMode = "select" | "add";
 export type ViewMode = "frame" | "atlas";
 export type ThemeMode = "dark" | "light";
-export type AppMode = "character" | "animation" | "normal";
+export type AppMode = "ship" | "animation" | "normal";
 export type AtlasImageFormat = "png";
 export type AtlasPackingMode = "uniform" | "tight" | "shelf" | "maxrects";
-export type ExportJsonMode = "pretty" | "minified" | "compact";
+export type ExportJsonMode = "pretty" | "raylib";
 
 export type FramePoint = {
   id: string;
@@ -66,6 +66,7 @@ export type AutoFillShape =
   | "tangent"
   | "linear";
 export type SpriteDirection = "clockwise" | "counterclockwise";
+export type RotationDirection = "clockwise" | "counterclockwise";
 
 export type AutoFillModel =
   | {
