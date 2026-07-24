@@ -37,7 +37,7 @@ export async function loadFramesFromDirectory(dir: string): Promise<CliFrame[]> 
     const filePath = join(inputDir, file);
     const meta = await sharp(filePath).metadata();
     frames.push({
-      name: basename(file, extname(file)),
+      name: math.sanitizeFrameName(basename(file, extname(file))),
       width: meta.width || 0,
       height: meta.height || 0,
       path: filePath,
@@ -84,7 +84,7 @@ export async function importAtlas(
     const x = Number(entry.x ?? 0);
     const y = Number(entry.y ?? 0);
     const atlasEntry = {
-      name: entry.name || `frame-${index + 1}`,
+      name: math.sanitizeFrameName(entry.name || `frame-${index + 1}`),
       x,
       y,
       w,

@@ -139,8 +139,6 @@ export const saveRecentProject = async (
       exportFormat: state.exportFormat,
       exportJsonMode: state.exportJsonMode,
       atlasPackingMode: state.atlasPackingMode,
-      webpQuality: state.webpQuality,
-      ktx2Quality: state.ktx2Quality,
       pointGroups: state.pointGroups,
       selectedGroupId: state.selectedGroupId,
       projectName: state.projectName,

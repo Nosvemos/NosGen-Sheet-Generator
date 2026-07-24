@@ -15,11 +15,8 @@ export type ParsedArgs = {
   padding?: number;
   scale?: number;
   format?: CliAtlasFormat;
-  webpQuality?: number;
-  ktx2Quality?: number;
   smoothing?: boolean;
   bundle?: boolean;
-  bundleFormats?: CliAtlasFormat[];
   framesZip?: boolean;
   pivot?: "top-left" | "bottom-left" | "center";
   packingMode?: CliPackingMode;
@@ -30,7 +27,7 @@ export type ParsedArgs = {
   help?: boolean;
 };
 
-const FORMATS = ["png", "webp", "ktx2"] as const;
+const FORMATS = ["png"] as const;
 const PIVOTS = ["top-left", "bottom-left", "center"] as const;
 const PACKING_MODES = ["uniform", "tight", "shelf"] as const;
 const CONFIG_MODES = ["normal", "character", "animation"] as const;
@@ -61,19 +58,6 @@ const parseInteger = (value: string, flag: string) => {
     throw new Error(`${flag} must be an integer.`);
   }
   return parsed;
-};
-
-const parseBundleFormats = (value: string, flag: string) => {
-  const formats = value
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter(Boolean)
-    .map((entry) => parseChoice(entry, flag, FORMATS));
-  const unique = [...new Set(formats)];
-  if (unique.length === 0) {
-    throw new Error(`${flag} requires at least one format.`);
-  }
-  return unique;
 };
 
 export function parseArgs(argv: string[]): ParsedArgs {
@@ -138,24 +122,11 @@ export function parseArgs(argv: string[]): ParsedArgs {
         result.format = parseChoice(readValue(i, arg), arg, FORMATS);
         i += 1;
         break;
-      case "--webp-quality":
-        result.webpQuality = parseFiniteNumber(readValue(i, arg), arg);
-        i += 1;
-        break;
-      case "--ktx2-quality":
-        result.ktx2Quality = parseFiniteNumber(readValue(i, arg), arg);
-        i += 1;
-        break;
       case "--smoothing":
         result.smoothing = true;
         break;
       case "--bundle":
         result.bundle = true;
-        break;
-      case "--bundle-formats":
-        result.bundle = true;
-        result.bundleFormats = parseBundleFormats(readValue(i, arg), arg);
-        i += 1;
         break;
       case "--frames-zip":
         result.framesZip = true;
@@ -227,22 +198,13 @@ export function mergeArgsIntoConfig(
     },
     export: {
       scale: args.scale !== undefined ? args.scale : config.export?.scale ?? 1,
-      format: args.format || config.export?.format || "png",
-      webpQuality:
-        args.webpQuality !== undefined
-          ? args.webpQuality
-          : config.export?.webpQuality ?? 90,
-      ktx2Quality:
-        args.ktx2Quality !== undefined
-          ? args.ktx2Quality
-          : config.export?.ktx2Quality ?? 2,
+      format: "png",
       smoothing:
         args.smoothing !== undefined
           ? args.smoothing
           : config.export?.smoothing ?? false,
       bundle:
         args.bundle !== undefined ? args.bundle : config.export?.bundle ?? false,
-      bundleFormats: args.bundleFormats ?? config.export?.bundleFormats,
       framesZip:
         args.framesZip !== undefined
           ? args.framesZip

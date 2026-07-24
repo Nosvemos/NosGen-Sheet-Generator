@@ -115,7 +115,7 @@ export const buildAtlasJsonPayload = ({
   speed,
   loop,
   exportSize,
-  exportFormat,
+  exportFormat = "png",
   minScale,
   maxScale,
   selectedAnimationFrames,
@@ -189,7 +189,7 @@ export const buildAtlasJsonPayload = ({
 
   return {
     meta: {
-      app: "NosGen",
+      app: "NosGalaxy",
       image: getAtlasImageFilename(exportAtlasName, exportFormat),
       size: { w: targetWidth, h: targetHeight },
       rows: layout.rows,
@@ -204,18 +204,4 @@ export const buildAtlasJsonPayload = ({
     ...(animation ? { animation } : {}),
     frames: exportedFrames,
   };
-};
-
-export const resolveEncodeQuality = (
-  format: AtlasImageFormat,
-  webpQuality: number,
-  ktx2Quality: number
-) => {
-  if (format === "webp") {
-    return clamp(webpQuality, 0, 100) / 100;
-  }
-  if (format === "ktx2") {
-    return clamp(ktx2Quality, 0, 3);
-  }
-  return undefined;
 };

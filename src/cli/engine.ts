@@ -171,11 +171,8 @@ export function generateSampleConfig(
     export: {
       scale: 1,
       format: "png",
-      webpQuality: 90,
-      ktx2Quality: 2,
       smoothing: true,
       bundle: false,
-      bundleFormats: ["png", "webp", "ktx2"],
       framesZip: false,
       pivot: "top-left",
     },

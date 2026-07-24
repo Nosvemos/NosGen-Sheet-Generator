@@ -15,12 +15,9 @@ Common Options:
   --rows <number>            Rows for grid packing (default: auto)
   --padding <number>         Padding between frames (default: 2)
   --scale <number>           Export scale multiplier (default: 1)
-  --format <png|webp|ktx2>   Output image format (default: png)
-  --webp-quality <0-100>     WebP quality (default: 90)
-  --ktx2-quality <0-3>       KTX2 UASTC quality level (default: 2)
+  --format <png>             Output image format (default: png)
   --smoothing                Enable smoothing (Lanczos3) during scaling
-  --bundle                   Also export <name>_bundle.zip (PNG/WebP/KTX2 + JSON)
-  --bundle-formats <list>    Bundle image formats, comma-separated (default: png,webp,ktx2)
+  --bundle                   Also export <name>_bundle.zip (PNG + JSON)
   --frames-zip               Also export <name>_frames.zip with source frames as PNG
   --pivot <top-left|bottom-left|center>  Pivot mode (default: top-left)
   --mode <uniform|tight|shelf> Packing mode (default: shelf)
@@ -40,7 +37,7 @@ Subcommands:
 Examples:
   npm run cli -- pack -i ./frames -o ./dist -n hero --mode shelf
   npm run cli -- character -i ./frames -c char.json
-  npm run cli -- animation -i ./frames -c anim.json --fps 24
+  npm run cli -- animation -i ./frames -c anim.json
   npm run cli -- import -a atlas.png -d data.json -o ./dist --scale 2
   npm run cli -- init-config --mode character -o ./config.json
 ${common}`;
@@ -53,22 +50,22 @@ ${common}`;
   switch (command) {
     case "pack":
       console.log(
-        `Usage: nosgen-sheet pack [options]\n\nPack PNG frames into a spritesheet (normal mode).\n${common}`
+        `Usage: nosgalaxy pack [options]\n\nPack PNG frames into a spritesheet (normal mode).\n${common}`
       );
       break;
     case "character":
       console.log(
-        `Usage: nosgen-sheet character [options]\n\nPack frames with points and point groups.\nPoint definitions are read from --config.\n${common}`
+        `Usage: nosgalaxy character [options]\n\nPack frames with points and point groups.\nPoint definitions are read from --config.\n${common}`
       );
       break;
     case "animation":
       console.log(
-        `Usage: nosgen-sheet animation [options]\n\nPack frames with animation metadata.\nAnimation settings are read from --config.\n${common}`
+        `Usage: nosgalaxy animation [options]\n\nPack frames with animation metadata.\nAnimation settings are read from --config.\n${common}`
       );
       break;
     case "import":
       console.log(
-        `Usage: nosgen-sheet import [options]\n\nImport an existing atlas and re-export with new settings.\n\nImport Options:
+        `Usage: nosgalaxy import [options]\n\nImport an existing atlas and re-export with new settings.\n\nImport Options:
   -a, --atlas <path>         Path to existing atlas PNG
   -d, --data <path>          Path to existing data JSON
 ${common}`
@@ -76,7 +73,7 @@ ${common}`
       break;
     case "init-config":
       console.log(
-        `Usage: nosgen-sheet init-config [options]\n\nGenerate a sample config file.\n\nOptions:
+        `Usage: nosgalaxy init-config [options]\n\nGenerate a sample config file.\n\nOptions:
   --mode <normal|character|animation>  Config mode (default: normal)
   -o, --output <path>                  Output config path (default: ./nosgen-config.json)`
       );

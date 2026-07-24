@@ -6,7 +6,7 @@ import {
   serializeAtlasPayload,
   type AtlasPayload,
 } from "../lib/atlas-format.ts";
-import type { AtlasImageFormat, AtlasLayout } from "../lib/editor-types.ts";
+import type { AtlasLayout } from "../lib/editor-types.ts";
 import type { CliConfig } from "./types.ts";
 import type { CliFrame } from "./frame-types.ts";
 import { buildJsonPayload } from "./json-payload.ts";
@@ -90,49 +90,32 @@ export const exportAtlasBundle = async ({
     return;
   }
   const zip = new JSZip();
-  const formats: AtlasImageFormat[] =
-    config.export?.bundleFormats && config.export.bundleFormats.length > 0
-      ? config.export.bundleFormats
-      : ["png", "webp", "ktx2"];
-  const jsonFormat = formats.includes("png") ? "png" : formats[0];
   const bundleConfig = {
     ...config,
     name: baseName,
     export: {
       ...config.export,
-      format: jsonFormat,
+      format: "png" as const,
     },
   };
-  const renderedAtlases = await Promise.all(
-    formats.map(async (format) => ({
-      format,
-      rendered: await renderAtlas(frames, layout, {
-        ...config.export,
-        format,
-      }),
-    }))
-  );
-  const jsonAtlas =
-    renderedAtlases.find(({ format }) => format === jsonFormat)?.rendered ??
-    renderedAtlases[0].rendered;
+  const renderedAtlas = await renderAtlas(frames, layout, {
+    ...config.export,
+    format: "png",
+  });
   const payload = buildJsonPayload(
     frames,
     layout,
     bundleConfig,
-    jsonAtlas.targetWidth,
-    jsonAtlas.targetHeight,
-    jsonAtlas.scaleX,
-    jsonAtlas.scaleY
+    renderedAtlas.targetWidth,
+    renderedAtlas.targetHeight,
+    renderedAtlas.scaleX,
+    renderedAtlas.scaleY
   );
 
-  await Promise.all(
-    renderedAtlases.map(async ({ format, rendered }) => {
-      const buffer = Buffer.isBuffer(rendered.atlas)
-        ? rendered.atlas
-        : await rendered.atlas.toBuffer();
-      zip.file(`${baseName}_atlas.${format}`, buffer);
-    })
-  );
+  const buffer = Buffer.isBuffer(renderedAtlas.atlas)
+    ? renderedAtlas.atlas
+    : await renderedAtlas.atlas.toBuffer();
+  zip.file(`${baseName}_atlas.png`, buffer);
 
   const jsonMode = config.export?.jsonMode ?? "pretty";
   zip.file(

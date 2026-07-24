@@ -3,7 +3,6 @@ import { Separator } from "@/components/ui/separator";
 import type { TranslationKey } from "@/lib/i18n";
 import type {
   AppMode,
-  AtlasImageFormat,
   AtlasLayout,
   AtlasPackingMode,
   ExportJsonMode,
@@ -67,14 +66,8 @@ export type RightSidebarProps = {
   setExportSmoothing: Dispatch<SetStateAction<boolean>>;
   exportSize: number;
   setExportSize: Dispatch<SetStateAction<number>>;
-  exportFormat: AtlasImageFormat;
-  setExportFormat: Dispatch<SetStateAction<AtlasImageFormat>>;
   exportJsonMode: ExportJsonMode;
   setExportJsonMode: Dispatch<SetStateAction<ExportJsonMode>>;
-  webpQuality: number;
-  setWebpQuality: Dispatch<SetStateAction<number>>;
-  ktx2Quality: number;
-  setKtx2Quality: Dispatch<SetStateAction<number>>;
   handleExportPng: () => void;
   handleExportJson: () => void;
   handleExportBundle: () => void;
@@ -131,14 +124,8 @@ export function RightSidebar({
   setExportSmoothing,
   exportSize,
   setExportSize,
-  exportFormat,
-  setExportFormat,
   exportJsonMode,
   setExportJsonMode,
-  webpQuality,
-  setWebpQuality,
-  ktx2Quality,
-  setKtx2Quality,
   handleExportPng,
   handleExportJson,
   handleExportBundle,
@@ -211,14 +198,8 @@ export function RightSidebar({
         setExportSmoothing={setExportSmoothing}
         exportSize={exportSize}
         setExportSize={setExportSize}
-        exportFormat={exportFormat}
-        setExportFormat={setExportFormat}
         exportJsonMode={exportJsonMode}
         setExportJsonMode={setExportJsonMode}
-        webpQuality={webpQuality}
-        setWebpQuality={setWebpQuality}
-        ktx2Quality={ktx2Quality}
-        setKtx2Quality={setKtx2Quality}
         toNumber={toNumber}
         minExportScale={minExportScale}
         maxExportScale={maxExportScale}

@@ -8,7 +8,6 @@ import type {
 import {
   buildAtlasJsonPayload,
   createAtlasCanvas,
-  resolveEncodeQuality,
   type AtlasJsonExportParams,
 } from "@/lib/editor-export-builders";
 import { saveBlobWithDialog } from "@/lib/editor-save-dialog";
@@ -91,10 +90,8 @@ export const exportAtlasPng = ({
   packingMode,
   exportScale,
   exportSmoothing,
-  exportFormat,
+  exportFormat = "png",
   exportAtlasName,
-  webpQuality,
-  ktx2Quality,
   minScale,
   maxScale,
 }: {
@@ -104,10 +101,8 @@ export const exportAtlasPng = ({
   packingMode: AtlasPackingMode;
   exportScale: number;
   exportSmoothing: boolean;
-  exportFormat: AtlasImageFormat;
+  exportFormat?: AtlasImageFormat;
   exportAtlasName: string;
-  webpQuality: number;
-  ktx2Quality: number;
   minScale: number;
   maxScale: number;
 }) => {
@@ -124,20 +119,12 @@ export const exportAtlasPng = ({
   if (!atlas) {
     return;
   }
-  const filters: Record<AtlasImageFormat, { name: string; extensions: string[] }> = {
-    png: { name: "PNG Image", extensions: ["png"] },
-    webp: { name: "WebP Image", extensions: ["webp"] },
-    ktx2: { name: "KTX2 Texture", extensions: ["ktx2"] },
-  };
-  return encodeCanvasToAtlasBlob(
-    atlas.canvas,
-    exportFormat,
-    resolveEncodeQuality(exportFormat, webpQuality, ktx2Quality)
-  ).then((blob) =>
+  const filter = { name: "PNG Image", extensions: ["png"] };
+  return encodeCanvasToAtlasBlob(atlas.canvas, exportFormat).then((blob) =>
     saveBlobWithDialog(
       blob,
       getAtlasImageFilename(exportAtlasName, exportFormat),
-      [filters[exportFormat]]
+      [filter]
     )
   );
 };
@@ -186,7 +173,7 @@ export const exportAtlasJson = ({
   speed,
   loop,
   exportSize,
-  exportFormat,
+  exportFormat = "png",
   exportJsonMode,
   minScale,
   maxScale,
@@ -251,8 +238,6 @@ export const exportAtlasBundle = async ({
   loop,
   exportSize,
   exportJsonMode,
-  webpQuality,
-  ktx2Quality,
   minScale,
   maxScale,
   selectedAnimationFrames,
@@ -261,8 +246,6 @@ export const exportAtlasBundle = async ({
 }: Omit<AtlasJsonExportParams, "exportFormat"> & {
   exportSmoothing: boolean;
   exportJsonMode: ExportJsonMode;
-  webpQuality: number;
-  ktx2Quality: number;
   exportDataName: string;
 }) => {
   const resolvedExportDataName = resolveExportDataName(
@@ -309,20 +292,8 @@ export const exportAtlasBundle = async ({
   }
 
   const zip = new JSZip();
-  const formats: AtlasImageFormat[] = ["png", "webp", "ktx2"];
-  const blobs = await Promise.all(
-    formats.map(async (format) => ({
-      format,
-      blob: await encodeCanvasToAtlasBlob(
-        atlas.canvas,
-        format,
-        resolveEncodeQuality(format, webpQuality, ktx2Quality)
-      ),
-    }))
-  );
-  blobs.forEach(({ format, blob }) => {
-    zip.file(getAtlasImageFilename(exportAtlasName, format), blob);
-  });
+  const pngBlob = await encodeCanvasToAtlasBlob(atlas.canvas, "png");
+  zip.file(getAtlasImageFilename(exportAtlasName, "png"), pngBlob);
   zip.file(
     `${resolvedExportDataName}.json`,
     serializeAtlasPayload(jsonPayload, exportJsonMode)

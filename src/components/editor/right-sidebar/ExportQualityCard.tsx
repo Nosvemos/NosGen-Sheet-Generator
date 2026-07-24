@@ -12,7 +12,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import type { TranslationKey } from "@/lib/i18n";
-import type { AtlasImageFormat, ExportJsonMode } from "@/lib/editor-types";
+import type { ExportJsonMode } from "@/lib/editor-types";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 type Translate = (
@@ -30,14 +30,8 @@ type ExportQualityCardProps = {
   setExportSmoothing: Dispatch<SetStateAction<boolean>>;
   exportSize: number;
   setExportSize: Dispatch<SetStateAction<number>>;
-  exportFormat: AtlasImageFormat;
-  setExportFormat: Dispatch<SetStateAction<AtlasImageFormat>>;
   exportJsonMode: ExportJsonMode;
   setExportJsonMode: Dispatch<SetStateAction<ExportJsonMode>>;
-  webpQuality: number;
-  setWebpQuality: Dispatch<SetStateAction<number>>;
-  ktx2Quality: number;
-  setKtx2Quality: Dispatch<SetStateAction<number>>;
   toNumber: (value: string, fallback: number) => number;
   minExportScale: number;
   maxExportScale: number;
@@ -54,14 +48,8 @@ export function ExportQualityCard({
   setExportSmoothing,
   exportSize,
   setExportSize,
-  exportFormat,
-  setExportFormat,
   exportJsonMode,
   setExportJsonMode,
-  webpQuality,
-  setWebpQuality,
-  ktx2Quality,
-  setKtx2Quality,
   toNumber,
   minExportScale,
   maxExportScale,
@@ -112,60 +100,6 @@ export function ExportQualityCard({
             />
             <Label htmlFor="export-smoothing">{t("label.smoothing")}</Label>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">
-              {t("label.exportFormat")}
-            </Label>
-            <Select
-              value={exportFormat}
-              onValueChange={(value) =>
-                setExportFormat(value as AtlasImageFormat)
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={t("label.exportFormat")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="png">{t("format.png")}</SelectItem>
-                <SelectItem value="webp">{t("format.webp")}</SelectItem>
-                <SelectItem value="ktx2">{t("format.ktx2")}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {exportFormat === "webp" && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{t("label.webpQuality")}</span>
-                <span className="font-mono">{Math.round(webpQuality)}</span>
-              </div>
-              <Slider
-                min={1}
-                max={100}
-                step={1}
-                value={[webpQuality]}
-                onValueChange={(value) =>
-                  setWebpQuality(Math.round(value[0] ?? webpQuality))
-                }
-              />
-            </div>
-          )}
-          {exportFormat === "ktx2" && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{t("label.ktx2Quality")}</span>
-                <span className="font-mono">{Math.round(ktx2Quality)}</span>
-              </div>
-              <Slider
-                min={0}
-                max={3}
-                step={1}
-                value={[ktx2Quality]}
-                onValueChange={(value) =>
-                  setKtx2Quality(Math.round(value[0] ?? ktx2Quality))
-                }
-              />
-            </div>
-          )}
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">
               {t("label.jsonMode")}

@@ -48,8 +48,6 @@ export type EditorState = {
   exportFormat: AtlasImageFormat;
   exportJsonMode: ExportJsonMode;
   atlasPackingMode: AtlasPackingMode;
-  webpQuality: number;
-  ktx2Quality: number;
   isSpriteSettingsOpen: boolean;
   isAtlasSettingsOpen: boolean;
   isExportQualityOpen: boolean;
@@ -159,8 +157,6 @@ export const createInitialEditorState = (): EditorState => {
     exportFormat: "png",
     exportJsonMode: "pretty",
     atlasPackingMode: "uniform",
-    webpQuality: 90,
-    ktx2Quality: 2,
     isSpriteSettingsOpen: true,
     isAtlasSettingsOpen: true,
     isExportQualityOpen: true,

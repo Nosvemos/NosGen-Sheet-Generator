@@ -5,6 +5,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import type { TranslationKey } from "@/lib/i18n";
 import type { FrameData } from "@/lib/editor-types";
 
+import { sanitizeFrameName } from "@/lib/editor-helpers";
+
 type Translate = (
   key: TranslationKey,
   params?: Record<string, string | number>
@@ -40,7 +42,15 @@ export function NormalFramesCard({
                 <Input
                   value={frame.name}
                   onChange={(event) => {
-                    const name = event.target.value;
+                    const name = sanitizeFrameName(event.target.value);
+                    setFrames((prev) =>
+                      prev.map((item) =>
+                        item.id === frame.id ? { ...item, name } : item
+                      )
+                    );
+                  }}
+                  onBlur={(event) => {
+                    const name = sanitizeFrameName(event.target.value);
                     setFrames((prev) =>
                       prev.map((item) =>
                         item.id === frame.id ? { ...item, name } : item

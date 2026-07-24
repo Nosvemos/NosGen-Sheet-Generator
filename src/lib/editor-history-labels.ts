@@ -30,8 +30,6 @@ const HISTORY_LABEL_OVERRIDES: Partial<Record<keyof EditorState, string>> = {
   exportFormat: "Export format",
   exportJsonMode: "JSON export mode",
   atlasPackingMode: "Atlas packing mode",
-  webpQuality: "WebP quality",
-  ktx2Quality: "KTX2 quality",
   isSpriteSettingsOpen: "Sprite settings",
   isAtlasSettingsOpen: "Atlas settings",
   isExportQualityOpen: "Export quality",

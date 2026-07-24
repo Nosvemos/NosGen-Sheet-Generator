@@ -20,6 +20,7 @@ import {
   createId,
   createPointColor,
   normalizeExportName,
+  sanitizeFrameName,
   toPivotCoords,
   fromPivotCoords,
   computeEllipseFit,
@@ -35,6 +36,7 @@ export {
   createId,
   createPointColor,
   normalizeExportName,
+  sanitizeFrameName,
   toPivotCoords,
   fromPivotCoords,
   computeEllipseFit,
@@ -134,8 +136,7 @@ export const loadFrameFromFile = async (file: File): Promise<FrameData> => {
   const img = await loadAtlasImageFromFile(file);
   return {
     id: createId(),
-    // Strip the file extension so exported frame names match the CLI.
-    name: file.name.replace(/\.[^/.]+$/, ""),
+    name: sanitizeFrameName(file.name),
     image: img,
     width: img.naturalWidth || img.width,
     height: img.naturalHeight || img.height,

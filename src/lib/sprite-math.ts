@@ -11,6 +11,15 @@ export {
 
 export type MathKeyframe = { frameIndex: number; x: number; y: number };
 
+export const sanitizeFrameName = (name: string): string => {
+  if (!name) return "frame";
+  let clean = name.trim();
+  while (/\.(png|jpg|jpeg|webp|ktx2|json)$/i.test(clean)) {
+    clean = clean.replace(/\.[^/.]+$/, "");
+  }
+  return clean.trim() || "frame";
+};
+
 export const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 

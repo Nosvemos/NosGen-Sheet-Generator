@@ -18,31 +18,18 @@ describe("cli args", () => {
 
   it("rejects invalid enum values", () => {
     expect(() => parseArgs(["pack", "--format", "jpg"])).toThrow(
-      "--format must be one of: png, webp, ktx2."
+      "--format must be one of: png."
     );
     expect(() => parseArgs(["pack", "--json", "xml"])).toThrow(
       "--json must be one of: pretty, minified, compact."
     );
   });
 
-  it("parses bundle formats and enables bundle export", () => {
-    const args = parseArgs([
-      "pack",
-      "--bundle-formats",
-      "png,webp,png",
-    ]);
+  it("parses bundle option", () => {
+    const args = parseArgs(["pack", "--bundle"]);
     const config = mergeArgsIntoConfig(args, {});
 
     expect(config.export?.bundle).toBe(true);
-    expect(config.export?.bundleFormats).toEqual(["png", "webp"]);
-  });
-
-  it("lets cli bundle formats override config bundle formats", () => {
-    const args = parseArgs(["pack", "--bundle-formats", "ktx2"]);
-    const config = mergeArgsIntoConfig(args, {
-      export: { bundleFormats: ["png", "webp"] },
-    });
-
-    expect(config.export?.bundleFormats).toEqual(["ktx2"]);
+    expect(config.export?.format).toBe("png");
   });
 });

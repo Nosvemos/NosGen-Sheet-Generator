@@ -45,8 +45,6 @@ export const useEditorStateSetters = (
       setExportFormat: createStateSetter(dispatch, "exportFormat"),
       setExportJsonMode: createStateSetter(dispatch, "exportJsonMode"),
       setAtlasPackingMode: createStateSetter(dispatch, "atlasPackingMode"),
-      setWebpQuality: createStateSetter(dispatch, "webpQuality"),
-      setKtx2Quality: createStateSetter(dispatch, "ktx2Quality"),
       setIsSpriteSettingsOpen: createStateSetter(
         dispatch,
         "isSpriteSettingsOpen"

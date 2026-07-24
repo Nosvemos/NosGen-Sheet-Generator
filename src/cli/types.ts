@@ -1,15 +1,12 @@
 export type CliPackingMode = "uniform" | "tight" | "shelf";
 export type CliJsonMode = "pretty" | "minified" | "compact";
-export type CliAtlasFormat = "png" | "webp" | "ktx2";
+export type CliAtlasFormat = "png";
 
 export type CliExportConfig = {
   scale?: number;
   format?: CliAtlasFormat;
-  webpQuality?: number;
-  ktx2Quality?: number;
   smoothing?: boolean;
   bundle?: boolean;
-  bundleFormats?: CliAtlasFormat[];
   framesZip?: boolean;
   pivot?: "top-left" | "bottom-left" | "center";
   rows?: number;

@@ -3,7 +3,6 @@ import { resolveFramePlacements } from "../lib/atlas-layout.ts";
 import type { AtlasLayout } from "../lib/editor-types.ts";
 import type { CliExportConfig } from "./types.ts";
 import type { CliFrame } from "./frame-types.ts";
-import * as math from "./math.ts";
 
 export async function renderAtlas(
   frames: CliFrame[],
@@ -54,65 +53,7 @@ export async function renderAtlas(
   );
 
   const composited = base.composite(overlays);
-  const format = exportConfig.format ?? "png";
-  if (format === "ktx2") {
-    return encodeKtx2Atlas({
-      source: composited,
-      targetWidth,
-      targetHeight,
-      scaleX,
-      scaleY,
-      quality: exportConfig.ktx2Quality,
-    });
-  }
-
-  const atlas =
-    format === "webp"
-      ? composited.webp({
-          quality: math.clamp(Math.round(exportConfig.webpQuality ?? 90), 1, 100),
-          effort: 6,
-        })
-      : composited.png({ compressionLevel: 9, effort: 10 });
+  const atlas = composited.png({ compressionLevel: 9, effort: 10 });
 
   return { atlas, targetWidth, targetHeight, scaleX, scaleY };
 }
-
-const encodeKtx2Atlas = async ({
-  source,
-  targetWidth,
-  targetHeight,
-  scaleX,
-  scaleY,
-  quality,
-}: {
-  source: sharp.Sharp;
-  targetWidth: number;
-  targetHeight: number;
-  scaleX: number;
-  scaleY: number;
-  quality?: number;
-}) => {
-  const { encodeToKTX2 } = await import("ktx2-encoder");
-  const raw = await source.raw().toBuffer();
-  const encoded = await encodeToKTX2(new Uint8Array([0]), {
-    isKTX2File: true,
-    isUASTC: true,
-    needSupercompression: true,
-    enableRDO: true,
-    uastcLDRQualityLevel: Math.round(math.clamp(quality ?? 2, 0, 3)),
-    isPerceptual: true,
-    isSetKTX2SRGBTransferFunc: true,
-    imageDecoder: async () => ({
-      width: targetWidth,
-      height: targetHeight,
-      data: new Uint8Array(raw),
-    }),
-  });
-  return {
-    atlas: Buffer.from(encoded),
-    targetWidth,
-    targetHeight,
-    scaleX,
-    scaleY,
-  };
-};

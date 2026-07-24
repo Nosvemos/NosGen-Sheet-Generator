@@ -81,7 +81,7 @@ await build({
   format: "cjs",
   target: "node20",
   outfile: bundlePath,
-  external: ["sharp", "ktx2-encoder"],
+  external: ["sharp"],
   banner: { js: banner },
 });
 
@@ -136,7 +136,6 @@ console.log("• installing external runtimes beside executable");
 runNpm([
   "install",
   `sharp@${sharpVersion}`,
-  `ktx2-encoder@${ktx2EncoderVersion}`,
   "--prefix",
   outDir,
   "--no-save",

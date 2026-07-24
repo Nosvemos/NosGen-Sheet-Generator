@@ -12,6 +12,7 @@ import {
   createId,
   loadFrameFromFile,
   loadImageFromFile,
+  sanitizeFrameName,
 } from "@/lib/editor-helpers";
 import { normalizeAtlasPayload } from "@/lib/atlas-format";
 import { getAtlasImageFormat } from "@/lib/texture-codecs";
@@ -102,7 +103,7 @@ const parseAtlasEntries = (parsed: unknown): AtlasEntry[] => {
         return null;
       }
       return {
-        name: entry.name || entry.filename || entry.id || "frame",
+        name: sanitizeFrameName(entry.name || entry.filename || entry.id || "frame"),
         x,
         y,
         w: width,
@@ -162,7 +163,7 @@ const sliceAtlasFrames = async (
       });
       return {
         id: createId(),
-        name: entry.name || `frame-${index + 1}`,
+        name: sanitizeFrameName(entry.name || `frame-${index + 1}`),
         image: img,
         width: entry.w,
         height: entry.h,
