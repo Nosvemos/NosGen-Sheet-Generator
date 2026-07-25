@@ -21,7 +21,7 @@ Common Options:
   --frames-zip               Also export <name>_frames.zip with source frames as PNG
   --pivot <top-left|bottom-left|center>  Pivot mode (default: top-left)
   --mode <uniform|tight|shelf|maxrects> Packing mode (default: shelf)
-  --json <pretty|minified|compact>  JSON output shape (default: pretty)
+  --json <pretty|raylib>      JSON output shape (default: pretty)
   -h, --help                 Show help
 `;
 

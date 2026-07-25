@@ -168,49 +168,93 @@ export const buildAtlasJsonPayload = ({
 
   // Raylib (NosGalaxy C/C++ Engine Preset) Format
   if (exportJsonMode === "raylib") {
-    const raylibFrames = frames.map((frame, index) => {
-      const rect = placements[index];
-      const w = Math.round(rect.w * scaleX);
-      const h = Math.round(rect.h * scaleY);
-      const pointsObj = includePoints
-        ? frame.points.reduce<Record<string, { x: number; y: number }>>((acc, point) => {
-            const pivotPoint = toPivotCoords(point, frame, pivotMode);
-            acc[point.name] = {
-              x: Math.round(pivotPoint.x * scaleX),
-              y: Math.round(pivotPoint.y * scaleY),
-            };
-            return acc;
-          }, {})
-        : undefined;
+    const isUniformSize =
+      frames.length > 0 &&
+      frames.every(
+        (f) => f.width === frames[0].width && f.height === frames[0].height
+      );
 
-      return {
-        name: frame.name,
-        rect: {
-          x: Math.round(rect.x * scaleX),
-          y: Math.round(rect.y * scaleY),
+    const raylibFramesList: Array<number[]> = [];
+    const raylibFrameNames: string[] = [];
+    const raylibPointsMap: Record<string, Array<[number, number]>> = {};
+
+    frames.forEach((frame, index) => {
+      const rect = placements[index];
+      const w = Math.max(1, Math.round(rect.w * scaleX));
+      const h = Math.max(1, Math.round(rect.h * scaleY));
+
+      raylibFrameNames.push(frame.name);
+      if (isUniformSize) {
+        raylibFramesList.push([
+          Math.round(rect.x * scaleX),
+          Math.round(rect.y * scaleY),
+        ]);
+      } else {
+        raylibFramesList.push([
+          Math.round(rect.x * scaleX),
+          Math.round(rect.y * scaleY),
           w,
           h,
-        },
-        pivot: { x: Math.round(w / 2), y: Math.round(h / 2) },
-        ...(pointsObj && Object.keys(pointsObj).length > 0 ? { points: pointsObj } : {}),
-      };
+        ]);
+      }
+
+      if (includePoints && frame.points.length > 0) {
+        frame.points.forEach((point) => {
+          const p = toPivotCoords(point, frame, pivotMode);
+          if (!raylibPointsMap[point.name]) {
+            raylibPointsMap[point.name] = [];
+          }
+          raylibPointsMap[point.name][index] = [
+            Math.round(p.x * scaleX),
+            Math.round(p.y * scaleY),
+          ];
+        });
+      }
     });
+
+    const frameNameToIndex = new Map<string, number>();
+    frames.forEach((frame, index) => frameNameToIndex.set(frame.name, index));
+
+    const animationsMap =
+      appMode === "animation" && selectedAnimationFrames.length > 0
+        ? {
+            [animationName.trim() || "default"]: {
+              fps,
+              speed,
+              loop,
+              frames: selectedAnimationFrames.map(
+                (frame) => frameNameToIndex.get(frame.name) ?? 0
+              ),
+            },
+          }
+        : undefined;
+
+    const hasPoints = Object.keys(raylibPointsMap).length > 0;
 
     return {
       meta: {
         app: "NosGalaxy",
         version: "1.0",
         image: getAtlasImageFilename(exportAtlasName, exportFormat),
-        size: { w: targetWidth, h: targetHeight },
+        ...(isUniformSize && frames[0]
+          ? {
+              frameSize: [
+                Math.round(frames[0].width * scaleX),
+                Math.round(frames[0].height * scaleY),
+              ],
+            }
+          : {}),
         padding: Math.round(layout.padding * scaleX),
         scale: exportSize,
         pivot: pivotMode,
         ...(appMode === "ship" ? { rotation } : {}),
         mode: appMode,
       },
-      ...(groups ? { groups } : {}),
-      ...(animation ? { animation } : {}),
-      frames: raylibFrames,
+      ...(appMode !== "ship" ? { frames: raylibFrameNames } : {}),
+      rects: raylibFramesList,
+      ...(animationsMap ? { animations: animationsMap } : {}),
+      ...(includePoints && hasPoints ? { points: raylibPointsMap } : {}),
+      ...(groups ? { point_groups: groups } : {}),
     };
   }
 

@@ -137,26 +137,20 @@ Formats frame bounding boxes into `rect`, pivots into `{x, y}`, and points into 
     "app": "NosGalaxy",
     "version": "1.0",
     "image": "player_ship_atlas.png",
-    "size": { "w": 512, "h": 512 },
+    "frameSize": [64, 64],
     "padding": 2,
     "scale": 1,
     "pivot": "center",
     "rotation": "clockwise",
     "mode": "ship"
   },
-  "groups": {
-    "weapons": [["hardpoint_l", "hardpoint_r"]]
+  "rects": [[0, 0], [356, 0]],
+  "points": {
+    "cockpit": [[0, -12], [0, -10]],
+    "thruster_main": [[0, 24], [0, 26]]
   },
-  "frames": [
-    {
-      "name": "ship_idle_01",
-      "rect": { "x": 0, "y": 0, "w": 64, "h": 64 },
-      "pivot": { "x": 32, "y": 32 },
-      "points": {
-        "cockpit": { "x": 0, "y": -12 },
-        "thruster_main": { "x": 0, "y": 24 }
-      }
-    }
+  "point_groups": {
+    "weapons": [["hardpoint_l", "hardpoint_r"]]
   }
 }
 ```

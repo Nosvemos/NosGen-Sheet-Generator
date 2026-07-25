@@ -45,31 +45,54 @@ export function StageMinimap({
     const offsetX = (canvas.width - drawW) / 2;
     const offsetY = (canvas.height - drawH) / 2;
 
-    // Draw background outline
-    ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+    // Draw background container
+    ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
     ctx.fillRect(offsetX, offsetY, drawW, drawH);
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
     ctx.strokeRect(offsetX, offsetY, drawW, drawH);
 
-    // Render mini image if available
+    // Render mini preview image(s)
     if (viewMode === "frame" && currentFrame?.image) {
       ctx.drawImage(currentFrame.image, offsetX, offsetY, drawW, drawH);
+    } else if (viewMode === "atlas" && frames.length > 0 && atlasLayout.positions.length > 0) {
+      frames.forEach((frame, idx) => {
+        const pos = atlasLayout.positions[idx];
+        if (pos && frame.image) {
+          ctx.drawImage(
+            frame.image,
+            offsetX + pos.x * scale,
+            offsetY + pos.y * scale,
+            pos.w * scale,
+            pos.h * scale
+          );
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+          ctx.strokeRect(
+            offsetX + pos.x * scale,
+            offsetY + pos.y * scale,
+            pos.w * scale,
+            pos.h * scale
+          );
+        }
+      });
     }
 
     // Calculate viewport indicator box
-    const viewportScale = scale / Math.max(0.2, frameZoom);
-    const boxW = Math.min(drawW, Math.max(16, (canvas.width * 0.75) * viewportScale));
-    const boxH = Math.min(drawH, Math.max(16, (canvas.height * 0.75) * viewportScale));
+    const viewFactor = 1 / Math.max(0.1, frameZoom);
+    const boxW = Math.max(12, Math.min(drawW, drawW * viewFactor));
+    const boxH = Math.max(12, Math.min(drawH, drawH * viewFactor));
 
-    const boxX = Math.max(offsetX, Math.min(offsetX + drawW - boxW, offsetX + drawW / 2 - (panOffset.x * scale) - boxW / 2));
-    const boxY = Math.max(offsetY, Math.min(offsetY + drawH - boxH, offsetY + drawH / 2 - (panOffset.y * scale) - boxH / 2));
+    const boxCenterX = offsetX + drawW / 2 - (panOffset.x / Math.max(0.1, frameZoom)) * scale;
+    const boxCenterY = offsetY + drawH / 2 - (panOffset.y / Math.max(0.1, frameZoom)) * scale;
 
-    ctx.fillStyle = "rgba(59, 130, 246, 0.25)";
+    const boxX = Math.max(offsetX, Math.min(offsetX + drawW - boxW, boxCenterX - boxW / 2));
+    const boxY = Math.max(offsetY, Math.min(offsetY + drawH - boxH, boxCenterY - boxH / 2));
+
+    ctx.fillStyle = "rgba(59, 130, 246, 0.3)";
     ctx.fillRect(boxX, boxY, boxW, boxH);
-    ctx.strokeStyle = "#3b82f6";
+    ctx.strokeStyle = "#60a5fa";
     ctx.lineWidth = 1.5;
     ctx.strokeRect(boxX, boxY, boxW, boxH);
-  }, [currentFrame, atlasLayout, viewMode, frameZoom, panOffset, width, height]);
+  }, [currentFrame, frames, atlasLayout, viewMode, frameZoom, panOffset, width, height]);
 
   const handleMinimapPan = (e: PointerEvent<HTMLCanvasElement>) => {
     const canvas = minimapCanvasRef.current;
@@ -78,9 +101,18 @@ export function StageMinimap({
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
 
+    const scale = Math.min((canvas.width - 8) / width, (canvas.height - 8) / height);
+    const drawW = width * scale;
+    const drawH = height * scale;
+    const offsetX = (canvas.width - drawW) / 2;
+    const offsetY = (canvas.height - drawH) / 2;
+
+    const targetX = (clickX - offsetX - drawW / 2) / scale;
+    const targetY = (clickY - offsetY - drawH / 2) / scale;
+
     setPanOffset({
-      x: (clickX - canvas.width / 2) * -1.2,
-      y: (clickY - canvas.height / 2) * -1.2,
+      x: -targetX * Math.max(0.1, frameZoom),
+      y: -targetY * Math.max(0.1, frameZoom),
     });
   };
 

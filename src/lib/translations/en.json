@@ -185,7 +185,7 @@
   "label.jsonMode": "JSON Output",
   "jsonMode.pretty": "Standard JSON (Pretty)",
   "jsonMode.raylib": "Raylib C/C++ Engine (NosGalaxy)",
-  "hint.jsonMode": "Standard JSON or optimized Raylib C/C++ structure.",
+  "hint.jsonMode": "Standard JSON or optimized Raylib C/C++ engine structure.",
   "warn.missingFramesTitle": "Missing frames",
   "warn.missingFramesBody": "No frames are loaded. Import image frames first.",
   "warn.sizeMismatchTitle": "Frame size mismatch",
