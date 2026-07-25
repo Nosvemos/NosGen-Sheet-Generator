@@ -28,5 +28,10 @@ tasks:
 
   run:
     summary: Runs the built Linux application
+    deps:
+      - task: build
+        vars:
+          DEV:
+            ref: .DEV
     cmds:
       - '{{.BIN_DIR}}/{{.APP_NAME}}'

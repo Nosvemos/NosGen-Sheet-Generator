@@ -19,7 +19,7 @@ tasks:
       - sh: npm version
         msg: "npm is required. Install Node.js from https://nodejs.org/."
     cmds:
-      - npm ci
+      - npm install
 
   update:build-assets:
     summary: Refreshes build metadata files for Wails v3 packaging
