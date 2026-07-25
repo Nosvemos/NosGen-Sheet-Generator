@@ -12,7 +12,7 @@ var assets embed.FS
 
 func main() {
 	app := application.New(application.Options{
-		Name:        "NosGalaxy",
+		Name:        "nosgalaxy-gen",
 		Description: "NosGalaxy Sprite Generator",
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

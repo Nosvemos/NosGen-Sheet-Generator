@@ -3,15 +3,15 @@
 <plist version="1.0">
 	<dict>
 		<key>CFBundleExecutable</key>
-		<string>nosgalaxy</string>
+		<string>nosgalaxy-gen</string>
 		<key>CFBundleGetInfoString</key>
 		<string>NosGalaxy Sprite Generator</string>
 		<key>CFBundleIconFile</key>
 		<string>icons</string>
 		<key>CFBundleIdentifier</key>
-		<string>io.github.nosvemos.nosgalaxy</string>
+		<string>io.github.nosvemos.nosgalaxy-gen</string>
 		<key>CFBundleName</key>
-		<string>NosGalaxy</string>
+		<string>NosGalaxy Gen</string>
 		<key>CFBundlePackageType</key>
 		<string>APPL</string>
 		<key>CFBundleShortVersionString</key>

@@ -1,10 +1,10 @@
 {
-  "name": "nosgalaxy",
+  "name": "nosgalaxy-gen",
   "private": true,
   "version": "0.1.9",
   "type": "module",
   "bin": {
-    "nosgalaxy": "./src/cli.ts",
+    "nosgalaxy-gen": "./src/cli.ts",
     "nosgen-sheet": "./src/cli.ts"
   },
   "scripts": {

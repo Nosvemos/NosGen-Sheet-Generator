@@ -7,7 +7,7 @@ includes:
   linux: ./build/linux/Taskfile.yml
 
 vars:
-  APP_NAME: "nosgalaxy"
+  APP_NAME: "nosgalaxy-gen"
   BIN_DIR: "build/bin"
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
 
@@ -25,6 +25,8 @@ tasks:
     summary: Runs the built desktop application for the current OS
     cmds:
       - task: '{{OS}}:run'
+        vars:
+          DEV: '{{.DEV}}'
 
   dev:
     summary: Runs the application in Wails dev mode

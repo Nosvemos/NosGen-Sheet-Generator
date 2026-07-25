@@ -140,20 +140,20 @@ jobs:
           - label: Windows x64
             os: windows-latest
             build_command: wails3 task windows:build ARCH=amd64
-            build_output: build/bin/nosgen.exe
-            artifact_name: nosgen-windows-amd64
+            build_output: build/bin/nosgalaxy-gen.exe
+            artifact_name: nosgalaxy-gen-windows-amd64
             archive_suffix: windows-amd64.zip
           - label: Linux x64
             os: ubuntu-24.04
             build_command: wails3 task linux:build ARCH=amd64 EXTRA_TAGS=webkit2_41
-            build_output: build/bin/nosgen
-            artifact_name: nosgen-linux-amd64
+            build_output: build/bin/nosgalaxy-gen
+            artifact_name: nosgalaxy-gen-linux-amd64
             archive_suffix: linux-amd64.tar.gz
           - label: macOS Universal
             os: macos-latest
             build_command: wails3 task darwin:package:universal
-            build_output: build/bin/nosgen.app
-            artifact_name: nosgen-macos-universal
+            build_output: build/bin/nosgalaxy-gen.app
+            artifact_name: nosgalaxy-gen-macos-universal
             archive_suffix: macos-universal.zip
 
     steps:
@@ -214,7 +214,7 @@ jobs:
           New-Item -ItemType Directory -Force release-assets | Out-Null
           $version = "${{ needs.meta.outputs.version }}"
           $suffix = "${{ matrix.archive_suffix }}"
-          Compress-Archive -Path "${{ matrix.build_output }}" -DestinationPath "release-assets/nosgen-v$version-$suffix" -Force
+          Compress-Archive -Path "${{ matrix.build_output }}" -DestinationPath "release-assets/nosgalaxy-gen-v$version-$suffix" -Force
           Compress-Archive -Path "dist-cli/*" -DestinationPath "release-assets/nosgen-cli-v$version-$suffix" -Force
 
       - name: Package Linux artifact
@@ -225,7 +225,7 @@ jobs:
           mkdir -p release-assets
           version="${{ needs.meta.outputs.version }}"
           suffix="${{ matrix.archive_suffix }}"
-          tar -C build/bin -czf "release-assets/nosgen-v$version-$suffix" "$(basename '${{ matrix.build_output }}')"
+          tar -C build/bin -czf "release-assets/nosgalaxy-gen-v$version-$suffix" "$(basename '${{ matrix.build_output }}')"
           tar -C dist-cli -czf "release-assets/nosgen-cli-v$version-$suffix" .
 
       - name: Package macOS artifact
@@ -236,7 +236,7 @@ jobs:
           mkdir -p release-assets
           version="${{ needs.meta.outputs.version }}"
           suffix="${{ matrix.archive_suffix }}"
-          ditto -c -k --sequesterRsrc --keepParent "${{ matrix.build_output }}" "release-assets/nosgen-v$version-$suffix"
+          ditto -c -k --sequesterRsrc --keepParent "${{ matrix.build_output }}" "release-assets/nosgalaxy-gen-v$version-$suffix"
           ditto -c -k --sequesterRsrc "dist-cli" "release-assets/nosgen-cli-v$version-$suffix"
 
       - uses: actions/upload-artifact@v4
@@ -269,7 +269,7 @@ jobs:
         run: |
           set -euo pipefail
           tag="${{ needs.meta.outputs.tag }}"
-          title="NosGen ${{ needs.meta.outputs.version }}"
+          title="NosGalaxy Gen ${{ needs.meta.outputs.version }}"
           target_ref="${{ needs.prepare-release.outputs.build_ref || needs.meta.outputs.build_ref }}"
 
           mapfile -t files < <(find release-assets -type f)
@@ -281,5 +281,5 @@ jobs:
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" "${files[@]}" --clobber
           else
-            gh release create "$tag" "${files[@]}" --target "$target_ref" --title "$title" --notes "Automated desktop build for NosGen ${{ needs.meta.outputs.version }}."
+            gh release create "$tag" "${files[@]}" --target "$target_ref" --title "$title" --notes "Automated desktop build for NosGalaxy Gen ${{ needs.meta.outputs.version }}."
           fi
