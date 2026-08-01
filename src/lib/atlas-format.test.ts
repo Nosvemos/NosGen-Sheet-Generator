@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  expandCompactPayload,
-  isCompactPayload,
   normalizeAtlasPayload,
   serializeAtlasPayload,
-  toCompactPayload,
   type AtlasPayload,
 } from "./atlas-format";
 
@@ -54,39 +51,24 @@ const normalPayload: AtlasPayload = {
   ],
 };
 
-describe("atlas-format compact codec", () => {
-  it("round-trips a character payload (points + groups)", () => {
-    const compact = toCompactPayload(characterPayload);
-    expect(compact.meta.format).toBe("compact");
-    expect(compact.points).toEqual(["head", "hand"]);
-    expect(compact.groups).toEqual({ body: [[0, 1], [0, 1]] });
-
-    const expanded = expandCompactPayload(compact);
-    expect(expanded.frames).toEqual(characterPayload.frames);
-    expect(expanded.groups).toEqual(characterPayload.groups);
-  });
-
-  it("round-trips a normal payload without a points table", () => {
-    const compact = toCompactPayload(normalPayload);
-    expect(compact.points).toBeUndefined();
-    expect(compact.frames[0]).toEqual(["a", 0, 0, 16, 16]);
-    expect(expandCompactPayload(compact).frames).toEqual(normalPayload.frames);
-  });
-
-  it("detects compact payloads structurally and by marker", () => {
-    expect(isCompactPayload(toCompactPayload(normalPayload))).toBe(true);
-    expect(isCompactPayload(normalPayload)).toBe(false);
-  });
-
+describe("atlas-format codecs (pretty & raylib)", () => {
   it("normalize is idempotent on verbose payloads", () => {
     expect(normalizeAtlasPayload(normalPayload)).toBe(normalPayload);
-    const fromCompact = normalizeAtlasPayload(toCompactPayload(characterPayload));
-    expect((fromCompact as AtlasPayload).frames).toEqual(characterPayload.frames);
+    expect(normalizeAtlasPayload(characterPayload)).toBe(characterPayload);
   });
 
   it("serializes pretty mode and parses back to the same data", () => {
     const pretty = serializeAtlasPayload(characterPayload, "pretty");
     const parsed = normalizeAtlasPayload(JSON.parse(pretty));
     expect((parsed as AtlasPayload).frames).toEqual(characterPayload.frames);
+  });
+
+  it("serializes raylib mode with collapsed arrays", () => {
+    const raylibData = {
+      meta: { app: "NosGalaxy", version: "1.0" },
+      rects: [[0, 0], [356, 0]],
+    };
+    const serialized = serializeAtlasPayload(raylibData, "raylib");
+    expect(serialized).toContain('"rects": [[0, 0], [356, 0]]');
   });
 });

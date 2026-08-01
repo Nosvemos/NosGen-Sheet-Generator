@@ -11,7 +11,7 @@
 
 *Import PNG frame sequences, rig and interpolate keyframe points, build attachment groups, and export production-ready PNG sprite sheets with native Raylib & JSON metadata.*
 
-[Quick Start](#-quick-start) • [Core Capabilities](#-core-capabilities) • [Desktop Application](#-desktop-application-wails-v3) • [CLI & Pipeline Automation](#-cli--pipeline-automation) • [JSON Metadata Schemas](#-json-metadata-schemas)
+[Quick Start](#-quick-start) • [Core Capabilities](#-core-capabilities) • [Desktop Application](#-desktop-application-wails-v3) • [CLI & Pipeline Automation](#-cli--pipeline-automation) • [JSON Metadata Schemas](#-json-metadata-schemas) • [Project Structure](#-project-structure)
 
 </div>
 
@@ -23,12 +23,14 @@
 | :--- | :--- |
 | **Ship Mode (Keyframe Rigging)** | Rig attachment points (e.g. `turret`, `thruster_l`) with keyframe animation, point grouping, and rotation tracking (`clockwise` / `counterclockwise`). |
 | **Animation Mode** | Dedicated animation pipeline with timeline playback controls, custom FPS, speed modifiers, loop flags, and wildcard frame filtering. |
+| **Normal Mode** | High-speed, standalone PNG sprite sheet packing without keyframes or metadata overlays. |
 | **Auto-Fill Curve Fitting** | Interpolate point motion across keyframes using **Linear**, **Tangent (Catmull-Rom)**, **Circle**, **Ellipse**, and **Square** mathematical models. |
 | **MaxRects & Shelf Packing** | High-efficiency 2D packing algorithms (**MaxRects**, **Shelf**, **Tight**, **Uniform**) to minimize atlas whitespace. |
-| **Raylib Export Support** | Native JSON payload formatting built specifically for **Raylib** and custom C/C++ game engine loaders alongside standard `pretty` JSON. |
-| **Stage Minimap & Controls** | Interactive canvas minimap, pixel grid toggle, origin crosshairs, and smooth pan/zoom controls. |
+| **Raylib & Engine Metadata** | Native JSON payload formatting built specifically for **Raylib** and custom C/C++ game engine loaders alongside standard `pretty` JSON. |
+
+| **Stage Minimap & Controls** | Interactive canvas minimap, pixel grid toggle, magnet snapping, origin crosshairs, and smooth pan/zoom controls. |
 | **CLI & AI Agent Automation** | Fully non-interactive headless CLI (`nosgen-cli`) and prebuilt standalone executables for CI/CD and AI agent pipelines. |
-| **Desktop Native (Wails v3)** | High-performance, low-footprint desktop application powered by Go 1.26 + Wails v3. |
+| **Desktop Native (Wails v3)** | High-performance, low-footprint desktop application powered by Go + Wails v3. |
 
 ---
 
@@ -46,11 +48,26 @@ npm run dev
 
 Open `http://localhost:5173` in your browser to launch the web editor.
 
+### Available Scripts
+
+| Script | Command / Action |
+| :--- | :--- |
+| `npm run dev` | Launch Vite local dev server with hot reload |
+| `npm run build` | Typecheck (`tsc -b`) and build web distribution bundle |
+| `npm run test` | Run Vitest unit test suite |
+| `npm run test:watch` | Run Vitest in interactive watch mode |
+| `npm run lint` | Run ESLint across project source code |
+| `npm run cli` | Execute headless CLI via `tsx` |
+| `npm run cli:exe` | Compile standalone single-executable CLI binary into `dist-cli/` |
+| `npm run wails:dev` | Launch Wails v3 desktop application in live-reload dev mode |
+| `npm run wails:build` | Build production Wails desktop app for current OS |
+| `npm run wails:generate` | Regenerate TypeScript bindings from Go service methods |
+
 ---
 
 ## 🖥️ Desktop Application (Wails v3)
 
-NosGalaxy Gen runs natively as a desktop application powered by **Wails v3**.
+NosGalaxy Gen runs natively as a desktop application powered by **Wails v3** (Go backend + React frontend).
 
 ```bash
 # Launch desktop app in live-reload dev mode
@@ -113,12 +130,16 @@ nosgen-cli.exe pack -i ./frames -o ./dist -n hero --mode maxrects --json raylib
 | `-o, --output <dir>` | Target output directory | `./output` |
 | `-n, --name <name>` | Base filename for output atlas and JSON | `sprite` |
 | `-c, --config <path>` | Path to job JSON configuration file | — |
-| `--mode <maxrects\|shelf\|tight\|uniform>` | Texture packing algorithm | `shelf` |
-| `--json <pretty\|raylib>` | JSON output schema shape | `pretty` |
-| `--pivot <top-left\|bottom-left\|center>` | Pivot coordinate origin system | `top-left` |
-| `--rotation <clockwise\|counterclockwise>` | Rotation orientation direction | `clockwise` |
+| `-a, --atlas <path>` | Path to existing atlas PNG (required for `import`) | — |
+| `-d, --data <path>` | Path to existing data JSON (required for `import`) | — |
+| `--mode <shelf\|maxrects\|tight\|uniform>` | Texture packing algorithm (or `<normal\|ship\|animation>` for `init-config`) | `shelf` |
+| `--rows <number>` | Number of grid rows for packing | `auto` |
+| `--padding <number>` | Pixel padding between frames | `2` |
 | `--scale <number>` | Downscaling or upscaling multiplier | `1` |
 | `--smoothing` | Apply Lanczos3 resampling during scaling | `false` |
+| `--pivot <top-left\|bottom-left\|center>` | Pivot coordinate origin system | `top-left` |
+| `--rotation <clockwise\|counterclockwise>` | Rotation orientation direction | `clockwise` |
+| `--json <pretty\|raylib>` | JSON output schema shape | `pretty` |
 | `--bundle` | Export `<name>_bundle.zip` archive | `false` |
 | `--frames-zip` | Export `<name>_frames.zip` with source frames | `false` |
 
@@ -126,10 +147,10 @@ nosgen-cli.exe pack -i ./frames -o ./dist -n hero --mode maxrects --json raylib
 
 ## 📊 JSON Metadata Schemas
 
-NosGalaxy Gen offers two JSON output formats tailored for different game engines.
+NosGalaxy Gen offers multiple JSON output formats tailored for different game engines and storage efficiency.
 
 ### 1. `raylib` Schema (Optimized for Raylib / Game Engines)
-Formats frame bounding boxes into `rect`, pivots into `{x, y}`, and points into structured key-value maps:
+Formats frame bounding boxes into `rects`, pivots into `{x, y}`, and points into structured key-value maps:
 
 ```json
 {
@@ -183,21 +204,18 @@ Standard formatted JSON payload:
   ]
 }
 ```
+│       ├── atlas-format.ts  # Raylib & Pretty JSON schema codecs
 
----
-
-## 📐 Packing Algorithms
-
-- **`maxrects`**: Advanced 2D bin packing algorithm using maximal rectangles heuristic. Maximizes space efficiency for irregular sprite sets.
-- **`shelf`** (Recommended): Height-sorted shelf packing. Automatically builds shelves to minimize wasted vertical space.
-- **`tight`**: Grid packing where each row and column scales to its largest item.
-- **`uniform`**: Fixed cell dimensions based on maximum frame bounds.
+│       ├── sprite-math.ts   # Curve fitting (Linear, Tangent, Circle, Ellipse, Square)
+│       ├── editor-reducer.ts# Undo/Redo state reducer & differential patching
+│       └── texture-codecs.ts# Canvas encoding & texture helpers
+```
 
 ---
 
 ## 🧪 Testing & Verification
 
-Comprehensive test suites (powered by Vitest) cover layout math, curve fitting, packing algorithms, and CLI argument parsing:
+Comprehensive test suites (powered by Vitest) cover layout math, curve fitting, packing algorithms, JSON formats, and CLI argument parsing:
 
 ```bash
 # Run unit tests
