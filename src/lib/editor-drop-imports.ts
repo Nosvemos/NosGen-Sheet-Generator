@@ -10,19 +10,31 @@ const isJsonFile = (file: File) =>
 const looksLikeAtlasDataFile = async (file: File) => {
   try {
     const parsed = JSON.parse(await file.text()) as {
-      frames?: Array<{ x?: unknown; y?: unknown; w?: unknown; h?: unknown }>;
+      frames?: Array<unknown>;
+      rects?: Array<unknown>;
     };
+    if (Array.isArray(parsed.rects) && parsed.rects.length > 0) {
+      return true;
+    }
     return (
       Array.isArray(parsed.frames) &&
       parsed.frames.some(
         (frame) =>
-          Number.isFinite(Number(frame?.x)) &&
-          Number.isFinite(Number(frame?.y)) &&
+          typeof frame === "object" &&
+          frame !== null &&
+          Number.isFinite(Number((frame as { x?: unknown }).x)) &&
+          Number.isFinite(Number((frame as { y?: unknown }).y)) &&
           Number.isFinite(
-            Number(frame?.w ?? (frame as { width?: unknown }).width)
+            Number(
+              (frame as { w?: unknown; width?: unknown }).w ??
+                (frame as { w?: unknown; width?: unknown }).width
+            )
           ) &&
           Number.isFinite(
-            Number(frame?.h ?? (frame as { height?: unknown }).height)
+            Number(
+              (frame as { h?: unknown; height?: unknown }).h ??
+                (frame as { h?: unknown; height?: unknown }).height
+            )
           )
       )
     );

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildAtlasJsonPayload } from "./editor-export-builders";
 import type { FrameData } from "./editor-types";
+import { buildGroupsFromJson, importPointsJsonToFrames } from "./editor-imports";
 
 const mockFrames: FrameData[] = [
   {
@@ -60,5 +61,40 @@ describe("buildAtlasJsonPayload Raylib export", () => {
     expect(payload.rects).toEqual([[2, 2], [2, 68]]);
     expect(payload.points.cockpit).toBeDefined();
     expect(payload.point_groups.weapons).toBeDefined();
+  });
+
+  it("successfully imports points and groups from a Raylib JSON schema", () => {
+    const raylibPayload = {
+      meta: {
+        app: "NosGalaxy",
+        version: "1.0",
+        frameSize: [64, 64],
+        pivot: "center",
+        mode: "ship",
+      },
+      rects: [[2, 2], [2, 68]],
+      points: {
+        cockpit: [[0, -12], [0, -10]],
+        thruster: [[0, 20], [0, 22]],
+      },
+      point_groups: {
+        main: [["cockpit", "thruster"]],
+      },
+    };
+
+    const dummyFrames: FrameData[] = [
+      { id: "f1", name: "ship_idle_01", width: 64, height: 64, image: {} as HTMLImageElement, points: [] },
+      { id: "f2", name: "ship_idle_02", width: 64, height: 64, image: {} as HTMLImageElement, points: [] },
+    ];
+
+    const imported = importPointsJsonToFrames(raylibPayload, dummyFrames, (key) => key);
+    expect(imported.frames[0].points.length).toBe(2);
+    expect(imported.frames[0].points[0].name).toBe("cockpit");
+    expect(imported.frames[0].points[1].name).toBe("thruster");
+
+    const groups = buildGroupsFromJson(raylibPayload, imported.frames);
+    expect(groups.length).toBe(1);
+    expect(groups[0].name).toBe("main");
+    expect(groups[0].entries[0]).toEqual([imported.frames[0].points[0].id, imported.frames[0].points[1].id]);
   });
 });

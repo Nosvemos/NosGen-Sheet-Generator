@@ -32,6 +32,7 @@ export const importPointsJsonToFrames = (
     meta?: Record<string, unknown>;
     scale?: number;
     frames?: unknown;
+    points?: unknown;
   };
   const pivotRaw = payload.meta?.pivot ?? payload.meta?.pivotMode;
   const pivotMode =
@@ -83,7 +84,8 @@ export const importPointsJsonToFrames = (
     };
   };
 
-  const framesPayload = Array.isArray(payload.frames)
+  // 1. Standard Schema where payload.frames is an array of objects with points property
+  const framesPayload = Array.isArray(payload.frames) && typeof payload.frames[0] === "object"
     ? (payload.frames as Array<{
         name?: string;
         filename?: string;
@@ -91,6 +93,7 @@ export const importPointsJsonToFrames = (
         points?: unknown;
       }>)
     : null;
+
   if (framesPayload) {
     const nextFrames = baseFrames.map((frame) => {
       const match = framesPayload.find(
@@ -145,12 +148,22 @@ export const importPointsJsonToFrames = (
     return { frames: nextFrames, rotation, spriteDirection, pivotMode, exportSize };
   }
 
-  const entries = Object.entries(payload).filter(
-    ([key, value]) => key !== "meta" && Array.isArray(value)
-  );
+  // 2. Raylib Schema or Root Object Map where payload.points is an object: { [pointName]: [[x, y], ...] }
+  const pointsObj =
+    payload.points && typeof payload.points === "object" && !Array.isArray(payload.points)
+      ? (payload.points as Record<string, unknown>)
+      : null;
+
+  const entries = pointsObj
+    ? Object.entries(pointsObj).filter(([, val]) => Array.isArray(val))
+    : Object.entries(payload).filter(
+        ([key, value]) => key !== "meta" && Array.isArray(value)
+      );
+
   if (entries.length === 0) {
     return { frames: baseFrames, rotation, spriteDirection, pivotMode, exportSize };
   }
+
   const nextFrames = baseFrames.map((frame, frameIndex) => {
     const nextPoints = entries.map(([rawName, rawPoints], index) => {
       const name =
@@ -199,15 +212,19 @@ export const buildGroupsFromJson = (parsed: unknown, baseFrames: FrameData[]) =>
   if (!parsed || typeof parsed !== "object") {
     return [];
   }
-  const payload = parsed as { groups?: Record<string, unknown> };
-  if (!payload.groups || typeof payload.groups !== "object") {
+  const payload = parsed as {
+    groups?: Record<string, unknown>;
+    point_groups?: Record<string, unknown>;
+  };
+  const rawGroups = payload.point_groups ?? payload.groups;
+  if (!rawGroups || typeof rawGroups !== "object") {
     return [];
   }
   const nameToId = new Map<string, string>();
   baseFrames[0]?.points.forEach((point) => {
     nameToId.set(point.name, point.id);
   });
-  return Object.entries(payload.groups).map(([name, rawEntries]) => {
+  return Object.entries(rawGroups).map(([name, rawEntries]) => {
     const entries = Array.isArray(rawEntries) ? rawEntries : [];
     const mappedEntries = entries.map((entry) => {
       if (!Array.isArray(entry)) {

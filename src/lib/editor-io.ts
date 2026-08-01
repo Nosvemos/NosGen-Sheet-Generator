@@ -72,47 +72,99 @@ const parseAtlasEntries = (parsed: unknown): AtlasEntry[] => {
     return [];
   }
   const payload = parsed as {
-    frames?: Array<{
-      name?: string;
-      filename?: string;
-      id?: string;
-      w?: number;
-      h?: number;
-      width?: number;
-      height?: number;
-      x?: number;
-      y?: number;
-    }>;
+    meta?: Record<string, unknown>;
+    rects?: Array<number[]>;
+    frames?: Array<
+      | string
+      | {
+          name?: string;
+          filename?: string;
+          id?: string;
+          w?: number;
+          h?: number;
+          width?: number;
+          height?: number;
+          x?: number;
+          y?: number;
+        }
+    >;
   };
-  if (!Array.isArray(payload.frames)) {
-    return [];
+
+  const meta = payload.meta ?? {};
+
+  // Raylib Schema Support: rects array contains bounding boxes
+  if (Array.isArray(payload.rects) && payload.rects.length > 0) {
+    const frameNames = Array.isArray(payload.frames)
+      ? payload.frames.map((f, i) =>
+          typeof f === "string" ? f : f?.name || f?.filename || f?.id || `frame-${i + 1}`
+        )
+      : [];
+
+    let defaultWidth = 0;
+    let defaultHeight = 0;
+    if (Array.isArray(meta.frameSize) && meta.frameSize.length >= 2) {
+      defaultWidth = Number(meta.frameSize[0]) || 0;
+      defaultHeight = Number(meta.frameSize[1]) || 0;
+    }
+
+    return payload.rects
+      .map((rect, index) => {
+        if (!Array.isArray(rect) || rect.length < 2) return null;
+        const x = Number(rect[0]);
+        const y = Number(rect[1]);
+        const w = rect.length >= 4 ? Number(rect[2]) : defaultWidth;
+        const h = rect.length >= 4 ? Number(rect[3]) : defaultHeight;
+        if (
+          !Number.isFinite(x) ||
+          !Number.isFinite(y) ||
+          !Number.isFinite(w) ||
+          !Number.isFinite(h)
+        ) {
+          return null;
+        }
+        if (w <= 0 || h <= 0 || x < 0 || y < 0) {
+          return null;
+        }
+        const name = sanitizeFrameName(frameNames[index] || `frame-${index + 1}`);
+        return { name, x, y, w, h };
+      })
+      .filter(Boolean) as AtlasEntry[];
   }
-  return payload.frames
-    .map((entry) => {
-      const width = Number(entry.w ?? entry.width ?? 0);
-      const height = Number(entry.h ?? entry.height ?? 0);
-      const x = Number(entry.x ?? 0);
-      const y = Number(entry.y ?? 0);
-      if (
-        !Number.isFinite(width) ||
-        !Number.isFinite(height) ||
-        !Number.isFinite(x) ||
-        !Number.isFinite(y)
-      ) {
-        return null;
-      }
-      if (width <= 0 || height <= 0 || x < 0 || y < 0) {
-        return null;
-      }
-      return {
-        name: sanitizeFrameName(entry.name || entry.filename || entry.id || "frame"),
-        x,
-        y,
-        w: width,
-        h: height,
-      };
-    })
-    .filter(Boolean) as AtlasEntry[];
+
+  // Standard Verbose Schema: frames array contains objects
+  if (Array.isArray(payload.frames)) {
+    return payload.frames
+      .map((entry, index) => {
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+        const width = Number(entry.w ?? entry.width ?? 0);
+        const height = Number(entry.h ?? entry.height ?? 0);
+        const x = Number(entry.x ?? 0);
+        const y = Number(entry.y ?? 0);
+        if (
+          !Number.isFinite(width) ||
+          !Number.isFinite(height) ||
+          !Number.isFinite(x) ||
+          !Number.isFinite(y)
+        ) {
+          return null;
+        }
+        if (width <= 0 || height <= 0 || x < 0 || y < 0) {
+          return null;
+        }
+        return {
+          name: sanitizeFrameName(
+            entry.name || entry.filename || entry.id || `frame-${index + 1}`
+          ),
+          x,
+          y,
+          w: width,
+          h: height,
+        };
+      })
+      .filter(Boolean) as AtlasEntry[];
+  }
+
+  return [];
 };
 
 const validateAtlasEntries = (
@@ -289,29 +341,36 @@ export const importAtlasFromFiles = async ({
     projectName = trimmed || undefined;
   }
 
-  const animationPayload = parsed?.animation ?? {};
+  const animationPayload =
+    parsed?.animation ??
+    (parsed?.animations && typeof parsed.animations === "object"
+      ? Object.entries(parsed.animations as Record<string, Record<string, unknown>>).map(
+          ([name, data]) => ({ name, ...data })
+        )[0]
+      : {});
+
   const animation: AtlasImportResult["animation"] = {};
-  if (typeof animationPayload.name === "string") {
+  if (typeof animationPayload?.name === "string") {
     animation.name = animationPayload.name;
   }
-  const fpsRaw = Number(animationPayload.fps);
+  const fpsRaw = Number(animationPayload?.fps);
   if (Number.isFinite(fpsRaw)) {
     animation.fps = Math.max(1, Math.round(fpsRaw));
   }
-  const speedRaw = Number(animationPayload.speed);
+  const speedRaw = Number(animationPayload?.speed);
   if (Number.isFinite(speedRaw)) {
     animation.speed = speedRaw;
   }
-  if (typeof animationPayload.loop === "boolean") {
+  if (typeof animationPayload?.loop === "boolean") {
     animation.loop = animationPayload.loop;
   }
-  if (Array.isArray(animationPayload.frames)) {
-    const selection = new Set(
-      animationPayload.frames.filter((name: unknown) => typeof name === "string")
-    );
+  if (Array.isArray(animationPayload?.frames)) {
+    const selection = animationPayload.frames;
     const frameSelection: Record<string, boolean> = {};
-    nextFrames.forEach((frame) => {
-      frameSelection[frame.id] = selection.has(frame.name);
+    nextFrames.forEach((frame, idx) => {
+      frameSelection[frame.id] = selection.some(
+        (sel: unknown) => sel === frame.name || sel === idx
+      );
     });
     animation.frameSelection = frameSelection;
   }
@@ -331,4 +390,3 @@ export const importAtlasFromFiles = async ({
     exportFormat,
   };
 };
-
