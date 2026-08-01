@@ -9,7 +9,7 @@ const mockFrames: FrameData[] = [
     width: 64,
     height: 64,
     image: {} as HTMLImageElement,
-    points: [{ id: "p1", name: "cockpit", x: 32, y: 20 }],
+    points: [{ id: "p1", name: "cockpit", x: 32, y: 20, color: "#60a5fa" }],
   },
   {
     id: "f2",
@@ -17,7 +17,7 @@ const mockFrames: FrameData[] = [
     width: 64,
     height: 64,
     image: {} as HTMLImageElement,
-    points: [{ id: "p1", name: "cockpit", x: 32, y: 22 }],
+    points: [{ id: "p1", name: "cockpit", x: 32, y: 22, color: "#60a5fa" }],
   },
 ];
 
@@ -32,7 +32,7 @@ describe("buildAtlasJsonPayload Raylib export", () => {
       pivotMode: "center",
       rotation: "clockwise",
       appMode: "ship",
-      pointGroups: [{ id: "g1", name: "weapons", pointIds: ["p1"], entries: [["p1"]] }],
+      pointGroups: [{ id: "g1", name: "weapons", entries: [["p1"]] }],
       animationName: "idle",
       fps: 12,
       speed: 1,
@@ -47,7 +47,13 @@ describe("buildAtlasJsonPayload Raylib export", () => {
     });
 
     expect(result).toBeDefined();
-    const payload = result as any;
+    const payload = result as {
+      meta: { app: string; mode: string };
+      frames?: unknown;
+      rects: unknown;
+      points: Record<string, unknown>;
+      point_groups: Record<string, unknown>;
+    };
     expect(payload.meta.app).toBe("NosGalaxy");
     expect(payload.meta.mode).toBe("ship");
     expect(payload.frames).toBeUndefined();

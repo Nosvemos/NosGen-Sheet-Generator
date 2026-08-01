@@ -17,6 +17,7 @@ type StageMinimapProps = {
 
 export function StageMinimap({
   currentFrame,
+  frames,
   atlasLayout,
   viewMode,
   frameZoom,

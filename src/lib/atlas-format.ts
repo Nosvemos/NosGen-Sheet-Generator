@@ -216,8 +216,8 @@ export const formatRaylibJson = (payload: unknown): string => {
   let json = JSON.stringify(payload, null, 2);
 
   // Collapse 1D number arrays: [\n 0,\n 0\n] -> [0, 0]
-  json = json.replace(/\[\s*([\d\s\.,\-]+?)\s*\]/g, (match, p1) => {
-    if (/^[\d\s\.,\-]+$/.test(p1) && !p1.includes("[")) {
+  json = json.replace(/\[\s*([\d\s.,-]+?)\s*\]/g, (match: string, p1: string) => {
+    if (/^[\d\s.,-]+$/.test(p1) && !p1.includes("[")) {
       const items = p1
         .trim()
         .split(/\s*,\s*/)
@@ -230,8 +230,8 @@ export const formatRaylibJson = (payload: unknown): string => {
 
   // Collapse 2D number tuple arrays: [\n [0, 0],\n [356, 0]\n] -> [[0, 0], [356, 0]]
   json = json.replace(
-    /\[\s*(\[\s*[\d\s\.,\-]+\s*\](?:\s*,\s*\[\s*[\d\s\.,\-]+\s*\])*)\s*\]/g,
-    (match, p1) => {
+    /\[\s*(\[\s*[\d\s.,-]+\s*\](?:\s*,\s*\[\s*[\d\s.,-]+\s*\])*)\s*\]/g,
+    (_match: string, p1: string) => {
       const tuples = p1.split(/\s*,\s*(?=\[)/).map((s) => s.trim());
       return `[${tuples.join(", ")}]`;
     }
