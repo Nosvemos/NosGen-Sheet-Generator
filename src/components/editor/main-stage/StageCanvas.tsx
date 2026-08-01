@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Dispatch, DragEvent, PointerEvent, RefObject, SetStateAction, WheelEvent } from "react";
+import { Events } from "@wailsio/runtime";
 import { cn } from "@/lib/utils";
 import type { TranslationKey } from "@/lib/i18n";
 import type { AtlasLayout, EditorMode, FrameData, ViewMode } from "@/lib/editor-types";
@@ -33,6 +34,51 @@ type StageCanvasProps = {
   setPanOffset?: Dispatch<SetStateAction<{ x: number; y: number }>>;
 };
 
+type NativeDroppedFile = {
+  name?: unknown;
+  type?: unknown;
+  data?: unknown;
+};
+
+type NativeDropEvent = {
+  data?: {
+    files?: unknown;
+  };
+};
+
+const decodeNativeFile = (file: NativeDroppedFile) => {
+  if (
+    typeof file.name !== "string" ||
+    typeof file.data !== "string" ||
+    file.name.length === 0
+  ) {
+    return null;
+  }
+  try {
+    const binary = atob(file.data);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    return new File([bytes], file.name, {
+      type: typeof file.type === "string" ? file.type : "",
+    });
+  } catch {
+    return null;
+  }
+};
+
+const getDroppedFiles = (event: DragEvent<HTMLDivElement>) => {
+  const files = Array.from(event.dataTransfer.files);
+  if (files.length > 0) {
+    return files;
+  }
+  return Array.from(event.dataTransfer.items ?? [])
+    .filter((item) => item.kind === "file")
+    .map((item) => item.getAsFile())
+    .filter((file): file is File => file !== null);
+};
+
 export function StageCanvas({
   t,
   stageRef,
@@ -55,12 +101,43 @@ export function StageCanvas({
   setPanOffset,
 }: StageCanvasProps) {
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
+  const lastDomDropRef = useRef<{ at: number; names: string[] } | null>(null);
   const hasFiles = (event: DragEvent<HTMLDivElement>) =>
     Array.from(event.dataTransfer.types).includes("Files");
+
+  useEffect(() => {
+    const unsubscribe = Events.On("files-dropped", (event) => {
+      const payload = (event as NativeDropEvent).data;
+      if (!payload || !Array.isArray(payload.files)) {
+        return;
+      }
+      const files = payload.files
+        .map((file) =>
+          file && typeof file === "object"
+            ? decodeNativeFile(file as NativeDroppedFile)
+            : null
+        )
+        .filter((file): file is File => file !== null);
+      if (files.length > 0) {
+        const recentDomDrop = lastDomDropRef.current;
+        const sameFiles =
+          recentDomDrop &&
+          Date.now() - recentDomDrop.at < 1000 &&
+          recentDomDrop.names.length === files.length &&
+          recentDomDrop.names.every((name, index) => name === files[index].name);
+        if (sameFiles) {
+          return;
+        }
+        void handleDroppedFiles(files);
+      }
+    });
+    return unsubscribe;
+  }, [handleDroppedFiles]);
 
   return (
     <div
       ref={stageRef}
+      data-wails-dropzone
       className={cn(
         "relative mt-4 flex-1 min-h-0 max-h-[58vh] overflow-hidden rounded-2xl border border-border/60 bg-background/70 transition-colors",
         isDraggingFiles && "border-accent/70 bg-accent/10"
@@ -91,8 +168,13 @@ export function StageCanvas({
         }
         event.preventDefault();
         setIsDraggingFiles(false);
-        if (event.dataTransfer.files.length > 0) {
-          void handleDroppedFiles(event.dataTransfer.files);
+        const files = getDroppedFiles(event);
+        if (files.length > 0) {
+          lastDomDropRef.current = {
+            at: Date.now(),
+            names: files.map((file) => file.name),
+          };
+          void handleDroppedFiles(files);
         }
       }}
     >
