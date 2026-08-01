@@ -7,7 +7,7 @@ info:
   description: "NosGalaxy Sprite Generator"
   copyright: "(c) 2026 Nosvemos"
   comments: "NosGalaxy Sprite Generator"
-  version: "0.2.0"
+  version: "0.2.1"
 
 dev_mode:
   root_path: .
