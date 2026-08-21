@@ -87,8 +87,10 @@ export function SelectedPointCard({
       <div className="flex items-center justify-between">
         <Label>{t("label.selectedPoint")}</Label>
         <Button
+          type="button"
           variant="ghost"
           size="icon"
+          aria-label={t("action.delete")}
           onClick={() => {
             updateAllFramesPoints((points) =>
               points.filter((point) => point.id !== selectedPoint.id)

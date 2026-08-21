@@ -29,6 +29,7 @@ export const useAtlasIO = ({
   setPivotMode,
   setRows,
   setPadding,
+  setAtlasPackingMode,
   setAppMode,
   setAnimationName,
   setFps,
@@ -37,6 +38,7 @@ export const useAtlasIO = ({
   setProjectName,
   setExportSize,
   setExportFormat,
+  setExportJsonMode,
   setAnimationFrameSelection,
 }: UseAtlasIOParams): UseAtlasIOResult => {
   const { pushToast } = useToast();
@@ -230,6 +232,9 @@ export const useAtlasIO = ({
       if (typeof imported.padding === "number") {
         setPadding(imported.padding);
       }
+      if (imported.packingMode && setAtlasPackingMode) {
+        setAtlasPackingMode(imported.packingMode);
+      }
       if (imported.appMode) {
         setAppMode(imported.appMode);
       }
@@ -254,6 +259,9 @@ export const useAtlasIO = ({
       if (imported.exportFormat) {
         setExportFormat(imported.exportFormat);
       }
+      if (imported.exportJsonMode && setExportJsonMode) {
+        setExportJsonMode(imported.exportJsonMode);
+      }
       setPointGroups(imported.pointGroups);
       setSelectedGroupId(imported.pointGroups[0]?.id ?? null);
       if (imported.animation?.frameSelection) {
@@ -268,11 +276,13 @@ export const useAtlasIO = ({
       setAnimationName,
       setAppMode,
       setExportFormat,
+      setExportJsonMode,
       setExportSize,
       setFps,
       setFrames,
       setLoop,
       setPadding,
+      setAtlasPackingMode,
       setPivotMode,
       setPointGroups,
       setProjectName,
@@ -289,31 +299,28 @@ export const useAtlasIO = ({
     if (!editAtlasPngFile || !editAtlasJsonFile) {
       return;
     }
-    let cancelled = false;
+    const png = editAtlasPngFile;
+    const json = editAtlasJsonFile;
+    setEditAtlasPngFile(null);
+    setEditAtlasJsonFile(null);
+
     const run = async () => {
       setIsEditImporting(true);
       try {
-        await handleEditAtlasImport(editAtlasPngFile, editAtlasJsonFile);
+        await handleEditAtlasImport(png, json);
       } catch (error) {
         notifyError(error);
       } finally {
-        if (!cancelled) {
-          setIsEditImporting(false);
-          setEditAtlasPngFile(null);
-          setEditAtlasJsonFile(null);
-          if (editAtlasPngInputRef.current) {
-            editAtlasPngInputRef.current.value = "";
-          }
-          if (editAtlasJsonInputRef.current) {
-            editAtlasJsonInputRef.current.value = "";
-          }
+        setIsEditImporting(false);
+        if (editAtlasPngInputRef.current) {
+          editAtlasPngInputRef.current.value = "";
+        }
+        if (editAtlasJsonInputRef.current) {
+          editAtlasJsonInputRef.current.value = "";
         }
       }
     };
-    run();
-    return () => {
-      cancelled = true;
-    };
+    void run();
   }, [editAtlasPngFile, editAtlasJsonFile, handleEditAtlasImport, notifyError]);
 
   const handleDroppedFiles = useCallback(

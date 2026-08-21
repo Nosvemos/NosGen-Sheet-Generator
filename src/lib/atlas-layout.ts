@@ -76,6 +76,8 @@ export const computeTightAtlasLayout = <T extends SizedItem>(
 
   const colX: number[] = new Array(columns).fill(0);
   const rowY: number[] = new Array(safeRows).fill(0);
+  colX[0] = safePadding;
+  rowY[0] = safePadding;
   for (let c = 1; c < columns; c++) {
     colX[c] = colX[c - 1] + colWidths[c - 1] + safePadding;
   }

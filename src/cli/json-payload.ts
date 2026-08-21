@@ -122,6 +122,10 @@ export function buildJsonPayload(
         pivot,
         ...(mode === "ship" ? { rotation } : {}),
         mode,
+        packingMode: layout.mode,
+        ...(layout.mode === "uniform" || layout.mode === "tight"
+          ? { rows: layout.rows }
+          : {}),
       },
       ...(mode !== "ship" ? { frames: raylibFrameNames } : {}),
       rects: raylibFramesList,
@@ -165,6 +169,10 @@ export function buildJsonPayload(
       pivot,
       ...(mode === "ship" ? { rotation } : {}),
       mode,
+      packingMode: layout.mode,
+      ...(layout.mode === "uniform" || layout.mode === "tight"
+        ? { rows: layout.rows }
+        : {}),
     },
     ...(groups ? { groups } : {}),
     ...(animation ? { animation } : {}),

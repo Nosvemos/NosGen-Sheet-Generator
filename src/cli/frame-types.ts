@@ -21,4 +21,5 @@ export type ImportedAtlas = {
   groups?: CliPointGroup[];
   animation?: CliAnimation;
   mode?: "normal" | "character" | "animation";
+  jsonMode?: "pretty" | "raylib";
 };

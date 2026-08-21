@@ -2,6 +2,8 @@ import type { TranslationKey } from "@/lib/i18n";
 import type {
   AppMode,
   AtlasImageFormat,
+  AtlasPackingMode,
+  ExportJsonMode,
   FrameData,
   PivotMode,
   PointGroup,
@@ -46,7 +48,9 @@ type AtlasImportResult = {
   pivotMode?: PivotMode;
   rows?: number;
   padding?: number;
+  packingMode?: AtlasPackingMode;
   appMode?: AppMode;
+  exportJsonMode?: ExportJsonMode;
   animation?: {
     name?: string;
     fps?: number;
@@ -214,6 +218,9 @@ const sliceAtlasFrames = async (
         img.onload = () => resolve();
         img.onerror = () => reject(new Error("Failed to slice atlas frame"));
         img.src = dataUrl;
+        if (img.complete) {
+          resolve();
+        }
       });
       return {
         id: createId(),
@@ -323,6 +330,21 @@ export const importAtlasFromFiles = async ({
   const padding = Number.isFinite(paddingRaw)
     ? Math.max(0, Math.round(paddingRaw))
     : undefined;
+  const rawPackingMode = meta.packingMode ?? meta.packing;
+  const packingMode: AtlasPackingMode | undefined =
+    rawPackingMode === "uniform" ||
+    rawPackingMode === "tight" ||
+    rawPackingMode === "shelf" ||
+    rawPackingMode === "maxrects"
+      ? (rawPackingMode as AtlasPackingMode)
+      : nextFrames.length > 1 &&
+          nextFrames.some(
+            (f) =>
+              f.width !== nextFrames[0].width ||
+              f.height !== nextFrames[0].height
+          )
+        ? "shelf"
+        : undefined;
   const exportSize = Number.isFinite(exportSizeRaw) ? exportSizeRaw : undefined;
   const exportFormat = getAtlasImageFormat(pngFile) ?? undefined;
   const appMode: AppMode | undefined =
@@ -375,6 +397,17 @@ export const importAtlasFromFiles = async ({
     animation.frameSelection = frameSelection;
   }
 
+  const rawJsonMode = meta.exportJsonMode ?? meta.jsonMode ?? meta.format;
+  const isRaylibSchema =
+    rawJsonMode === "raylib" ||
+    (Array.isArray(parsed.rects) && parsed.rects.length > 0) ||
+    Boolean(parsed.point_groups) ||
+    Boolean(parsed.animations) ||
+    (Array.isArray(parsed.frames) &&
+      parsed.frames.length > 0 &&
+      typeof parsed.frames[0] === "string");
+  const exportJsonMode: ExportJsonMode = isRaylibSchema ? "raylib" : "pretty";
+
   return {
     frames: nextFrames,
     pointGroups,
@@ -383,7 +416,9 @@ export const importAtlasFromFiles = async ({
     pivotMode: imported.pivotMode,
     rows,
     padding,
+    packingMode,
     exportSize,
+    exportJsonMode,
     appMode,
     animation: Object.keys(animation).length > 0 ? animation : undefined,
     projectName,

@@ -32,4 +32,14 @@ describe("cli args", () => {
     expect(config.export?.bundle).toBe(true);
     expect(config.export?.format).toBe("png");
   });
+
+  it("parses import atlas and data args into config", () => {
+    const args = parseArgs(["import", "-a", "atlas.png", "-d", "data.json"]);
+    const config = mergeArgsIntoConfig(args, {});
+
+    expect(config.import).toEqual({
+      atlas: "atlas.png",
+      data: "data.json",
+    });
+  });
 });

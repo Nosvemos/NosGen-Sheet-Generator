@@ -1,5 +1,7 @@
 const sharp = require("sharp");
+const fs = require("fs");
 async function main() {
+  fs.mkdirSync("test-frames", { recursive: true });
   await Promise.all([
     sharp({ create: { width: 64, height: 64, channels: 4, background: { r: 255, g: 0, b: 0, alpha: 1 } } }).png().toFile("test-frames/frame_01.png"),
     sharp({ create: { width: 48, height: 80, channels: 4, background: { r: 0, g: 255, b: 0, alpha: 1 } } }).png().toFile("test-frames/frame_02.png"),

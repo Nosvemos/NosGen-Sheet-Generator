@@ -247,6 +247,9 @@ export const editorReducer = (
   }
 };
 
+const trimHistory = <T>(array: T[], limit: number): T[] =>
+  limit === 0 ? [] : array.slice(-limit);
+
 export const editorHistoryReducer = (
   history: EditorHistory,
   action: EditorHistoryAction
@@ -260,7 +263,7 @@ export const editorHistoryReducer = (
     const previous = applyPatch(history.present, entry.inverse);
     const limit = resolveHistoryLimit(previous);
     return {
-      past: past.slice(-limit),
+      past: trimHistory(past, limit),
       present: previous,
       future: [entry, ...history.future].slice(0, limit),
     };
@@ -273,7 +276,7 @@ export const editorHistoryReducer = (
     const nextPresent = applyPatch(history.present, entry.patch);
     const limit = resolveHistoryLimit(nextPresent);
     return {
-      past: [...history.past, entry].slice(-limit),
+      past: trimHistory([...history.past, entry], limit),
       present: nextPresent,
       future: future.slice(0, limit),
     };
@@ -306,7 +309,7 @@ export const editorHistoryReducer = (
       timestamp: Date.now(),
     };
     return {
-      past: [...history.past, entry].slice(-limit),
+      past: trimHistory([...history.past, entry], limit),
       present: history.present,
       future: [],
     };
@@ -333,7 +336,7 @@ export const editorHistoryReducer = (
     "meta" in action && action.meta?.history === "ignore";
   if (ignoreHistory) {
     return {
-      past: history.past.slice(-limit),
+      past: trimHistory(history.past, limit),
       present: nextPresent,
       future: history.future.slice(0, limit),
     };
@@ -351,7 +354,7 @@ export const editorHistoryReducer = (
     timestamp: Date.now(),
   };
   return {
-    past: [...history.past, entry].slice(-limit),
+    past: trimHistory([...history.past, entry], limit),
     present: nextPresent,
     future: [],
   };

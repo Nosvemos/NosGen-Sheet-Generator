@@ -13,14 +13,6 @@ const getFileExtension = (name: string) => {
   return match?.[0] ?? "";
 };
 
-const loadImageFromUrl = (url: string, filename: string) =>
-  new Promise<HTMLImageElement>((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`Failed to load ${filename}`));
-    img.src = url;
-  });
-
 const canvasToBlob = (
   canvas: HTMLCanvasElement,
   type: string
@@ -63,11 +55,17 @@ export const encodeCanvasToAtlasBlob = async (
   return canvasToBlob(canvas, ATLAS_IMAGE_MIME_TYPES[format] ?? "image/png");
 };
 
-export const loadAtlasImageFromFile = async (file: File) => {
-  const url = URL.createObjectURL(file);
-  try {
-    return await loadImageFromUrl(url, file.name);
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+export const loadAtlasImageFromFile = (file: File): Promise<HTMLImageElement> => {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error(`Failed to load ${file.name}`));
+    };
+    img.src = url;
+  });
 };

@@ -49,6 +49,7 @@ export function useEditorPanels() {
     setPivotMode: setters.setPivotMode,
     setRows: setters.setRows,
     setPadding: setters.setPadding,
+    setAtlasPackingMode: setters.setAtlasPackingMode,
     setAppMode: setters.setAppMode,
     setAnimationName: setters.setAnimationName,
     setFps: setters.setFps,
@@ -57,6 +58,7 @@ export function useEditorPanels() {
     setProjectName: setters.setProjectName,
     setExportSize: setters.setExportSize,
     setExportFormat: setters.setExportFormat,
+    setExportJsonMode: setters.setExportJsonMode,
     setAnimationFrameSelection: setters.setAnimationFrameSelection,
   });
 

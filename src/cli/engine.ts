@@ -93,6 +93,7 @@ const loadInputFrames = async (
   importedGroups?: CliPointGroup[];
   importedAnimation?: CliAnimation;
   importedMode?: "normal" | "character" | "animation";
+  importedJsonMode?: "pretty" | "raylib";
 }> => {
   if (config.import) {
     const imported = await importAtlas(config.import.atlas, config.import.data);
@@ -105,6 +106,7 @@ const loadInputFrames = async (
       importedGroups: imported.groups,
       importedAnimation: imported.animation,
       importedMode: imported.mode,
+      importedJsonMode: imported.jsonMode,
     };
   }
 
@@ -124,6 +126,7 @@ const applyImportedDefaults = (
   loaded: {
     importedAnimation?: CliAnimation;
     importedMode?: "normal" | "character" | "animation";
+    importedJsonMode?: "pretty" | "raylib";
   }
 ) => {
   if (loaded.importedMode && !config.mode) {
@@ -135,6 +138,11 @@ const applyImportedDefaults = (
     (!config.animation || Object.keys(config.animation).length === 0)
   ) {
     config.animation = loaded.importedAnimation;
+  }
+
+  if (loaded.importedJsonMode && (!config.export || !config.export.jsonMode)) {
+    if (!config.export) config.export = {};
+    config.export.jsonMode = loaded.importedJsonMode;
   }
 };
 

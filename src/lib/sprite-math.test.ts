@@ -45,4 +45,14 @@ describe("sprite-math", () => {
     expect(mid.x).toBeCloseTo(5);
     expect(mid.y).toBeCloseTo(10);
   });
+
+  it("handles unsorted keyframes in interpolateTangent", () => {
+    const keyframes = [
+      { frameIndex: 2, x: 10, y: 20 },
+      { frameIndex: 0, x: 0, y: 0 },
+    ];
+    const mid = interpolateLinear(keyframes, 1, 4);
+    expect(mid.x).toBeCloseTo(5);
+    expect(mid.y).toBeCloseTo(10);
+  });
 });

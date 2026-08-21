@@ -154,10 +154,24 @@ export const importPointsJsonToFrames = (
       ? (payload.points as Record<string, unknown>)
       : null;
 
+  const RESERVED_SCHEMA_KEYS = new Set([
+    "meta",
+    "frames",
+    "rects",
+    "points",
+    "point_groups",
+    "groups",
+    "animations",
+    "animation",
+    "scale",
+    "version",
+    "app",
+  ]);
+
   const entries = pointsObj
     ? Object.entries(pointsObj).filter(([, val]) => Array.isArray(val))
     : Object.entries(payload).filter(
-        ([key, value]) => key !== "meta" && Array.isArray(value)
+        ([key, value]) => !RESERVED_SCHEMA_KEYS.has(key) && Array.isArray(value)
       );
 
   if (entries.length === 0) {

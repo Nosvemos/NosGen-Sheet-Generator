@@ -134,6 +134,7 @@ export function AtlasImportCard({
             </div>
           </div>
           <Button
+            type="button"
             variant="outline"
             size="sm"
             className="w-full"

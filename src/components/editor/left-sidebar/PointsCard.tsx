@@ -65,7 +65,7 @@ export function PointsCard({
         </div>
       </div>
       {isPointsOpen && (
-        <ScrollArea className="h-30 rounded-xl border border-border/50 bg-background/80">
+        <ScrollArea className="h-32 rounded-xl border border-border/50 bg-background/80">
           <div className="space-y-2 p-3">
             {currentPoints.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border/70 p-4 text-center text-xs text-muted-foreground">

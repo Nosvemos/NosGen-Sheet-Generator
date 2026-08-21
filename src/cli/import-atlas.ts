@@ -332,5 +332,16 @@ export async function importAtlas(
       ? (meta.mode as "character" | "animation" | "normal")
       : undefined;
 
-  return { frames, groups, animation, mode: originalMode };
+  const rawJsonMode = meta.exportJsonMode ?? meta.jsonMode ?? meta.format;
+  const isRaylibSchema =
+    rawJsonMode === "raylib" ||
+    (Array.isArray(parsed.rects) && parsed.rects.length > 0) ||
+    Boolean(parsed.point_groups) ||
+    Boolean(parsed.animations) ||
+    (Array.isArray(parsed.frames) &&
+      parsed.frames.length > 0 &&
+      typeof parsed.frames[0] === "string");
+  const jsonMode: "pretty" | "raylib" = isRaylibSchema ? "raylib" : "pretty";
+
+  return { frames, groups, animation, mode: originalMode, jsonMode };
 }

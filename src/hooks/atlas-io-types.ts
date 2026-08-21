@@ -3,6 +3,8 @@ import type { TranslationKey } from "@/lib/i18n";
 import type {
   AppMode,
   AtlasImageFormat,
+  AtlasPackingMode,
+  ExportJsonMode,
   FrameData,
   PivotMode,
   PointGroup,
@@ -31,6 +33,7 @@ export type UseAtlasIOParams = {
   setPivotMode: Dispatch<SetStateAction<PivotMode>>;
   setRows: Dispatch<SetStateAction<number>>;
   setPadding: Dispatch<SetStateAction<number>>;
+  setAtlasPackingMode?: Dispatch<SetStateAction<AtlasPackingMode>>;
   setAppMode: Dispatch<SetStateAction<AppMode>>;
   setAnimationName: Dispatch<SetStateAction<string>>;
   setFps: Dispatch<SetStateAction<number>>;
@@ -39,6 +42,7 @@ export type UseAtlasIOParams = {
   setProjectName: Dispatch<SetStateAction<string>>;
   setExportSize: Dispatch<SetStateAction<number>>;
   setExportFormat: Dispatch<SetStateAction<AtlasImageFormat>>;
+  setExportJsonMode?: Dispatch<SetStateAction<ExportJsonMode>>;
   setAnimationFrameSelection: Dispatch<SetStateAction<Record<string, boolean>>>;
 };
 

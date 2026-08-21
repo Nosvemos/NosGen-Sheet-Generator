@@ -184,11 +184,16 @@ export function mergeArgsIntoConfig(
           ? args.framesZip
           : config.export?.framesZip ?? false,
       pivot: args.pivot || config.export?.pivot || "top-left",
-      jsonMode: args.jsonMode || config.export?.jsonMode || "pretty",
+      jsonMode: args.jsonMode || config.export?.jsonMode,
     },
     rotation: args.rotation || args.spriteDirection || config.rotation || config.spriteDirection || "clockwise",
     spriteDirection: args.rotation || args.spriteDirection || config.rotation || config.spriteDirection || "clockwise",
+    import:
+      args.atlas && args.data
+        ? { atlas: args.atlas, data: args.data }
+        : config.import,
     pointGroups: config.pointGroups,
+    points: config.points,
     animation: config.animation,
   };
 }

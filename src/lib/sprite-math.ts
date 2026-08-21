@@ -254,9 +254,13 @@ const computeSquareParam = (
   const absX = Math.abs(nx);
   const absY = Math.abs(ny);
   if (absX >= absY) {
-    return nx >= 0 ? ny / (2 * size) : 0.5 + ny / (2 * size);
+    return nx >= 0
+      ? 0.125 + ny / (8 * size)
+      : 0.625 - ny / (8 * size);
   }
-  return ny >= 0 ? 0.25 + nx / (2 * size) : 0.75 + nx / (2 * size);
+  return ny >= 0
+    ? 0.375 - nx / (8 * size)
+    : 0.875 + nx / (8 * size);
 };
 
 export const computeSquareFit = (
@@ -286,9 +290,16 @@ export const computeSquareFit = (
   const offsets = normalizedParams.map(
     (param, index) => param - keyframes[index].frameIndex / totalFrames
   );
-  const averageOffset =
-    offsets.reduce((sum, value) => sum + value, 0) / offsets.length;
-  const phase = normalizeCycle(averageOffset);
+  const sinSum = offsets.reduce(
+    (sum, val) => sum + Math.sin(val * Math.PI * 2),
+    0
+  );
+  const cosSum = offsets.reduce(
+    (sum, val) => sum + Math.cos(val * Math.PI * 2),
+    0
+  );
+  const averageAngle = Math.atan2(sinSum, cosSum);
+  const phase = normalizeCycle(averageAngle / (Math.PI * 2));
   return { cx, cy, size, phase };
 };
 
@@ -342,7 +353,7 @@ const resolveCyclicSegment = (
     end.frameIndex <= startFrame ? end.frameIndex + totalFrames : end.frameIndex;
   const position = frame < startFrame ? frame + totalFrames : frame;
   const t = (position - startFrame) / (endFrame - startFrame || 1);
-  return { start, end, t, startIndex, endIndex: endIndex % sorted.length };
+  return { start, end, t, startIndex, endIndex: endIndex % sorted.length, sorted };
 };
 
 export const interpolateLinear = (
@@ -370,12 +381,17 @@ const catmullRom = (
   p2: number,
   p3: number,
   t: number
-) =>
-  0.5 *
-  (2 * p1 +
-    (-p0 + p2) * t +
-    (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t +
-    (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
+) => {
+  const t2 = t * t;
+  const t3 = t2 * t;
+  return (
+    0.5 *
+    (2 * p1 +
+      (-p0 + p2) * t +
+      (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+      (-p0 + 3 * p1 - 3 * p2 + p3) * t3)
+  );
+};
 
 export const interpolateTangent = (
   points: MathKeyframe[],
@@ -389,10 +405,10 @@ export const interpolateTangent = (
   if (!segment) {
     return { x: points[0].x, y: points[0].y };
   }
-  const { start, end, t, startIndex, endIndex } = segment;
-  const count = points.length;
-  const p0 = points[(startIndex - 1 + count) % count] ?? start;
-  const p3 = points[(endIndex + 1) % count] ?? end;
+  const { start, end, t, startIndex, endIndex, sorted } = segment;
+  const count = sorted.length;
+  const p0 = sorted[(startIndex - 1 + count) % count] ?? start;
+  const p3 = sorted[(endIndex + 1) % count] ?? end;
   return {
     x: catmullRom(p0.x, start.x, end.x, p3.x, t),
     y: catmullRom(p0.y, start.y, end.y, p3.y, t),
